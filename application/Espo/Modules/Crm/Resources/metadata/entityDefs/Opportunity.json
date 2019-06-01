@@ -18,16 +18,108 @@
             "type": "float",
             "readOnly": true,
             "notStorable": true,
-            "select": "opportunity.amount * amount_currency_alias.rate * opportunity.probability / 100",
-            "where": {
-                "=": "(opportunity.amount * amount_currency_alias.rate * opportunity.probability / 100) = {value}",
-                "<": "(opportunity.amount * amount_currency_alias.rate * opportunity.probability / 100) < {value}",
-                ">": "(opportunity.amount * amount_currency_alias.rate * opportunity.probability / 100) > {value}",
-                "<=": "(opportunity.amount * amount_currency_alias.rate * opportunity.probability / 100) <= {value}",
-                ">=": "(opportunity.amount * amount_currency_alias.rate * opportunity.probability / 100) >= {value}",
-                "<>": "(opportunity.amount * amount_currency_alias.rate * opportunity.probability / 100) <> {value}"
+            "select": {
+                "sql": "opportunity.amount * amountCurrencyRate.rate * opportunity.probability / 100",
+                "leftJoins": [
+                    [
+                        "Currency",
+                        "amountCurrencyRate",
+                        {"amountCurrencyRate.id:": "amountCurrency"}
+                    ]
+                ]
             },
-            "orderBy": "amountWeightedConverted {direction}",
+            "where": {
+                "=": {
+                    "sql": "(opportunity.amount * amountCurrencyRate.rate * opportunity.probability / 100) = {value}",
+                    "leftJoins": [
+                        [
+                            "Currency",
+                            "amountCurrencyRate",
+                            {"amountCurrencyRate.id:": "amountCurrency"}
+                        ]
+                    ]
+                },
+                "<": {
+                    "sql": "(opportunity.amount * amountCurrencyRate.rate * opportunity.probability / 100) < {value}",
+                    "leftJoins": [
+                        [
+                            "Currency",
+                            "amountCurrencyRate",
+                            {"amountCurrencyRate.id:": "amountCurrency"}
+                        ]
+                    ]
+                },
+                ">": {
+                    "sql": "(opportunity.amount * amountCurrencyRate.rate * opportunity.probability / 100) > {value}",
+                    "leftJoins": [
+                        [
+                            "Currency",
+                            "amountCurrencyRate",
+                            {"amountCurrencyRate.id:": "amountCurrency"}
+                        ]
+                    ]
+                },
+                "<=": {
+                    "sql": "(opportunity.amount * amountCurrencyRate.rate * opportunity.probability / 100) <= {value}",
+                    "leftJoins": [
+                        [
+                            "Currency",
+                            "amountCurrencyRate",
+                            {"amountCurrencyRate.id:": "amountCurrency"}
+                        ]
+                    ]
+                },
+                ">=": {
+                    "sql": "(opportunity.amount * amountCurrencyRate.rate * opportunity.probability / 100) >= {value}",
+                    "leftJoins": [
+                        [
+                            "Currency",
+                            "amountCurrencyRate",
+                            {"amountCurrencyRate.id:": "amountCurrency"}
+                        ]
+                    ]
+                },
+                "<>": {
+                    "sql": "(opportunity.amount * amountCurrencyRate.rate * opportunity.probability / 100) <> {value}",
+                    "leftJoins": [
+                        [
+                            "Currency",
+                            "amountCurrencyRate",
+                            {"amountCurrencyRate.id:": "amountCurrency"}
+                        ]
+                    ]
+                },
+                "IS NULL": {
+                    "sql": "opportunity.amount IS NULL",
+                    "leftJoins": [
+                        [
+                            "Currency",
+                            "amountCurrencyRate",
+                            {"amountCurrencyRate.id:": "amountCurrency"}
+                        ]
+                    ]
+                },
+                "IS NOT NULL": {
+                    "sql": "opportunity.amount IS NOT NULL",
+                    "leftJoins": [
+                        [
+                            "Currency",
+                            "amountCurrencyRate",
+                            {"amountCurrencyRate.id:": "amountCurrency"}
+                        ]
+                    ]
+                }
+            },
+            "orderBy": {
+                "sql": "amountWeightedConverted {direction}",
+                "leftJoins": [
+                    [
+                        "Currency",
+                        "amountCurrencyRate",
+                        {"amountCurrencyRate.id:": "amountCurrency"}
+                    ]
+                ]
+            },
             "view": "views/fields/currency-converted"
         },
         "account": {
@@ -38,14 +130,40 @@
             "view": "crm:views/opportunity/fields/contacts",
             "columns": {
                 "role": "opportunityRole"
-            }
+            },
+            "additionalAttributeList": ["columns"],
+            "orderBy": "name"
         },
         "stage": {
             "type": "enum",
-            "options": ["Prospecting", "Qualification", "Needs Analysis", "Value Proposition", "Id. Decision Makers", "Perception Analysis", "Proposal/Price Quote", "Negotiation/Review", "Closed Won", "Closed Lost"],
+            "options": ["Prospecting", "Qualification", "Proposal", "Negotiation", "Closed Won", "Closed Lost"],
             "view": "crm:views/opportunity/fields/stage",
             "default": "Prospecting",
-            "audited": true
+            "audited": true,
+            "probabilityMap": {
+                "Prospecting": 10,
+                "Qualification": 20,
+                "Proposal": 50,
+                "Negotiation": 80,
+                "Closed Won": 100,
+                "Closed Lost": 0
+            },
+            "style": {
+                "Closed Won": "success",
+                "Closed Lost": "danger"
+            },
+            "fieldManagerAdditionalParamList": [
+                {
+                    "name": "probabilityMap",
+                    "view": "crm:views/opportunity/admin/field-manager/fields/probability-map"
+                }
+            ]
+        },
+        "lastStage": {
+            "type": "enum",
+            "view": "crm:views/opportunity/fields/last-stage",
+            "customizationOptionsDisabled": true,
+            "customizationDefaultDisabled": true
         },
         "probability": {
             "type": "int",
@@ -57,6 +175,7 @@
             "type": "enum",
             "view": "crm:views/opportunity/fields/lead-source",
             "customizationOptionsDisabled": true,
+            "translation": "Lead.options.source",
             "default": ""
         },
         "closeDate": {
@@ -76,6 +195,45 @@
             "layoutListDisabled": true,
             "readOnly": true,
             "view": "views/fields/link-one"
+        },
+        "contactRole": {
+            "type": "enum",
+            "notStorable": true,
+            "layoutMassUpdateDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutAvailabilityList": ["listForContact"],
+            "customizationDefaultDisabled": true,
+            "customizationRequiredDisabled": true,
+            "customizationIsSortedDisabled": true,
+            "customizationAuditedDisabled": true,
+            "customizationReadOnlyDisabled": true,
+            "where": {
+                "=": {
+                    "leftJoins": ["contacts"],
+                    "sql": "contactsMiddle.role = {value}",
+                    "distinct": true
+                },
+                "<>": "opportunity.id NOT IN (SELECT opportunity_id FROM contact_opportunity WHERE deleted = 0 AND role = {value})",
+                "IN": {
+                    "leftJoins": ["contacts"],
+                    "sql": "contactsMiddle.role IN {value}",
+                    "distinct": true
+                },
+                "NOT IN": "opportunity.id NOT IN (SELECT opportunity_id FROM contact_opportunity WHERE deleted = 0 AND role IN {value})",
+                "LIKE": {
+                    "leftJoins": ["contacts"],
+                    "sql": "contactsMiddle.role LIKE {value}",
+                    "distinct": true
+                },
+                "IS NULL": {
+                    "leftJoins": ["contacts"],
+                    "sql": "contactsMiddle.role IS NULL",
+                    "distinct": true
+                },
+                "IS NOT NULL": "opportunity.id NOT IN (SELECT opportunity_id FROM contact_opportunity WHERE deleted = 0 AND role IS NULL)"
+            },
+            "view": "crm:views/opportunity/fields/contact-role",
+            "customizationOptionsDisabled": true
         },
         "createdAt": {
             "type": "datetime",
@@ -144,19 +302,22 @@
             "type": "hasChildren",
             "entity": "Meeting",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "calls": {
             "type": "hasChildren",
             "entity": "Call",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "tasks": {
             "type": "hasChildren",
             "entity": "Task",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "emails": {
             "type": "hasChildren",
@@ -167,7 +328,8 @@
         "documents": {
             "type": "hasMany",
             "entity": "Document",
-            "foreign": "opportunities"
+            "foreign": "opportunities",
+            "audited": true
         },
         "campaign": {
             "type": "belongsTo",
@@ -182,24 +344,15 @@
         }
     },
     "collection": {
-        "sortBy": "createdAt",
-        "asc": false
-    },
-    "probabilityMap": {
-        "Prospecting": 10,
-        "Qualification": 10,
-        "Needs Analysis": 20,
-        "Value Proposition": 50,
-        "Id. Decision Makers": 60,
-        "Perception Analysis": 70,
-        "Proposal/Price Quote": 75,
-        "Negotiation/Review": 90,
-        "Closed Won": 100,
-        "Closed Lost": 0
+        "orderBy": "createdAt",
+        "order": "desc"
     },
     "indexes": {
         "stage": {
             "columns": ["stage", "deleted"]
+        },
+        "lastStage": {
+            "columns": ["lastStage"]
         },
         "assignedUser": {
             "columns": ["assignedUserId", "deleted"]

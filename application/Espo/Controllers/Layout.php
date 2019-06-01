@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,10 @@ class Layout extends \Espo\Core\Controllers\Base
 
     public function actionUpdate($params, $data, $request)
     {
+        if (is_object($data)) {
+            $data = get_object_vars($data);
+        }
+
         if (!$this->getUser()->isAdmin()) {
             throw new Forbidden();
         }
@@ -74,15 +78,18 @@ class Layout extends \Espo\Core\Controllers\Base
         return $this->actionUpdate($params, $data, $request);
     }
 
-    public function actionResetToDefault($params, $data, $request)
+    public function postActionResetToDefault($params, $data, $request)
     {
-        if (!$request->isPost()) {
-            throw new BadRequest();
+        if (!$this->getUser()->isAdmin()) {
+            throw new Forbidden();
         }
-        if (empty($data['scope']) || empty($data['name'])) {
+
+        if (empty($data->scope) || empty($data->name)) {
             throw new BadRequest();
         }
 
-        return $this->getContainer()->get('layout')->resetToDefault($data['scope'], $data['name']);
+        $this->getContainer()->get('dataManager')->updateCacheTimestamp();
+
+        return $this->getContainer()->get('layout')->resetToDefault($data->scope, $data->name);
     }
 }

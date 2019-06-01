@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,12 +37,23 @@ Espo.define('views/export/record/record', 'views/record/base', function (Dep) {
 
             this.scope = this.options.scope;
 
-            var fieldList = this.getFieldManager().getScopeFieldList(this.scope);
+            var fieldList = this.getFieldManager().getEntityTypeFieldList(this.scope);
 
             var forbiddenFieldList = this.getAcl().getScopeForbiddenFieldList(this.scope);
 
             fieldList = fieldList.filter(function (item) {
                 return !~forbiddenFieldList.indexOf(item);
+            }, this);
+
+
+            fieldList = fieldList.filter(function (item) {
+                var defs = this.getMetadata().get(['entityDefs', this.scope, 'fields', item]) || {};
+                if (defs.disabled) return;
+                if (defs.exportDisabled) return;
+                if (defs.type === 'map') return;
+                if (defs.type === 'attachmentMultiple') return;
+
+                return true;
             }, this);
 
             this.getLanguage().sortFieldList(this.scope, fieldList);
@@ -54,8 +65,23 @@ Espo.define('views/export/record/record', 'views/record/base', function (Dep) {
                 translatedOptions[item] = this.getLanguage().translate(item, 'fields', this.scope);
             }, this);
 
-            this.createField('useCustomFieldList', 'views/fields/bool', {
+            this.createField('exportAllFields', 'views/fields/bool', {
             });
+
+            var setFieldList = this.model.get('fieldList') || [];
+            setFieldList.forEach(function (item) {
+                if (~fieldList.indexOf(item)) return;
+                if (!~item.indexOf('_')) return;
+
+                var arr = item.split('_');
+
+                fieldList.push(item);
+
+                var foreignScope = this.getMetadata().get(['entityDefs', this.scope, 'links', arr[0], 'entity']);
+                if (!foreignScope) return;
+                translatedOptions[item] = this.getLanguage().translate(arr[0], 'links', this.scope) + '.' + this.getLanguage().translate(arr[1], 'fields', foreignScope);
+            }, this);
+
 
             this.createField('fieldList', 'views/fields/multi-enum', {
                 required: true,
@@ -63,14 +89,22 @@ Espo.define('views/export/record/record', 'views/record/base', function (Dep) {
                 options: fieldList
             });
 
-            this.controlVisibility();
-            this.listenTo(this.model, 'change:useCustomFieldList', function () {
-                this.controlVisibility();
+            var formatList =
+                this.getMetadata().get(['scopes', this.scope, 'exportFormatList']) ||
+                this.getMetadata().get('app.export.formatList');
+
+            this.createField('format', 'views/fields/enum', {
+                options: formatList
+            });
+
+            this.controlAllFields();
+            this.listenTo(this.model, 'change:exportAllFields', function () {
+                this.controlAllFields();
             }, this);
         },
 
-        controlVisibility: function () {
-            if (this.model.get('useCustomFieldList')) {
+        controlAllFields: function () {
+            if (!this.model.get('exportAllFields')) {
                 this.showField('fieldList');
             } else {
                 this.hideField('fieldList');
@@ -78,6 +112,4 @@ Espo.define('views/export/record/record', 'views/record/base', function (Dep) {
         }
 
     });
-
 });
-

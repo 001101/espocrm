@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,8 @@ Espo.define('crm:views/record/row-actions/activities', 'views/record/row-actions
                 label: 'View',
                 data: {
                     id: this.model.id
-                }
+                },
+                link: '#' + this.model.name + '/view/' + this.model.id
             }];
             if (this.options.acl.edit) {
                 list.push({
@@ -44,7 +45,8 @@ Espo.define('crm:views/record/row-actions/activities', 'views/record/row-actions
                     label: 'Edit',
                     data: {
                         id: this.model.id
-                    }
+                    },
+                    link: '#' + this.model.name + '/edit/' + this.model.id
                 });
                 if (this.model.name == 'Meeting' || this.model.name == 'Call') {
                     list.push({
@@ -62,6 +64,8 @@ Espo.define('crm:views/record/row-actions/activities', 'views/record/row-actions
                         }
                     });
                 }
+            }
+            if (this.options.acl.delete) {
                 list.push({
                     action: 'removeRelated',
                     label: 'Remove',
@@ -69,7 +73,6 @@ Espo.define('crm:views/record/row-actions/activities', 'views/record/row-actions
                         id: this.model.id
                     }
                 });
-
             }
             return list;
         }

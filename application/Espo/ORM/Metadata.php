@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,11 +38,22 @@ class Metadata
         $this->data = $data;
     }
 
-    public function get($entityName)
+    public function get($entityType, $key = null, $default = null)
     {
-        return $this->data[$entityName];
+        if (!array_key_exists($entityType, $this->data)) {
+            return null;
+        }
+        $data = $this->data[$entityType];
+        if (!$key) return $data;
+
+        return \Espo\Core\Utils\Util::getValueByKey($data, $key, $default);
     }
 
+    public function has($entityType)
+    {
+        if (!array_key_exists($entityType, $this->data)) {
+            return null;
+        }
+        return true;
+    }
 }
-
-

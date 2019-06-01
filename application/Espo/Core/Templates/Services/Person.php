@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,23 +29,27 @@
 
 namespace Espo\Core\Templates\Services;
 
+use \Espo\ORM\Entity;
 
 class Person extends \Espo\Services\Record
 {
-    protected function getDuplicateWhereClause(Entity $entity, $data = array())
+    protected function getDuplicateWhereClause(Entity $entity, $data)
     {
-        $data = array(
-            'OR' => array(
-                array(
-                    'firstName' => $entity->get('firstName'),
-                    'lastName' => $entity->get('lastName'),
-                )
-            )
-        );
+        $whereClause = [
+            'OR' => []
+        ];
+        $toCheck = false;
+        if ($entity->get('firstName') || $entity->get('lastName')) {
+            $part = [];
+            $part['firstName'] = $entity->get('firstName');
+            $part['lastName'] = $entity->get('lastName');
+            $whereClause['OR'][] = $part;
+            $toCheck = true;
+        }
         if (
             ($entity->get('emailAddress') || $entity->get('emailAddressData'))
             &&
-            ($entity->isNew() || $entity->isFieldChanged('emailAddress') || $entity->isFieldChanged('emailAddressData'))
+            ($entity->isNew() || $entity->isAttributeChanged('emailAddress') || $entity->isAttributeChanged('emailAddressData'))
         ) {
             if ($entity->get('emailAddress')) {
                 $list = [$entity->get('emailAddress')];
@@ -58,13 +62,17 @@ class Person extends \Espo\Services\Record
                 }
             }
             foreach ($list as $emailAddress) {
-                $data['OR'][] = array(
+                $whereClause['OR'][] = [
                     'emailAddress' => $emailAddress
-                );
+                ];
+                $toCheck = true;
             }
         }
+        if (!$toCheck) {
+            return false;
+        }
 
-        return $data;
+        return $whereClause;
     }
 }
 

@@ -5,13 +5,16 @@
     "isNotRead",
     "isImportant",
     "isNotReplied",
-    "name",
     "status",
     "parent",
     "teams",
     "sentBy",
     "users",
     "createdAt",
+    "hasAttachment",
+    "name",
+    "body",
+    "bodyPlain",
     "inboundEmails",
     "emailAccounts"
 ]

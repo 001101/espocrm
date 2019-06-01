@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ use \Espo\Entities\Portal;
 
 use \Espo\Core\Utils\Config;
 use \Espo\Core\Utils\Metadata;
-use \Espo\Core\Utils\FieldManager;
+use \Espo\Core\Utils\FieldManagerUtil;
 use \Espo\Core\Utils\File\Manager as FileManager;
 
 class Table extends \Espo\Core\Acl\Table
@@ -50,9 +50,9 @@ class Table extends \Espo\Core\Acl\Table
 
     protected $levelList = ['yes', 'all', 'account', 'contact', 'own', 'no'];
 
-    protected $valuePermissionList = [];
+    protected $isStrictModeForced = true;
 
-    public function __construct(User $user, Portal $portal, Config $config = null, FileManager $fileManager = null, Metadata $metadata = null, FieldManager $fieldManager = null)
+    public function __construct(User $user, Portal $portal, Config $config = null, FileManager $fileManager = null, Metadata $metadata = null, FieldManagerUtil $fieldManager = null)
     {
         if (empty($portal)) {
             throw new Error("No portal was passed to AclPortal\\Table constructor.");

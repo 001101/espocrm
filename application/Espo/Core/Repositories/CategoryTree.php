@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ class CategoryTree extends \Espo\Core\ORM\Repositories\RDB
 		$query = $this->getEntityManager()->getQuery();
 
 		$parentId = $entity->get('parentId');
-		$pathsTableName = $query->toDb($entity->getEntityType() . 'Path');
+		$pathsTableName = $query->toDb($query->sanitize($entity->getEntityType()) . 'Path');
 
 		if ($entity->isNew()) {
 			if ($parentId) {
@@ -62,7 +62,7 @@ class CategoryTree extends \Espo\Core\ORM\Repositories\RDB
 			}
 			$pdo->query($sql);
 		} else {
-			if ($entity->isFieldChanged('parentId')) {
+			if ($entity->isAttributeChanged('parentId')) {
 				$sql = "
 					DELETE a FROM `".$pathsTableName."` AS a
 					JOIN `".$pathsTableName."` AS d ON a.descendor_id = d.descendor_id
@@ -93,7 +93,7 @@ class CategoryTree extends \Espo\Core\ORM\Repositories\RDB
 		$pdo = $this->getEntityManager()->getPDO();
 		$query = $this->getEntityManager()->getQuery();
 
-		$pathsTableName = $query->toDb($entity->getEntityType() . 'Path');
+		$pathsTableName = $query->toDb($query->sanitize($entity->getEntityType()) . 'Path');
 
 		$sql = "DELETE FROM `".$pathsTableName."` WHERE descendor_id = ".$pdo->quote($entity->id)."";
 		$pdo->query($sql);

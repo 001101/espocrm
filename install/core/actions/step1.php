@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,23 +28,23 @@
  ************************************************************************/ 
 
 $fields = array(
-	'license-agree' => array(
-		'default' => '0',
-	),
+    'license-agree' => array(
+        'default' => '0',
+    ),
 );
 
 foreach ($fields as $fieldName => $field) {
-	if (isset($_SESSION['install'][$fieldName])) {
-		$fields[$fieldName]['value'] = $_SESSION['install'][$fieldName];
-	}
-	else {
-		$fields[$fieldName]['value'] = (isset($fields[$fieldName]['default']))? $fields[$fieldName]['default'] : '';
-	}
+    if (isset($_SESSION['install'][$fieldName])) {
+        $fields[$fieldName]['value'] = $_SESSION['install'][$fieldName];
+    }
+    else {
+        $fields[$fieldName]['value'] = (isset($fields[$fieldName]['default']))? $fields[$fieldName]['default'] : '';
+    }
 }
 
 $smarty->assign('fields', $fields);
 
 if (file_exists("LICENSE.txt")) {
-	$license = file_get_contents('LICENSE.txt');
-	$smarty->assign('license', $license);
+    $license = file_get_contents('LICENSE.txt');
+    $smarty->assign('license', $license);
 }

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/main', 'view', function (Dep) {
+define('views/main', 'view', function (Dep) {
 
     return Dep.extend({
 
@@ -38,22 +38,15 @@ Espo.define('views/main', 'view', function (Dep) {
 
         events: {
             'click .action': function (e) {
-                var $target = $(e.currentTarget);
-                var action = $target.data('action');
-                var data = $target.data();
-                if (action) {
-                    var method = 'action' + Espo.Utils.upperCaseFirst(action);
-                    if (typeof this[method] == 'function') {
-                        e.preventDefault();
-                        this[method].call(this, data, e);
-                    }
-                }
+                Espo.Utils.handleAction(this, e);
             },
         },
 
         init: function () {
             this.scope = this.options.scope || this.scope;
             this.menu = {};
+
+            this.options.params = this.options.params || {};
 
             if (this.name && this.scope) {
                 this.menu = this.getMetadata().get('clientDefs.' + this.scope + '.menu.' + this.name.charAt(0).toLowerCase() + this.name.slice(1)) || {};
@@ -64,9 +57,17 @@ Espo.define('views/main', 'view', function (Dep) {
             ['buttons', 'actions', 'dropdown'].forEach(function (type) {
                 this.menu[type] = this.menu[type] || [];
             }, this);
+
+            this.updateLastUrl();
+        },
+
+        updateLastUrl: function () {
+            this.lastUrl = this.getRouter().getCurrentUrl();
         },
 
         getMenu: function () {
+            if (this.menuDisabled) return {};
+
             var menu = {};
 
             if (this.menu) {
@@ -76,7 +77,8 @@ Espo.define('views/main', 'view', function (Dep) {
                         if (Espo.Utils.checkActionAccess(this.getAcl(), this.model || this.scope, item)) {
                             menu[type].push(item);
                         }
-                        item.name = item.action || item.name;
+                        item.name = item.name || item.action;
+                        item.action = item.action || this.name;
                     }, this);
                 }, this);
             }
@@ -92,7 +94,11 @@ Espo.define('views/main', 'view', function (Dep) {
                 a.push('<div class="pull-left">' + item + '</div>');
             }, this);
 
-            return '<div class="clearfix">' + a.join('<div class="pull-left breadcrumb-separator"> &raquo </div>') + '</div>';
+            return '<div class="clearfix header-breadcrumbs">' + a.join('<div class="pull-left breadcrumb-separator"> &raquo </div>') + '</div>';
+        },
+
+        getHeaderIconHtml: function () {
+            return this.getHelper().getScopeColorIconHtml(this.scope);
         },
 
         actionShowModal: function (data) {
@@ -117,18 +123,23 @@ Espo.define('views/main', 'view', function (Dep) {
         },
 
         addMenuItem: function (type, item, toBeginnig, doNotReRender) {
-            item.name = item.name || item.action;
-            var name = item.name;
+            if (item) {
+                item.name = item.name || item.action;
+                var name = item.name;
 
-            var index = -1;
-            this.menu[type].forEach(function (data, i) {
-                if (data.name === name) {
-                    index = i;
-                    return;
+                if (name) {
+                    var index = -1;
+                    this.menu[type].forEach(function (data, i) {
+                        data = data || {};
+                        if (data.name === name) {
+                            index = i;
+                            return;
+                        }
+                    }, this);
+                    if (~index) {
+                        this.menu[type].splice(index, 1);
+                    }
                 }
-            }, this);
-            if (~index) {
-                this.menu[type].splice(index, 1);
             }
 
             var method = 'push';
@@ -148,6 +159,7 @@ Espo.define('views/main', 'view', function (Dep) {
 
             ['actions', 'dropdown', 'buttons'].forEach(function (t) {
                 this.menu[t].forEach(function (item, i) {
+                    item = item || {};
                     if (item.name == name) {
                         index = i;
                         type = t;
@@ -164,6 +176,14 @@ Espo.define('views/main', 'view', function (Dep) {
             }
         },
 
+        disableMenuItem: function (name) {
+            this.$el.find('.header .header-buttons [data-name="'+name+'"]').addClass('disabled').attr('disabled');
+        },
+
+        enableMenuItem: function (name) {
+            this.$el.find('.header .header-buttons [data-name="'+name+'"]').removeClass('disabled').removeAttr('disabled');
+        },
+
         actionNavigateToRoot: function (data, e) {
             e.stopPropagation();
 
@@ -171,38 +191,39 @@ Espo.define('views/main', 'view', function (Dep) {
                 var options = {
                     isReturn: true
                 };
+                var rootUrl = this.options.rootUrl || this.options.params.rootUrl || '#' + this.scope;
+                this.getRouter().navigate(rootUrl, {trigger: false});
                 this.getRouter().dispatch(this.scope, null, options);
-                this.getRouter().navigate('#' + this.scope, {trigger: false});
             }, this);
         },
 
         hideHeaderActionItem: function (name) {
             ['actions', 'dropdown', 'buttons'].forEach(function (t) {
                 this.menu[t].forEach(function (item, i) {
+                    item = item || {};
                     if (item.name == name) {
                         item.hidden = true;
                     }
                 }, this);
             }, this);
             if (!this.isRendered()) return;
-            this.$el.find('.page-header li > .action[data-action="'+name+'"]').parent().addClass('hidden');
-            this.$el.find('.page-header a.action[data-action="'+name+'"]').addClass('hidden');
+            this.$el.find('.page-header li > .action[data-name="'+name+'"]').parent().addClass('hidden');
+            this.$el.find('.page-header a.action[data-name="'+name+'"]').addClass('hidden');
         },
 
         showHeaderActionItem: function (name) {
             ['actions', 'dropdown', 'buttons'].forEach(function (t) {
                 this.menu[t].forEach(function (item, i) {
+                    item = item || {};
                     if (item.name == name) {
                         item.hidden = false;
                     }
                 }, this);
             }, this);
             if (!this.isRendered()) return;
-            this.$el.find('.page-header li > .action[data-action="'+name+'"]').parent().removeClass('hidden');
-            this.$el.find('.page-header a.action[data-action="'+name+'"]').removeClass('hidden');
+            this.$el.find('.page-header li > .action[data-name="'+name+'"]').parent().removeClass('hidden');
+            this.$el.find('.page-header a.action[data-name="'+name+'"]').removeClass('hidden');
         }
 
     });
 });
-
-

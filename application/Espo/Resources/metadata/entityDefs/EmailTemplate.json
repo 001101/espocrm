@@ -9,8 +9,9 @@
             "type": "varchar"
         },
         "body": {
-            "type": "text",
-            "view": "views/fields/wysiwyg"
+            "type": "wysiwyg",
+            "view": "views/fields/wysiwyg",
+            "useIframe": true
         },
         "isHtml": {
             "type": "bool",
@@ -22,8 +23,11 @@
             "tooltip": true
         },
         "attachments": {
-            "type": "linkMultiple",
-            "view": "views/fields/attachment-multiple"
+            "type": "attachmentMultiple"
+        },
+        "category": {
+            "type": "link",
+            "view": "views/fields/link-category-tree"
         },
         "assignedUser": {
             "type": "link"
@@ -56,6 +60,11 @@
             "entity": "Attachment",
             "foreign": "parent"
         },
+        "category": {
+            "type": "belongsTo",
+            "foreign": "emailTemplates",
+            "entity": "EmailTemplateCategory"
+        },
         "teams": {
             "type": "hasMany",
             "entity": "Team",
@@ -75,7 +84,8 @@
         }
     },
     "collection": {
-        "sortBy": "createdAt",
-        "asc": false
+        "orderBy": "createdAt",
+        "order": "desc",
+        "textFilterFields": ["name", "bodyPlain", "body", "subject"]
     }
 }

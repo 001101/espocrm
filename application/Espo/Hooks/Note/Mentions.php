@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,11 +61,9 @@ class Mentions extends \Espo\Core\Hooks\Base
             }
         }
 
-        preg_match_all('/(@\w+)/', $post, $matches);
+        preg_match_all('/(@[\w@.-]+)/', $post, $matches);
 
         $mentionCount = 0;
-
-
 
         if (is_array($matches) && !empty($matches[0]) && is_array($matches[0])) {
             $parent = null;
@@ -122,7 +120,7 @@ class Mentions extends \Espo\Core\Hooks\Base
 
     protected function notifyAboutMention(Entity $entity, \Espo\Entities\User $user, Entity $parent = null)
     {
-        if ($user->get('isPortalUser')) return;
+        if ($user->isPortal()) return;
         if ($parent) {
             if (!$this->getAclManager()->check($user, $parent, 'stream')) return;
         }

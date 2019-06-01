@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,14 +37,30 @@ var language = process.argv[2];
 
 var espoPath = path.dirname(fs.realpathSync(__filename)) + '';
 
+var onlyModuleName = null;
+if (process.argv.length > 2) {
+    for (var i in process.argv) {
+        if (~process.argv[i].indexOf('--module=')) {
+            onlyModuleName = process.argv[i].substr(('--module=').length);
+        }
+    }
+}
+
 function PO (espoPath, language) {
     this.moduleList = ['Crm'];
+    if (onlyModuleName) {
+        this.moduleList = [onlyModuleName];
+    }
     this.baseLanguage = 'en_US';
     this.language = language || this.baseLanguage;
 
     this.currentPath = path.dirname(fs.realpathSync(__filename)) + '/';
 
-    this.outputFileName = 'espocrm-' + this.language + '.po';
+    this.outputFileName = 'espocrm-' + this.language ;
+    if (onlyModuleName) {
+        this.outputFileName += '-' + onlyModuleName;
+    }
+    this.outputFileName += '.po';
 
     this.path = espoPath;
     if (this.path.substr(-1) != '/') {
@@ -56,6 +72,11 @@ function PO (espoPath, language) {
         this.path + 'install/core/i18n/',
         this.path + 'application/Espo/Core/Templates/i18n/'
     ];
+
+    if (onlyModuleName) {
+        dirs = [];
+    }
+
     this.moduleList.forEach(function (moduleName) {
         dirs.push(this.path + 'application/Espo/Modules/' + moduleName + '/Resources/i18n/');
     }, this);
@@ -175,13 +196,30 @@ PO.prototype.replaceAll = function (string, find, replace) {
 }
 
 PO.prototype.fixString = function (savedString) {
+    savedString = this.replaceAll(savedString, "\\", '\\\\');
     savedString = this.replaceAll(savedString, '"', '\\"');
     savedString = this.replaceAll(savedString, "\n", '\\n');
     savedString = this.replaceAll(savedString, "\t", '\\t');
     return savedString;
 }
 
-var po = new PO(espoPath, language);
 
-po.run();
+if (language === '--all') {
+    var pathToLanguage = espoPath + '/application/Espo/Resources/i18n/';
 
+    var languageList = [];
+    fs.readdirSync(pathToLanguage).forEach(function (dir) {
+        if (dir.indexOf('_') == 2) {
+            languageList.push(dir);
+        }
+    });
+
+    languageList.forEach(function (language) {
+        var po = new PO(espoPath, language);
+        po.run();
+    });
+
+} else {
+    var po = new PO(espoPath, language);
+    po.run();
+}

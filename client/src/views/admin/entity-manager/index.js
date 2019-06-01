@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,14 +48,18 @@ Espo.define('views/admin/entity-manager/index', 'view', function (Dep) {
                 var scope = $(e.currentTarget).data('scope');
                 this.editEntity(scope);
             },
+            'click [data-action="editFormula"]': function (e) {
+                var scope = $(e.currentTarget).data('scope');
+                this.editFormula(scope);
+            },
             'click button[data-action="createEntity"]': function (e) {
                 this.createEntity();
             },
             'click [data-action="removeEntity"]': function (e) {
                 var scope = $(e.currentTarget).data('scope');
-                if (confirm(this.translate('confirmation', 'messages'))) {
+                this.confirm(this.translate('confirmation', 'messages'), function () {
                     this.removeEntity(scope);
-                }
+                }, this);
             }
         },
 
@@ -86,9 +90,15 @@ Espo.define('views/admin/entity-manager/index', 'view', function (Dep) {
             scopeList.forEach(function (scope) {
                 var d = this.getMetadata().get('scopes.' + scope);
 
+                var isRemovable = !!d.isCustom;
+                if (d.isNotRemovable) {
+                    isRemovable = false;
+                }
+
                 this.scopeDataList.push({
                     name: scope,
                     isCustom: d.isCustom,
+                    isRemovable: isRemovable,
                     customizable: d.customizable,
                     type: d.type,
                     label: this.getLanguage().translate(scope, 'scopeNames'),
@@ -155,6 +165,22 @@ Espo.define('views/admin/entity-manager/index', 'view', function (Dep) {
                     }.bind(this), true);
                 }.bind(this), true);
             }.bind(this));
+        },
+
+        editFormula: function (scope) {
+            this.createView('edit', 'views/admin/entity-manager/modals/edit-formula', {
+                scope: scope
+            }, function (view) {
+                view.render();
+
+                this.listenTo(view, 'after:save', function () {
+                    this.clearView('edit');
+                }, this);
+
+                this.listenTo(view, 'close', function () {
+                    this.clearView('edit');
+                }, this);
+            }, this);
         },
 
         updatePageTitle: function () {

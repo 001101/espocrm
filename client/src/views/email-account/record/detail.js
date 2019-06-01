@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,22 +30,50 @@ Espo.define('views/email-account/record/detail', 'views/record/detail', function
 
     return Dep.extend({
 
-        afterRender: function () {
-            Dep.prototype.afterRender.call(this);
+        setup: function () {
+            Dep.prototype.setup.call(this);
 
+            this.setupFieldsBehaviour();
             this.initSslFieldListening();
             this.initSmtpFieldsControl();
 
+            if (this.getUser().isAdmin()) {
+                this.setFieldNotReadOnly('assignedUser');
+            } else {
+                this.setFieldReadOnly('assignedUser');
+            }
+        },
+
+        setupFieldsBehaviour: function () {
+            this.controlStatusField();
+            this.listenTo(this.model, 'change:status', function (model, value, o) {
+                if (o.ui) {
+                    this.controlStatusField();
+                }
+            }, this);
+            this.listenTo(this.model, 'change:useImap', function (model, value, o) {
+                if (o.ui) {
+                    this.controlStatusField();
+                }
+            }, this);
+
             if (this.wasFetched()) {
                 this.setFieldReadOnly('fetchSince');
+            } else {
+                this.setFieldNotReadOnly('fetchSince');
             }
+        },
 
-            if (this.getUser().isAdmin()) {
-                var fieldView = this.getFieldView('assignedUser');
-                if (fieldView) {
-                    fieldView.readOnly = false;
-                    fieldView.render();
-                }
+        controlStatusField: function () {
+            var list = ['username', 'port', 'host', 'monitoredFolders'];
+            if (this.model.get('status') === 'Active' && this.model.get('useImap')) {
+                list.forEach(function (item) {
+                    this.setFieldRequired(item);
+                }, this);
+            } else {
+                list.forEach(function (item) {
+                    this.setFieldNotRequired(item);
+                }, this);
             }
         },
 
@@ -57,13 +85,25 @@ Espo.define('views/email-account/record/detail', 'views/record/detail', function
         },
 
         initSslFieldListening: function () {
-            var sslField = this.getFieldView('ssl');
-            this.listenTo(sslField, 'change', function () {
-                var ssl = sslField.fetch()['ssl'];
-                if (ssl) {
-                    this.model.set('port', '993');
-                } else {
-                    this.model.set('port', '143');
+            this.listenTo(this.model, 'change:ssl', function (model, value, o) {
+                if (o.ui) {
+                    if (value) {
+                        this.model.set('port', 993);
+                    } else {
+                        this.model.set('port', 143);
+                    }
+                }
+            }, this);
+
+            this.listenTo(this.model, 'change:smtpSecurity', function (model, value, o) {
+                if (o.ui) {
+                    if (value === 'SSL') {
+                        this.model.set('smtpPort', 465);
+                    } else if (value === 'TLS') {
+                        this.model.set('smtpPort', 587);
+                    } else {
+                        this.model.set('smtpPort', 25);
+                    }
                 }
             }, this);
         },

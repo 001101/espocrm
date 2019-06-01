@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,6 +66,18 @@ class Integration extends \Espo\Core\Controllers\Record
         $entity = $this->getEntityManager()->getEntity('Integration', $params['id']);
         $entity->set($data);
         $this->getEntityManager()->saveEntity($entity);
+
+        $integrationsConfigData = $this->getConfig()->get('integrations');
+
+        if (!$integrationsConfigData || !($integrationsConfigData instanceof \StdClass)) {
+            $integrationsConfigData = (object)[];
+        }
+        $integrationName = $params['id'];
+
+        $integrationsConfigData->$integrationName = $entity->get('enabled');
+        $this->getConfig()->set('integrations', $integrationsConfigData);
+
+        $this->getConfig()->save();
 
         return $entity->toArray();
     }

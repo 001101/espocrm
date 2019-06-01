@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,27 +34,27 @@ use \Espo\Core\Exceptions\BadRequest;
 
 class Attachment extends \Espo\Core\Controllers\Record
 {
-    public function actionUpload($params, $data, $request)
+    public function actionList($params, $data, $request)
     {
-        if (!$request->isPost()) {
-            throw new BadRequest();
-        }
-
-        if (!$this->getAcl()->checkScope('Attachment', 'create')) {
+        if (!$this->getUser()->isAdmin()) {
             throw new Forbidden();
         }
-
-        list($prefix, $contents) = explode(',', $data);
-        $contents = base64_decode($contents);
-
-        $attachment = $this->getEntityManager()->getEntity('Attachment');
-        $this->getEntityManager()->saveEntity($attachment);
-        $this->getContainer()->get('fileManager')->putContents('data/upload/' . $attachment->id, $contents);
-
-        return array(
-            'attachmentId' => $attachment->id
-        );
+        return parent::actionList($params, $data, $request);
     }
 
-}
+    public function postActionGetAttachmentFromImageUrl($params, $data)
+    {
+        if (empty($data->url)) throw new BadRequest();
+        if (empty($data->field)) throw new BadRequest('postActionGetAttachmentFromImageUrl: No field specified');
 
+        return $this->getRecordService()->getAttachmentFromImageUrl($data)->getValueMap();
+    }
+
+    public function postActionGetCopiedAttachment($params, $data)
+    {
+        if (empty($data->id)) throw new BadRequest();
+        if (empty($data->field)) throw new BadRequest('postActionGetCopiedAttachment copy: No field specified');
+
+        return $this->getRecordService()->getCopiedAttachment($data)->getValueMap();
+    }
+}

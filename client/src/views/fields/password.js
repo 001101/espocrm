@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,22 +26,22 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('Views.Fields.Password', 'Views.Fields.Base', function (Dep) {
+Espo.define('views/fields/password', 'views/fields/base', function (Dep) {
 
     return Dep.extend({
 
-        type: 'Password',
+        type: 'password',
 
-        detailTemplate: 'fields.password.detail',
+        detailTemplate: 'fields/password/detail',
 
-        editTemplate: 'fields.password.edit',
+        editTemplate: 'fields/password/edit',
 
         validations: ['required', 'confirm'],
 
         events: {
             'click [data-action="change"]': function (e) {
                 this.changePassword();
-            },
+            }
         },
 
         changePassword: function () {
@@ -59,7 +59,7 @@ Espo.define('Views.Fields.Password', 'Views.Fields.Base', function (Dep) {
         validateConfirm: function () {
             if (this.model.has(this.name + 'Confirm')) {
                 if (this.model.get(this.name) != this.model.get(this.name + 'Confirm')) {
-                    var msg = this.translate('fieldBadPasswordConfirm', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
+                    var msg = this.translate('fieldBadPasswordConfirm', 'messages').replace('{field}', this.getLabelText());
                     this.showValidationMessage(msg);
                     return true;
                 }

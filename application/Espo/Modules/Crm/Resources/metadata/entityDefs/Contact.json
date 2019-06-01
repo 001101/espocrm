@@ -1,40 +1,71 @@
 {
     "fields": {
         "name": {
-            "type": "personName"
+            "type": "personName",
+            "isPersonalData": true
         },
         "salutationName": {
             "type": "enum",
-            "options": ["", "Mr.", "Mrs.", "Ms.", "Dr."]
+            "options": ["", "Mr.", "Ms.", "Mrs.", "Dr."]
         },
         "firstName": {
             "type": "varchar",
             "maxLength": 100,
-            "default":""
+            "default":"",
+            "trim": true
         },
         "lastName": {
             "type": "varchar",
             "maxLength": 100,
             "required": true,
-            "default":""
+            "default":"",
+            "trim": true
         },
         "accountId": {
+            "type": "varchar",
             "where": {
                 "=": "contact.id IN (SELECT contact_id FROM account_contact WHERE deleted = 0 AND account_id = {value})",
-                "<>": "contact.id IN (SELECT contact_id FROM account_contact WHERE deleted = 0 AND account_id <> {value})",
+                "<>": "contact.id NOT IN (SELECT contact_id FROM account_contact WHERE deleted = 0 AND account_id = {value})",
                 "IN": "contact.id IN (SELECT contact_id FROM account_contact WHERE deleted = 0 AND account_id IN {value})",
                 "NOT IN": "contact.id NOT IN (SELECT contact_id FROM account_contact WHERE deleted = 0 AND account_id IN {value})",
                 "IS NULL": "contact.account_id IS NULL",
                 "IS NOT NULL": "contact.account_id IS NOT NULL"
             },
+            "customizationDisabled": true,
             "disabled": true
         },
         "title": {
             "type": "varchar",
-            "maxLength": 50,
+            "maxLength": 100,
             "notStorable": true,
-            "select": "accountContact.role",
-            "orderBy": "accountContact.role {direction}",
+            "select": {
+                "sql": "accountContact.role",
+                "leftJoins": [
+                    [
+                        "AccountContact",
+                        "accountContact",
+                        {
+                            "contact.id:": "accountContact.contactId",
+                            "contact.accountId:": "accountContact.accountId",
+                            "accountContact.deleted": false
+                        }
+                    ]
+                ]
+            },
+            "orderBy": {
+                "sql": "accountContact.role {direction}",
+                "leftJoins": [
+                    [
+                        "AccountContact",
+                        "accountContact",
+                        {
+                            "contact.id:": "accountContact.contactId",
+                            "contact.accountId:": "accountContact.accountId",
+                            "accountContact.deleted": false
+                        }
+                    ]
+                ]
+            },
             "where": {
                 "LIKE": {
                     "leftJoins": ["accounts"],
@@ -62,24 +93,28 @@
                     "distinct": true
                 }
             },
-            "trim": true
+            "trim": true,
+            "textFilterDisabled": true
         },
         "description": {
             "type": "text"
         },
         "emailAddress": {
-            "type": "email"
+            "type": "email",
+            "isPersonalData": true
         },
         "phoneNumber": {
             "type": "phone",
             "typeList": ["Mobile", "Office", "Home", "Fax", "Other"],
-            "defaultType": "Mobile"
+            "defaultType": "Mobile",
+            "isPersonalData": true
         },
         "doNotCall": {
             "type": "bool"
         },
         "address": {
-            "type": "address"
+            "type": "address",
+            "isPersonalData": true
         },
         "addressStreet": {
             "type": "text",
@@ -87,31 +122,102 @@
             "dbType": "varchar"
         },
         "addressCity": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "addressState": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "addressCountry": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "addressPostalCode": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "account": {
-            "type": "link"
+            "type": "link",
+            "view": "crm:views/contact/fields/account"
         },
         "accounts": {
             "type": "linkMultiple",
             "view": "crm:views/contact/fields/accounts",
             "columns": {
-                "role": "contactRole"
-            }
+                "role": "contactRole",
+                "isInactive": "contactIsInactive"
+            },
+            "orderBy": "name"
         },
         "accountRole": {
             "type": "varchar",
             "notStorable": true,
-            "disabled": true
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "layoutFiltersDisabled": true,
+            "layoutAvailabilityList": ["listForAccount"],
+            "exportDisabled": true,
+            "importDisabled": true,
+            "view": "crm:views/contact/fields/account-role",
+            "textFilterDisabled": true
+        },
+        "accountIsInactive": {
+            "type": "bool",
+            "notStorable": true,
+            "select": {
+                "sql": "accountContact.is_inactive",
+                "leftJoins": [
+                    [
+                        "AccountContact",
+                        "accountContact",
+                        {
+                            "contact.id:": "accountContact.contactId",
+                            "contact.accountId:": "accountContact.accountId",
+                            "accountContact.deleted": false
+                        }
+                    ]
+                ]
+            },
+            "orderBy": {
+                "sql": "accountContact.is_inactive {direction}",
+                "leftJoins": [
+                    [
+                        "AccountContact",
+                        "accountContact",
+                        {
+                            "contact.id:": "accountContact.contactId",
+                            "contact.accountId:": "accountContact.accountId",
+                            "accountContact.deleted": false
+                        }
+                    ]
+                ]
+            },
+            "where": {
+                "= TRUE": {
+                    "leftJoins": [
+                        [
+                            "AccountContact",
+                            "accountContactFilterIsInactive",
+                            {"contact.accountId:": "accountContactFilterIsInactive.accountId"}
+                        ]
+                    ],
+                    "sql": "accountContactFilterIsInactive.is_inactive = true"
+                },
+                "= FALSE": {
+                    "leftJoins": [
+                        [
+                            "AccountContact",
+                            "accountContactFilterIsInactive",
+                            {"contact.accountId:": "accountContactFilterIsInactive.accountId"}
+                        ]
+                    ],
+                    "sql": "accountContactFilterIsInactive.is_inactive <> true OR accountContactFilterIsInactive.is_inactive IS NULL"
+                }
+            },
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true
         },
         "accountType": {
             "type": "foreign",
@@ -123,13 +229,70 @@
         "opportunityRole": {
             "type": "enum",
             "notStorable": true,
-            "disabled": true,
-            "options": ["", "Decision Maker", "Evaluator", "Influencer"]
+            "options": ["", "Decision Maker", "Evaluator", "Influencer"],
+            "layoutMassUpdateDisabled": true,
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "customizationRequiredDisabled": true,
+            "customizationIsSortedDisabled": true,
+            "customizationAuditedDisabled": true,
+            "customizationReadOnlyDisabled": true,
+            "where": {
+                "=": {
+                    "leftJoins": ["opportunities"],
+                    "sql": "opportunitiesMiddle.role = {value}",
+                    "distinct": true
+                },
+                "<>": "contact.id NOT IN (SELECT contact_id FROM contact_opportunity WHERE deleted = 0 AND role = {value})",
+                "IN": {
+                    "leftJoins": ["opportunities"],
+                    "sql": "opportunitiesMiddle.role IN {value}",
+                    "distinct": true
+                },
+                "NOT IN": "contact.id NOT IN (SELECT contact_id FROM contact_opportunity WHERE deleted = 0 AND role IN {value})",
+                "LIKE": {
+                    "leftJoins": ["opportunities"],
+                    "sql": "opportunitiesMiddle.role LIKE {value}",
+                    "distinct": true
+                },
+                "IS NULL": {
+                    "leftJoins": ["opportunities"],
+                    "sql": "opportunitiesMiddle.role IS NULL",
+                    "distinct": true
+                },
+                "IS NOT NULL": "contact.id NOT IN (SELECT contact_id FROM contact_opportunity WHERE deleted = 0 AND role IS NULL)"
+            },
+            "view": "crm:views/contact/fields/opportunity-role"
         },
         "acceptanceStatus": {
             "type": "varchar",
             "notStorable": true,
+            "exportDisabled": true,
             "disabled": true
+        },
+        "acceptanceStatusMeetings": {
+            "type": "enum",
+            "notStorable": true,
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "importDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "exportDisabled": true,
+            "view": "crm:views/lead/fields/acceptance-status",
+            "link": "meetings",
+            "column": "status"
+        },
+        "acceptanceStatusCalls": {
+            "type": "enum",
+            "notStorable": true,
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "importDisabled": true,
+            "exportDisabled": true,
+            "view": "crm:views/lead/fields/acceptance-status",
+            "link": "calls",
+            "column": "status"
         },
         "campaign": {
             "type": "link",
@@ -176,12 +339,15 @@
             "layoutListDisabled": true,
             "layoutMassUpdateDisabled": true,
             "layoutFiltersDisabled": true,
-            "entity": "TargetList"
+            "exportDisabled": true,
+            "entity": "TargetList",
+            "directAccessDisabled": true
         },
         "portalUser": {
             "type": "link",
             "layoutMassUpdateDisabled": true,
             "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
             "readOnly": true,
             "notStorable": true,
             "view": "views/fields/link-one"
@@ -192,6 +358,12 @@
             "layoutListDisabled": true,
             "readOnly": true,
             "view": "views/fields/link-one"
+        },
+        "targetListIsOptedOut": {
+            "type": "bool",
+            "notStorable": true,
+            "readOnly": true,
+            "disabled": true
         }
     },
     "links": {
@@ -224,9 +396,14 @@
             "additionalColumns": {
                 "role": {
                     "type": "varchar",
-                    "len": 50
+                    "len": 100
+                },
+                "isInactive": {
+                    "type": "bool",
+                    "default": false
                 }
             },
+            "additionalAttributeList": ["columns"],
             "layoutRelationshipsDisabled": true
         },
         "opportunities": {
@@ -249,19 +426,22 @@
             "type": "hasMany",
             "entity": "Meeting",
             "foreign": "contacts",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "calls": {
             "type": "hasMany",
             "entity": "Call",
             "foreign": "contacts",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "tasks": {
             "type": "hasChildren",
             "entity": "Task",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "emails": {
             "type": "hasChildren",
@@ -294,14 +474,29 @@
             "type": "hasOne",
             "entity": "Lead",
             "foreign": "createdContact"
+        },
+        "documents": {
+            "type": "hasMany",
+            "entity": "Document",
+            "foreign": "contacts",
+            "audited": true
+        },
+        "tasksPrimary": {
+            "type": "hasMany",
+            "entity": "Task",
+            "foreign": "contact",
+            "layoutRelationshipsDisabled": true
         }
     },
     "collection": {
-        "sortBy": "name",
-        "asc": true,
+        "orderBy": "createdAt",
+        "order": "desc",
         "textFilterFields": ["name", "emailAddress"]
     },
     "indexes": {
+        "createdAt": {
+            "columns": ["createdAt", "deleted"]
+        },
         "firstName": {
             "columns": ["firstName", "deleted"]
         },

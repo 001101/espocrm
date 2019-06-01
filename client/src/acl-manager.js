@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,13 +35,14 @@
  * }
  */
 
-Espo.define('acl-manager', ['acl'], function (Acl) {
+define('acl-manager', ['acl'], function (Acl) {
 
-    var AclManager = function (user, implementationClassMap) {
+    var AclManager = function (user, implementationClassMap, aclAllowDeleteCreated) {
         this.setEmpty();
 
         this.user = user || null;
         this.implementationClassMap = implementationClassMap || {};
+        this.aclAllowDeleteCreated = aclAllowDeleteCreated;
     }
 
     _.extend(AclManager.prototype, {
@@ -70,7 +71,7 @@ Espo.define('acl-manager', ['acl'], function (Acl) {
                 if (scope in this.implementationClassMap) {
                     implementationClass = this.implementationClassMap[scope];
                 }
-                var obj = new implementationClass(this.getUser(), scope);
+                var obj = new implementationClass(this.getUser(), scope, this.aclAllowDeleteCreated);
                 this.implementationHash[scope] = obj;
             }
             return this.implementationHash[scope];
@@ -92,8 +93,23 @@ Espo.define('acl-manager', ['acl'], function (Acl) {
             return this.data[name] || null;
         },
 
+        getLevel: function (scope, action) {
+            if (!(scope in this.data.table)) return;
+            if (typeof this.data.table[scope] !== 'object' || !(action in this.data.table[scope])) return;
+
+            return this.data.table[scope][action];
+        },
+
         clear: function () {
             this.setEmpty();
+        },
+
+        checkScopeHasAcl: function (scope) {
+            var data = (this.data.table || {})[scope];
+            if (typeof data === 'undefined') {
+                return false;
+            }
+            return true;
         },
 
         checkScope: function (scope, action, precise) {
@@ -116,16 +132,6 @@ Espo.define('acl-manager', ['acl'], function (Acl) {
             if (action == 'delete') {
                 if (!model.isRemovable()) {
                     return false;
-                }
-            }
-            if (action == 'edit') {
-                if (model.has('isEditable')) {
-                    return model.get('isEditable');
-                }
-            }
-            if (action == 'delete') {
-                if (model.has('isRemovable')) {
-                    return model.get('isRemovable');
                 }
             }
 
@@ -157,7 +163,7 @@ Espo.define('acl-manager', ['acl'], function (Acl) {
         },
 
         checkInTeam: function (model) {
-            return this.getImplementation(model.name).checkIsOwner(model);
+            return this.getImplementation(model.name).checkInTeam(model);
         },
 
         checkAssignmentPermission: function (user) {
@@ -252,6 +258,11 @@ Espo.define('acl-manager', ['acl'], function (Acl) {
             this.forbiddenAttributesCache[key] = attributeList;
 
             return attributeList;
+        },
+
+        checkTeamAssignmentPermission: function (teamId) {
+            if (this.get('assignmentPermission') === 'all') return true;
+            return ~this.getUser().getLinkMultipleIdList('teams').indexOf(teamId);
         }
 
     });

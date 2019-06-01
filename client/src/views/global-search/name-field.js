@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,12 +35,11 @@ Espo.define('views/global-search/name-field', 'views/fields/base', function (Dep
         data: function () {
             return {
                 scope: this.model.get('_scope'),
-                name: this.model.get('name'),
+                name: this.model.get('name') || this.translate('None'),
                 id: this.model.id,
+                iconHtml: this.getHelper().getScopeColorIconHtml(this.model.get('_scope'))
             };
-        },
+        }
 
     });
-
 });
-

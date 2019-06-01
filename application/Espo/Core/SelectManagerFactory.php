@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,8 +30,9 @@
 namespace Espo\Core;
 
 use \Espo\Core\Exceptions\Error;
-
 use \Espo\Core\Utils\Util;
+
+use \Espo\Core\InjectableFactory;
 
 class SelectManagerFactory
 {
@@ -43,7 +44,20 @@ class SelectManagerFactory
 
     private $metadata;
 
-    public function __construct($entityManager, \Espo\Entities\User $user, Acl $acl, AclManager $aclManager, Utils\Metadata $metadata, Utils\Config $config)
+    private $injectableFactory;
+
+    private $FieldManagerUtil;
+
+    public function __construct(
+        $entityManager,
+        \Espo\Entities\User $user,
+        Acl $acl,
+        AclManager $aclManager,
+        Utils\Metadata $metadata,
+        Utils\Config $config,
+        Utils\FieldManagerUtil $fieldManagerUtil,
+        InjectableFactory $injectableFactory
+    )
     {
         $this->entityManager = $entityManager;
         $this->user = $user;
@@ -51,9 +65,11 @@ class SelectManagerFactory
         $this->aclManager = $aclManager;
         $this->metadata = $metadata;
         $this->config = $config;
+        $this->fieldManagerUtil = $fieldManagerUtil;
+        $this->injectableFactory = $injectableFactory;
     }
 
-    public function create($entityType)
+    public function create(string $entityType, ?\Espo\Entities\User $user = null) : \Espo\Core\SelectManagers\Base
     {
         $normalizedName = Util::normilizeClassName($entityType);
 
@@ -70,10 +86,25 @@ class SelectManagerFactory
             }
         }
 
-        $selectManager = new $className($this->entityManager, $this->user, $this->acl, $this->aclManager, $this->metadata, $this->config);
+        if ($user) {
+            $acl = $this->aclManager->createUserAcl($user);
+        } else {
+            $acl = $this->acl;
+            $user = $this->user;
+        }
+
+        $selectManager = new $className(
+            $this->entityManager,
+            $user,
+            $acl,
+            $this->aclManager,
+            $this->metadata,
+            $this->config,
+            $this->fieldManagerUtil,
+            $this->injectableFactory
+        );
         $selectManager->setEntityType($entityType);
 
         return $selectManager;
     }
 }
-

@@ -8,14 +8,22 @@ Download the latest release from our [website](http://www.espocrm.com).
 
 ### Requirements
 
-* PHP 5.5 or above (with pdo, json, gd, mcrypt extensions);
-* MySQL 5.1 or above.
+* PHP 7.1 or above (with pdo, json, gd, openssl, zip, imap, mbstring, curl extensions);
+* MySQL 5.5.3 or above, or MariaDB.
 
-For more information about server configuration see [this article](http://blog.espocrm.com/administration/server-configuration-for-espocrm/).
+For more information about server configuration see [this article](https://www.espocrm.com/documentation/administration/server-configuration/).
 
-### How to report bug
+### Documentation
 
-Create an issue [here](https://github.com/espocrm/espocrm/issues) or post on our [forum](http://forum.espocrm.com/bug-reports?routestring=forum/bug-reports).
+Documentation for administrators, users and developers is available [here](https://www.espocrm.com/documentation/).
+
+### How to report a bug
+
+Create an issue [here](https://github.com/espocrm/espocrm/issues) or post on our [forum](http://forum.espocrm.com/forum/bug-reports).
+
+### How to install a stable version
+
+[Download](https://www.espocrm.com/download/) the latest version. See the [instructions](https://www.espocrm.com/documentation/administration/installation/) about installation.
 
 ### How to get started (for developers)
 
@@ -30,7 +38,7 @@ Now you can build. Build will create compiled css files.
 
 To compose a proper config.php and populate database you can run install by opening `http(s)://{YOUR_CRM_URL}/install` location in a browser. Then open `data/config.php` file and add `isDeveloperMode => true`.
 
-### How to build
+### How to build (for developers)
 
 You need to have nodejs and Grunt CLI installed.
 
@@ -43,6 +51,12 @@ The build will be created in the `build` directory.
 ### How to contribute
 
 Before we can merge your pull request you need to accept our CLA [here](https://github.com/espocrm/cla). It's very simple to do.
+
+Branches:
+
+* hotfix/* – upcoming maintenance release; fixes should be pushed to this branch;
+* master – develop branch; new features should be pushed to this branch;
+* stable – last stable release.
 
 ### How to make a translation
 
@@ -62,4 +76,3 @@ Json files will be created in build directory grouped by folders.
 ### License
 
 EspoCRM is published under the GNU GPLv3 [license](https://raw.githubusercontent.com/espocrm/espocrm/master/LICENSE.txt).
-

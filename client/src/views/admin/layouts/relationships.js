@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,12 +30,32 @@ Espo.define('views/admin/layouts/relationships', 'views/admin/layouts/rows', fun
 
     return Dep.extend({
 
-        dataAttributes: ['name'],
+        dataAttributeList: ['name', 'style', 'dynamicLogicVisible'],
 
-        editable: false,
+        editable: true,
+
+        dataAttributesDefs: {
+            style: {
+                type: 'enum',
+                options: ['default', 'success', 'danger', 'primary', 'info', 'warning'],
+                translation: 'LayoutManager.options.style'
+            },
+            dynamicLogicVisible: {
+                type: 'base',
+                view: 'views/admin/field-manager/fields/dynamic-logic-conditions'
+            },
+            name: {
+                readOnly: true
+            }
+        },
+
+        languageCategory: 'links',
 
         setup: function () {
             Dep.prototype.setup.call(this);
+
+            this.dataAttributesDefs = Espo.Utils.cloneDeep(this.dataAttributesDefs);
+            this.dataAttributesDefs.dynamicLogicVisible.scope = this.scope;
 
             this.wait(true);
             this.loadLayout(function () {
@@ -64,11 +84,28 @@ Espo.define('views/admin/layouts/relationships', 'views/admin/layouts/rows', fun
                     this.enabledFields = [];
                     this.disabledFields = [];
                     for (var i in layout) {
-                        this.enabledFields.push({
-                            name: layout[i],
-                            label: this.getLanguage().translate(layout[i], 'links', this.scope)
-                        });
-                        this.enabledFieldsList.push(layout[i]);
+                        var item = layout[i];
+                        var o;
+                        if (typeof item == 'string' || item instanceof String) {
+                            o = {
+                                name: item,
+                                label: this.getLanguage().translate(item, 'links', this.scope)
+                            };
+                        } else {
+                            o = item;
+                            o.label =  this.getLanguage().translate(o.name, 'links', this.scope);
+                        }
+                        this.dataAttributeList.forEach(function (attribute) {
+                            if (attribute === 'name') return;
+                            if (attribute in o) return;
+
+                            var value = this.getMetadata().get(['clientDefs', this.scope, 'relationshipPanels', o.name, attribute]);
+                            if (value === null) return;
+                            o[attribute] = value;
+                        }, this);
+
+                        this.enabledFields.push(o);
+                        this.enabledFieldsList.push(o.name);
                     }
 
                     for (var i in allFields) {
@@ -83,19 +120,13 @@ Espo.define('views/admin/layouts/relationships', 'views/admin/layouts/rows', fun
 
                     for (var i in this.rowLayout) {
                         this.rowLayout[i].label = this.getLanguage().translate(this.rowLayout[i].name, 'links', this.scope);
+
+                        this.itemsData[this.rowLayout[i].name] = Espo.Utils.cloneDeep(this.rowLayout[i]);
                     }
 
                     callback();
                 }.bind(this), false);
             }.bind(this));
-        },
-
-        fetch: function () {
-            var layout = [];
-            $("#layout ul.enabled > li").each(function (i, el) {
-                layout.push($(el).data('name'));
-            }.bind(this));
-            return layout;
         },
 
         validate: function () {

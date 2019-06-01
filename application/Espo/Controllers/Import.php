@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,39 +38,39 @@ class Import extends \Espo\Core\Controllers\Record
 {
     protected function checkControllerAccess()
     {
-        if (!$this->getUser()->isAdmin()) {
+        if (!$this->getAcl()->check('Import')) {
             throw new Forbidden();
         }
     }
 
-    public function actionPatch($params, $data, $request)
+    public function beforePatch()
     {
         throw new BadRequest();
     }
 
-    public function actionUpdate($params, $data, $request)
+    public function beforeUpdate()
     {
         throw new BadRequest();
     }
 
-    public function actionMassUpdate($params, $data, $request)
+    public function beforeMassUpdate()
     {
         throw new BadRequest();
     }
 
-    public function actionCreateLink($params, $data, $request)
+    public function beforeCreateLink()
     {
         throw new BadRequest();
     }
 
-    public function actionRemoveLink($params, $data, $request)
+    public function beforeRemoveLink()
     {
         throw new BadRequest();
     }
 
-    protected function getFileManager()
+    protected function getFileStorageManager()
     {
-        return $this->getContainer()->get('fileManager');
+        return $this->getContainer()->get('fileStorageManager');
     }
 
     protected function getEntityManager()
@@ -90,35 +90,34 @@ class Import extends \Espo\Core\Controllers\Record
         $attachment->set('type', 'text/csv');
         $attachment->set('role', 'Import File');
         $attachment->set('name', 'import-file.csv');
+        $attachment->set('contents', $contents);
         $this->getEntityManager()->saveEntity($attachment);
 
-        $this->getFileManager()->putContents('data/upload/' . $attachment->id, $contents);
-
-        return array(
+        return [
             'attachmentId' => $attachment->id
-        );
+        ];
     }
 
     public function actionRevert($params, $data, $request)
     {
-        if (empty($data['id'])) {
+        if (empty($data->id)) {
             throw new BadRequest();
         }
         if (!$request->isPost()) {
             throw new BadRequest();
         }
-        return $this->getService('Import')->revert($data['id']);
+        return $this->getService('Import')->revert($data->id);
     }
 
     public function actionRemoveDuplicates($params, $data, $request)
     {
-        if (empty($data['id'])) {
+        if (empty($data->id)) {
             throw new BadRequest();
         }
         if (!$request->isPost()) {
             throw new BadRequest();
         }
-        return $this->getService('Import')->removeDuplicates($data['id']);
+        return $this->getService('Import')->removeDuplicates($data->id);
     }
 
     public function actionCreate($params, $data, $request)
@@ -127,39 +126,91 @@ class Import extends \Espo\Core\Controllers\Record
             throw new BadRequest();
         }
 
-        $importParams = array(
-            'headerRow' => $data['headerRow'],
-            'fieldDelimiter' => $data['fieldDelimiter'],
-            'textQualifier' => $data['textQualifier'],
-            'dateFormat' => $data['dateFormat'],
-            'timeFormat' => $data['timeFormat'],
-            'personNameFormat' => $data['personNameFormat'],
-            'decimalMark' => $data['decimalMark'],
-            'currency' => $data['currency'],
-            'defaultValues' => $data['defaultValues'],
-            'action' => $data['action'],
-        );
-
-        if (array_key_exists('updateBy', $data)) {
-            $importParams['updateBy'] = $data['updateBy'];
+        if (!isset($data->delimiter)) {
+            throw new BadRequest();
         }
 
-        $attachmentId = $data['attachmentId'];
+        if (!isset($data->textQualifier)) {
+            throw new BadRequest();
+        }
 
-        if (!$this->getAcl()->check($data['entityType'], 'edit')) {
+        if (!isset($data->dateFormat)) {
+            throw new BadRequest();
+        }
+
+        if (!isset($data->timeFormat)) {
+            throw new BadRequest();
+        }
+
+        if (!isset($data->personNameFormat)) {
+            throw new BadRequest();
+        }
+
+        if (!isset($data->decimalMark)) {
+            throw new BadRequest();
+        }
+
+        if (!isset($data->defaultValues)) {
+            throw new BadRequest();
+        }
+
+        if (!isset($data->action)) {
+            throw new BadRequest();
+        }
+
+        if (!isset($data->attachmentId)) {
+            throw new BadRequest();
+        }
+
+        if (!isset($data->entityType)) {
+            throw new BadRequest();
+        }
+
+        if (!isset($data->attributeList)) {
+            throw new BadRequest();
+        }
+
+        $timezone = 'UTC';
+        if (isset($data->timezone)) {
+           $timezone = $data->timezone;
+        }
+
+        $importParams = [
+            'headerRow' => !empty($data->headerRow),
+            'delimiter' => $data->delimiter,
+            'textQualifier' => $data->textQualifier,
+            'dateFormat' => $data->dateFormat,
+            'timeFormat' => $data->timeFormat,
+            'timezone' => $timezone,
+            'personNameFormat' => $data->personNameFormat,
+            'decimalMark' => $data->decimalMark,
+            'currency' => $data->currency,
+            'defaultValues' => $data->defaultValues,
+            'action' => $data->action,
+            'skipDuplicateChecking' => !empty($data->skipDuplicateChecking),
+            'idleMode' => !empty($data->idleMode),
+            'silentMode' => !empty($data->silentMode),
+        ];
+
+        if (property_exists($data, 'updateBy')) {
+            $importParams['updateBy'] = $data->updateBy;
+        }
+
+        $attachmentId = $data->attachmentId;
+
+        if (!$this->getAcl()->check($data->entityType, 'edit')) {
             throw new Forbidden();
         }
 
-        return $this->getService('Import')->import($data['entityType'], $data['fields'], $attachmentId, $importParams);
+        return $this->getService('Import')->import($data->entityType, $data->attributeList, $attachmentId, $importParams);
     }
 
     public function postActionUnmarkAsDuplicate($params, $data)
     {
-        if (empty($data['id']) || empty($data['entityType']) || empty($data['entityId'])) {
+        if (empty($data->id) || empty($data->entityType) || empty($data->entityId)) {
             throw new BadRequest();
         }
-        $this->getService('Import')->unmarkAsDuplicate($data['id'], $data['entityType'], $data['entityId']);
+        $this->getService('Import')->unmarkAsDuplicate($data->id, $data->entityType, $data->entityId);
         return true;
     }
 }
-

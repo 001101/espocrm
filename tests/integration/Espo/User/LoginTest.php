@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2016 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,8 @@ class LoginTest extends \tests\integration\Core\BaseTestCase
 
     public function testWrongCredentials()
     {
-        $application = $this->createApplication('admin', 'wrong-password');
+        $this->auth('admin', 'wrong-password');
+        $application = $this->createApplication();
 
         $this->assertNull($application->getContainer()->get('user'));
     }

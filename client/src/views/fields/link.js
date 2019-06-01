@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,23 +46,35 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
 
         foreignScope: null,
 
-        AUTOCOMPLETE_RESULT_MAX_COUNT: 7,
-
         selectRecordsView: 'views/modals/select-records',
 
         autocompleteDisabled: false,
 
         createDisabled: false,
 
-        searchTypeList: ['is', 'isEmpty', 'isNotEmpty', 'isOneOf'],
+        searchTypeList: ['is', 'isEmpty', 'isNotEmpty', 'isNot', 'isOneOf', 'isNotOneOf'],
 
         data: function () {
+            var nameValue = this.model.has(this.nameName) ? this.model.get(this.nameName) : this.model.get(this.idName);
+            if (nameValue === null) {
+                nameValue = this.model.get(this.idName);
+            }
+            if (this.isReadMode() && !nameValue && this.model.get(this.idName)) {
+                nameValue = this.translate(this.foreignScope, 'scopeNames');
+            }
+
+            var iconHtml = null;
+            if (this.mode === 'detail') {
+                iconHtml = this.getHelper().getScopeColorIconHtml(this.foreignScope);
+            }
             return _.extend({
                 idName: this.idName,
                 nameName: this.nameName,
                 idValue: this.model.get(this.idName),
-                nameValue: this.model.get(this.nameName),
-                foreignScope: this.foreignScope
+                nameValue: nameValue,
+                foreignScope: this.foreignScope,
+                valueIsSet: this.model.has(this.idName),
+                iconHtml: iconHtml
             }, Dep.prototype.data.call(this));
         },
 
@@ -102,14 +114,17 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
                         filters: this.getSelectFilters(),
                         boolFilterList: this.getSelectBoolFilterList(),
                         primaryFilterName: this.getSelectPrimaryFilterName(),
-                        createAttributes: (this.mode === 'edit') ? this.getCreateAttributes() : null
+                        createAttributes: (this.mode === 'edit') ? this.getCreateAttributes() : null,
+                        mandatorySelectAttributeList: this.mandatorySelectAttributeList,
+                        forceSelectAllAttributes: this.forceSelectAllAttributes
                     }, function (view) {
                         view.render();
                         this.notify(false);
                         this.listenToOnce(view, 'select', function (model) {
+                            this.clearView('dialog');
                             this.select(model);
                         }, this);
-                    }.bind(this));
+                    }, this);
                 });
                 this.addActionHandler('clearLink', function () {
                     this.clearLink();
@@ -133,6 +148,7 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
                         view.render();
                         this.notify(false);
                         this.listenToOnce(view, 'select', function (models) {
+                            this.clearView('dialog');
                             if (Object.prototype.toString.call(models) !== '[object Array]') {
                                 models = [models];
                             }
@@ -153,6 +169,10 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
         select: function (model) {
             this.$elementName.val(model.get('name'));
             this.$elementId.val(model.get('id'));
+            if (this.mode === 'search') {
+                this.searchData.idValue = model.get('id');
+                this.searchData.nameValue = model.get('name');
+            }
             this.trigger('change');
         },
 
@@ -163,8 +183,13 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
         },
 
         setupSearch: function () {
-            this.searchData.oneOfIdList = this.searchParams.oneOfIdList || [];
-            this.searchData.oneOfNameHash = this.searchParams.oneOfNameHash || {};
+            this.searchData.oneOfIdList = this.getSearchParamsData().oneOfIdList || this.searchParams.oneOfIdList || [];
+            this.searchData.oneOfNameHash = this.getSearchParamsData().oneOfNameHash || this.searchParams.oneOfNameHash || {};
+
+            if (~['is', 'isNot', 'equals'].indexOf(this.getSearchType())) {
+                this.searchData.idValue = this.getSearchParamsData().idValue || this.searchParams.idValue || this.searchParams.value;
+                this.searchData.nameValue = this.getSearchParamsData().nameValue || this.searchParams.nameValue || this.searchParams.valueName;
+            }
 
             this.events = _.extend({
                 'change select.search-type': function (e) {
@@ -175,21 +200,35 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
         },
 
         handleSearchType: function (type) {
-            if (~['is'].indexOf(type)) {
+            if (~['is', 'isNot', 'isNotAndIsNotEmpty'].indexOf(type)) {
                 this.$el.find('div.primary').removeClass('hidden');
             } else {
                 this.$el.find('div.primary').addClass('hidden');
             }
 
-            if (type === 'isOneOf') {
+            if (~['isOneOf', 'isNotOneOf', 'isNotOneOfAndIsNotEmpty'].indexOf(type)) {
                 this.$el.find('div.one-of-container').removeClass('hidden');
             } else {
                 this.$el.find('div.one-of-container').addClass('hidden');
             }
         },
 
+        getAutocompleteMaxCount: function () {
+            if (this.autocompleteMaxCount) {
+                return this.autocompleteMaxCount;
+            }
+            return this.getConfig().get('recordsPerPage');
+        },
+
         getAutocompleteUrl: function () {
-            var url = this.foreignScope + '?sortBy=name&maxCount=' + this.AUTOCOMPLETE_RESULT_MAX_COUNT;
+            var url = this.foreignScope + '?orderBy=name&maxSize=' + this.getAutocompleteMaxCount();
+            if (!this.forceSelectAllAttributes) {
+                var select = ['id', 'name'];
+                if (this.mandatorySelectAttributeList) {
+                    select = select.concat(this.mandatorySelectAttributeList);
+                }
+                url += '&select=' + select.join(',')
+            }
             var boolList = this.getSelectBoolFilterList();
             var where = [];
             if (boolList) {
@@ -204,8 +243,8 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
 
         afterRender: function () {
             if (this.mode == 'edit' || this.mode == 'search') {
-                this.$elementId = this.$el.find('input[name="' + this.idName + '"]');
-                this.$elementName = this.$el.find('input[name="' + this.nameName + '"]');
+                this.$elementId = this.$el.find('input[data-name="' + this.idName + '"]');
+                this.$elementName = this.$el.find('input[data-name="' + this.nameName + '"]');
 
                 this.$elementName.on('change', function () {
                     if (this.$elementName.val() == '') {
@@ -236,10 +275,12 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
                         }.bind(this),
                         paramName: 'q',
                         minChars: 1,
+                        triggerSelectOnValidInput: false,
                         autoSelectFirst: true,
-                           formatResult: function (suggestion) {
-                            return suggestion.name;
-                        },
+                        noCache: true,
+                        formatResult: function (suggestion) {
+                            return this.getHelper().escapeString(suggestion.name);
+                        }.bind(this),
                         transformResult: function (response) {
                             var response = JSON.parse(response);
                             var list = [];
@@ -264,6 +305,8 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
                         }.bind(this)
                     });
 
+                    this.$elementName.attr('autocomplete', 'espo-' + this.name);
+
                     this.once('render', function () {
                         $elementName.autocomplete('dispose');
                     }, this);
@@ -271,7 +314,6 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
                     this.once('remove', function () {
                         $elementName.autocomplete('dispose');
                     }, this);
-
 
                     if (this.mode == 'search') {
                         var $elementOneOf = this.$el.find('input.element-one-of');
@@ -281,9 +323,10 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
                             }.bind(this),
                             minChars: 1,
                             paramName: 'q',
-                               formatResult: function (suggestion) {
-                                return suggestion.name;
-                            },
+                            noCache: true,
+                            formatResult: function (suggestion) {
+                                return this.getHelper().escapeString(suggestion.name);
+                            }.bind(this),
                             transformResult: function (response) {
                                 var response = JSON.parse(response);
                                 var list = [];
@@ -305,6 +348,7 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
                             }.bind(this)
                         });
 
+                        $elementOneOf.attr('autocomplete', 'espo-' + this.name);
 
                         this.once('render', function () {
                             $elementOneOf.autocomplete('dispose');
@@ -327,7 +371,7 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
                 var type = this.$el.find('select.search-type').val();
                 this.handleSearchType(type);
 
-                if (type == 'isOneOf') {
+                if (~['isOneOf', 'isNotOneOf', 'isNotOneOfAndIsNotEmpty'].indexOf(type)) {
                     this.searchData.oneOfIdList.forEach(function (id) {
                         this.addLinkOneOfHtml(id, this.searchData.oneOfNameHash[id]);
                     }, this);
@@ -342,7 +386,7 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
         validateRequired: function () {
             if (this.isRequired()) {
                 if (this.model.get(this.idName) == null) {
-                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
+                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.getLabelText());
                     this.showValidationMessage(msg);
                     return true;
                 }
@@ -354,9 +398,9 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
 
             var index = this.searchData.oneOfIdList.indexOf(id);
             if (index > -1) {
-                this.searchParams.oneOfIdList.splice(index, 1);
+                this.searchData.oneOfIdList.splice(index, 1);
             }
-            delete this.searchParams.oneOfNameHash[id];
+            delete this.searchData.oneOfNameHash[id];
         },
 
         addLinkOneOf: function (id, name) {
@@ -374,8 +418,8 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
         addLinkOneOfHtml: function (id, name) {
             var $container = this.$el.find('.link-one-of-container');
             var $el = $('<div />').addClass('link-' + id).addClass('list-group-item');
-            $el.html(name + '&nbsp');
-            $el.prepend('<a href="javascript:" class="pull-right" data-id="' + id + '" data-action="clearLinkOneOf"><span class="glyphicon glyphicon-remove"></a>');
+            $el.html(this.getHelper().escapeString(name) + '&nbsp');
+            $el.prepend('<a href="javascript:" class="pull-right" data-id="' + id + '" data-action="clearLinkOneOf"><span class="fas fa-times"></a>');
             $container.append($el);
 
             return $el;
@@ -383,20 +427,20 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
 
         fetch: function () {
             var data = {};
-            data[this.nameName] = this.$el.find('[name="'+this.nameName+'"]').val() || null;
-            data[this.idName] = this.$el.find('[name="'+this.idName+'"]').val() || null;
+            data[this.nameName] = this.$el.find('[data-name="'+this.nameName+'"]').val() || null;
+            data[this.idName] = this.$el.find('[data-name="'+this.idName+'"]').val() || null;
 
             return data;
         },
 
         fetchSearch: function () {
             var type = this.$el.find('select.search-type').val();
-            var value = this.$el.find('[name="' + this.idName + '"]').val();
+            var value = this.$el.find('[data-name="' + this.idName + '"]').val();
 
             if (type == 'isEmpty') {
                 var data = {
                     type: 'isNull',
-                    field: this.idName,
+                    attribute: this.idName,
                     data: {
                         type: type
                     }
@@ -405,7 +449,7 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
             } else if (type == 'isNotEmpty') {
                 var data = {
                     type: 'isNotNull',
-                    field: this.idName,
+                    attribute: this.idName,
                     data: {
                         type: type
                     }
@@ -414,27 +458,102 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
             } else if (type == 'isOneOf') {
                 var data = {
                     type: 'in',
-                    field: this.idName,
+                    attribute: this.idName,
                     value: this.searchData.oneOfIdList,
-                    oneOfIdList: this.searchData.oneOfIdList,
-                    oneOfNameHash: this.searchData.oneOfNameHash,
                     data: {
-                        type: type
+                        type: type,
+                        oneOfIdList: this.searchData.oneOfIdList,
+                        oneOfNameHash: this.searchData.oneOfNameHash
                     }
                 };
                 return data;
-
+            } else if (type == 'isNotOneOf') {
+                var data = {
+                    type: 'or',
+                    value: [
+                        {
+                            type: 'notIn',
+                            attribute: this.idName,
+                            value: this.searchData.oneOfIdList
+                        },
+                        {
+                            type: 'isNull',
+                            attribute: this.idName
+                        }
+                    ],
+                    data: {
+                        type: type,
+                        oneOfIdList: this.searchData.oneOfIdList,
+                        oneOfNameHash: this.searchData.oneOfNameHash
+                    }
+                };
+                return data;
+            } else if (type == 'isNotOneOfAndIsNotEmpty') {
+                var data = {
+                    type: 'notIn',
+                    attribute: this.idName,
+                    value: this.searchData.oneOfIdList,
+                    data: {
+                        type: type,
+                        oneOfIdList: this.searchData.oneOfIdList,
+                        oneOfNameHash: this.searchData.oneOfNameHash
+                    }
+                };
+                return data;
+            }  else if (type == 'isNot') {
+                if (!value) {
+                    return false;
+                }
+                var nameValue = this.$el.find('[data-name="' + this.nameName + '"]').val();
+                var data = {
+                    type: 'or',
+                    value: [
+                        {
+                            type: 'notEquals',
+                            attribute: this.idName,
+                            value: value
+                        },
+                        {
+                            type: 'isNull',
+                            attribute: this.idName
+                        }
+                    ],
+                    data: {
+                        type: type,
+                        idValue: value,
+                        nameValue: nameValue
+                    }
+                };
+                return data;
+            } else if (type == 'isNotAndIsNotEmpty') {
+                if (!value) {
+                    return false;
+                }
+                var nameValue = this.$el.find('[data-name="' + this.nameName + '"]').val();
+                var data = {
+                    type: 'notEquals',
+                    attribute: this.idName,
+                    value: value,
+                    data: {
+                        type: type,
+                        idValue: value,
+                        nameValue: nameValue
+                    }
+                };
+                return data;
             } else {
                 if (!value) {
                     return false;
                 }
+                var nameValue = this.$el.find('[data-name="' + this.nameName + '"]').val();
                 var data = {
                     type: 'equals',
-                    field: this.idName,
+                    attribute: this.idName,
                     value: value,
-                    valueName: this.$el.find('[name="' + this.nameName + '"]').val(),
                     data: {
-                        type: type
+                        type: type,
+                        idValue: value,
+                        nameValue: nameValue
                     }
                 };
                 return data;
@@ -447,4 +566,3 @@ Espo.define('views/fields/link', 'views/fields/base', function (Dep) {
 
     });
 });
-

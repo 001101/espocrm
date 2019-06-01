@@ -1,8 +1,10 @@
 {
   "labels": {
-    "Create Lead": "Crea Guida",
+    "Create Lead": "Crea Lead",
     "Create Contact": "Crea Contatto",
-    "Create Task": "Create Task",
-    "Create Case": "Crea Caso"
+    "Create Task": "Crea Compito",
+    "Create Case": "Crea Caso",
+    "Add to Contact": "Aggiungi al contatto",
+    "Add to Lead": "Aggiungi all'iniziativa"
   }
 }

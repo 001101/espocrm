@@ -7,28 +7,68 @@
         },
         "status": {
             "type": "enum",
-            "options": ["Pending", "Running", "Success", "Failed"],
-            "default": "Pending"
+            "options": ["Pending", "Ready", "Running", "Success", "Failed"],
+            "default": "Pending",
+            "style": {
+                "Success": "success",
+                "Failed": "danger",
+                "Running": "warning",
+                "Ready": "warning"
+            }
         },
         "executeTime": {
             "type": "datetime",
-            "required": true
+            "required": true,
+            "hasSeconds": true
+        },
+        "number": {
+            "type": "int",
+            "index": true,
+            "readOnly": true,
+            "view": "views/fields/autoincrement",
+            "dbType": "bigint",
+            "unique": true,
+            "autoincrement": true
         },
         "serviceName": {
             "type": "varchar",
             "required": true,
             "maxLength": 100
         },
-        "method": {
+        "methodName": {
             "type": "varchar",
-            "required": true,
-            "maxLength":100
+            "maxLength": 100
+        },
+        "job": {
+            "type": "varchar",
+            "view": "views/scheduled-job/fields/job"
         },
         "data": {
             "type": "jsonObject"
         },
         "scheduledJob": {
             "type": "link"
+        },
+        "scheduledJobJob": {
+            "type": "foreign",
+            "link": "scheduledJob",
+            "field": "job"
+        },
+        "queue": {
+            "type": "varchar",
+            "maxLength": 36,
+            "default": null
+        },
+        "startedAt": {
+            "type": "datetime",
+            "hasSeconds": true
+        },
+        "executedAt": {
+            "type": "datetime",
+            "hasSeconds": true
+        },
+        "pid": {
+            "type": "int"
         },
         "attempts": {
             "type": "int"
@@ -46,11 +86,13 @@
         },
         "createdAt": {
             "type": "datetime",
-            "readOnly": true
+            "readOnly": true,
+            "hasSeconds": true
         },
         "modifiedAt": {
             "type": "datetime",
-            "readOnly": true
+            "readOnly": true,
+            "hasSeconds": true
         }
     },
     "links": {
@@ -60,8 +102,9 @@
         }
     },
     "collection": {
-        "sortBy": "createdAt",
-        "asc": false
+        "orderBy": "number",
+        "order": "desc",
+        "textFilterFields": ["name", "methodName", "serviceName", "scheduledJobName"]
     },
     "indexes": {
         "executeTime": {

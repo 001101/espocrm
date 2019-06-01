@@ -3,8 +3,7 @@
     "skipNotifications": "Salta Notifica"
   },
   "labels": {
-    "Create EmailFolder": "Crea Caretella",
-    "Manage Folders": "Gestione Cartelle",
-    "Emails": "Email"
+    "Create EmailFolder": "Crea Cartella",
+    "Manage Folders": "Gestione Cartelle"
   }
 }

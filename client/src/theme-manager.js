@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,8 @@
  * In accordance with Section 7(b) of the GNU General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
-Espo.define('theme-manager', [], function () {
+
+define('theme-manager', [], function () {
 
     var ThemeManager = function (config, preferences, metadata) {
         this.config = config;
@@ -51,8 +52,28 @@ Espo.define('theme-manager', [], function () {
             return this.config.get('theme');
         },
 
+        getAppliedName: function () {
+            var name = window.getComputedStyle(document.body).getPropertyValue('--theme-name');
+            if (!name) return null;
+            return name.trim();
+        },
+
+        isApplied: function () {
+            var appliedName = this.getAppliedName();
+            if (!appliedName) return true;
+            return this.getName() === appliedName;
+        },
+
         getStylesheet: function () {
-            var link = this.metadata.get('themes.' + this.getName() + '.stylesheet') || 'client/css/espo.css';
+            var link = this.metadata.get(['themes', this.getName(), 'stylesheet']) || 'client/css/espo/espo.css';
+            if (this.config.get('cacheTimestamp')) {
+                link += '?r=' + this.config.get('cacheTimestamp').toString();
+            }
+            return link
+        },
+
+        getIframeStylesheet: function () {
+            var link = this.metadata.get(['themes', this.getName(), 'stylesheetIframe']) || 'client/css/espo/espo-iframe.css';
             if (this.config.get('cacheTimestamp')) {
                 link += '?r=' + this.config.get('cacheTimestamp').toString();
             }
@@ -60,7 +81,7 @@ Espo.define('theme-manager', [], function () {
         },
 
         getParam: function (name) {
-            return this.metadata.get('themes.' + this.getName() + '.' + name) || this.defaultParams[name] || null;
+            return this.metadata.get(['themes', this.getName(), name]) || this.defaultParams[name] || null;
         },
 
         isUserTheme: function () {
@@ -78,5 +99,4 @@ Espo.define('theme-manager', [], function () {
     });
 
     return ThemeManager;
-
 });

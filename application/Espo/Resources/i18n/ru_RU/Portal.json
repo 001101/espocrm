@@ -3,7 +3,6 @@
     "name": "Название",
     "logo": "Логотип",
     "companyLogo": "Логотип",
-    "url": "URL",
     "portalRoles": "Роли",
     "isActive": "Активный",
     "isDefault": "Портал по умолчанию",
@@ -16,7 +15,9 @@
     "timeFormat": "Формат времени",
     "timeZone": "Часовой пояс",
     "weekStart": "Первый день недели",
-    "defaultCurrency": "Валюта по умолчанию"
+    "defaultCurrency": "Валюта по умолчанию",
+    "customUrl": "Пользовательский URL",
+    "customId": "Пользовательский ID"
   },
   "links": {
     "users": "Пользователи",

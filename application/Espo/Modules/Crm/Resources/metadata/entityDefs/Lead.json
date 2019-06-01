@@ -1,22 +1,24 @@
 {
     "fields": {
         "name": {
-            "type": "personName"
+            "type": "personName",
+            "isPersonalData": true
         },
         "salutationName": {
             "type": "enum",
-            "options": ["", "Mr.", "Mrs.", "Ms.", "Dr."]
+            "options": ["", "Mr.", "Ms.", "Mrs.", "Dr."]
         },
         "firstName": {
             "type": "varchar",
             "maxLength": 100,
-            "default":""
+            "default":"",
+            "trim": true
         },
         "lastName": {
             "type": "varchar",
             "maxLength": 100,
-            "required": true,
-            "default":""
+            "default":"",
+            "trim": true
         },
         "title": {
             "type": "varchar",
@@ -26,7 +28,6 @@
             "type": "enum",
             "options": ["New", "Assigned", "In Process", "Converted", "Recycled", "Dead"],
             "default": "New",
-            "view": "views/fields/enum-styled",
             "style": {
                 "Converted": "success",
                 "Recycled": "danger",
@@ -39,6 +40,13 @@
             "options": ["", "Call", "Email", "Existing Customer", "Partner", "Public Relations", "Web Site", "Campaign", "Other"],
             "default": ""
         },
+        "industry": {
+            "type": "enum",
+            "view": "crm:views/lead/fields/industry",
+            "customizationOptionsDisabled": true,
+            "default": "",
+            "isSorted": true
+        },
         "opportunityAmount": {
             "type": "currency",
             "audited": true
@@ -48,10 +56,12 @@
             "readOnly": true
         },
         "website": {
-            "type": "url"
+            "type": "url",
+            "strip": true
         },
         "address": {
-            "type": "address"
+            "type": "address",
+            "isPersonalData": true
         },
         "addressStreet": {
             "type": "text",
@@ -59,24 +69,30 @@
             "dbType": "varchar"
         },
         "addressCity": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "addressState": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "addressCountry": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "addressPostalCode": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "emailAddress": {
-            "type": "email"
+            "type": "email",
+            "isPersonalData": true
         },
         "phoneNumber": {
             "type": "phone",
             "typeList": ["Mobile", "Office", "Home", "Fax", "Other"],
-            "defaultType": "Mobile"
+            "defaultType": "Mobile",
+            "isPersonalData": true
         },
         "doNotCall": {
             "type": "bool"
@@ -112,7 +128,32 @@
         "acceptanceStatus": {
             "type": "varchar",
             "notStorable": true,
+            "exportDisabled": true,
             "disabled": true
+        },
+        "acceptanceStatusMeetings": {
+            "type": "enum",
+            "notStorable": true,
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "importDisabled": true,
+            "exportDisabled": true,
+            "view": "crm:views/lead/fields/acceptance-status",
+            "link": "meetings",
+            "column": "status"
+        },
+        "acceptanceStatusCalls": {
+            "type": "enum",
+            "notStorable": true,
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "importDisabled": true,
+            "exportDisabled": true,
+            "view": "crm:views/lead/fields/acceptance-status",
+            "link": "calls",
+            "column": "status"
         },
         "teams": {
             "type": "linkMultiple",
@@ -154,7 +195,14 @@
             "layoutListDisabled": true,
             "layoutMassUpdateDisabled": true,
             "layoutFiltersDisabled": true,
-            "entity": "TargetList"
+            "entity": "TargetList",
+            "directAccessDisabled": true
+        },
+        "targetListIsOptedOut": {
+            "type": "bool",
+            "notStorable": true,
+            "readOnly": true,
+            "disabled": true
         }
     },
     "links": {
@@ -180,24 +228,28 @@
             "type": "hasMany",
             "entity": "Meeting",
             "foreign": "leads",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "calls": {
             "type": "hasMany",
             "entity": "Call",
             "foreign": "leads",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "tasks": {
             "type": "hasChildren",
             "entity": "Task",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "cases": {
             "type": "hasMany",
             "entity": "Case",
-            "foreign": "lead"
+            "foreign": "lead",
+            "audited": true
         },
         "emails": {
             "type": "hasChildren",
@@ -242,7 +294,8 @@
         "documents": {
             "type": "hasMany",
             "entity": "Document",
-            "foreign": "leads"
+            "foreign": "leads",
+            "audited": true
         }
     },
     "convertEntityList": [
@@ -267,8 +320,8 @@
         }
     },
     "collection": {
-        "sortBy": "createdAt",
-        "asc": false,
+        "orderBy": "createdAt",
+        "order": "desc",
         "textFilterFields": ["name", "accountName", "emailAddress"]
     },
     "indexes": {

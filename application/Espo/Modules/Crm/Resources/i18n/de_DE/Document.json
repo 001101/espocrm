@@ -1,14 +1,10 @@
 {
   "labels": {
-    "Create Document": "Dokument erstellen",
-    "Details": "Details"
+    "Create Document": "Dokument erstellen"
   },
   "fields": {
-    "name": "Betreff",
-    "status": "Status",
     "file": "Datei",
     "type": "Typ",
-    "source": "Quelle",
     "publishDate": "Veröffentlichungsdatum",
     "expirationDate": "Ablaufdatum",
     "description": "Beschreibung",
@@ -18,7 +14,9 @@
   "links": {
     "accounts": "Firmen",
     "opportunities": "Verkaufschancen",
-    "folder": "Ordner"
+    "folder": "Ordner",
+    "leads": "Interessenten",
+    "contacts": "Kontakte"
   },
   "options": {
     "status": {
@@ -30,9 +28,7 @@
     "type": {
       "": "Kein(e)",
       "Contract": "Vertrag",
-      "NDA": "NDA",
-      "EULA": "EULA",
-      "License Agreement": "Lizenz Vereinbarung"
+      "License Agreement": "Lizenzvereinbarung"
     }
   },
   "presetFilters": {

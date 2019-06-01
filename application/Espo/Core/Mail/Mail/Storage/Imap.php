@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,18 +31,31 @@ namespace Espo\Core\Mail\Mail\Storage;
 
 class Imap extends \Zend\Mail\Storage\Imap
 {
-	//protected $messageClass = '\\Espo\\Core\\Mail\\Mail\\Storage\\Message';
-
     public function getIdsFromUID($uid)
     {
         $uid = intval($uid) + 1;
-        return $this->protocol->search(array('UID ' . $uid . ':*'));
+        return $this->protocol->search(['UID ' . $uid . ':*']);
     }
 
     public function getIdsFromDate($date)
     {
-        return $this->protocol->search(array('SINCE "' . $date . '"'));
+        return $this->protocol->search(['SINCE "' . $date . '"']);
     }
 
-}
+    public function getHeaderAndFlags($id, $part = null)
+    {
+        $data = $this->protocol->fetch(['FLAGS', 'RFC822.HEADER'], $id);
 
+        $header = $data['RFC822.HEADER'];
+
+        $flags = [];
+        foreach ($data['FLAGS'] as $flag) {
+            $flags[] = isset(static::$knownFlags[$flag]) ? static::$knownFlags[$flag] : $flag;
+        }
+
+        return [
+            'flags' => $flags,
+            'header' => $header
+        ];
+    }
+}

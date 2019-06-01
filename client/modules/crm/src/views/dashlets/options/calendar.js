@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,19 +33,36 @@ Espo.define('crm:views/dashlets/options/calendar', 'views/dashlets/options/base'
         setup: function () {
             Dep.prototype.setup.call(this);
 
-            this.manageUsersField();
-            this.listenTo(this.model, 'change:mode', this.manageUsersField, this);
+            this.manageFields();
+            this.listenTo(this.model, 'change:mode', this.manageFields, this);
         },
 
-        manageUsersField: function () {
+
+        init: function () {
+            Dep.prototype.init.call(this);
+            this.fields.enabledScopeList.options = this.getConfig().get('calendarEntityList') || [];
+        },
+
+        manageFields: function (model, value, o) {
             if (this.model.get('mode') === 'timeline') {
                 this.showField('users');
             } else {
                 this.hideField('users');
             }
+
+            if (
+                this.getAcl().get('userPermission') !== 'no'
+                &&
+                ~['basicWeek', 'month', 'basicDay'].indexOf(this.model.get('mode'))
+            ) {
+                this.showField('teams');
+            } else {
+                if (o && o.ui) {
+                    this.model.set('teamsIds', []);
+                }
+                this.hideField('teams');
+            }
         }
 
     });
 });
-
-

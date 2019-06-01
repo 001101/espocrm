@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,12 +38,21 @@ Espo.define('views/settings/fields/currency-rates', 'views/fields/base', functio
             var rateValues = {};
             (this.model.get('currencyList') || []).forEach(function (currency) {
                 if (currency != baseCurrency) {
-                    rateValues[currency] = currencyRates[currency] || 1.00;
+                    rateValues[currency] = currencyRates[currency];
+                    if (!rateValues[currency]) {
+                        if (currencyRates[baseCurrency]) {
+                            rateValues[currency] = Math.round(1 / currencyRates[baseCurrency] * 1000) / 1000;
+                        }
+                        if (!rateValues[currency]) {
+                            rateValues[currency] = 1.00
+                        }
+                    }
                 }
             }, this);
 
             return {
-                rateValues: rateValues
+                rateValues: rateValues,
+                baseCurrency: baseCurrency
             };
         },
 

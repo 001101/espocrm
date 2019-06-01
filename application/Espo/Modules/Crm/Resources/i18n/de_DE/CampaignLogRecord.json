@@ -9,21 +9,24 @@
     "application": "Applikation",
     "queueItem": "Warteschlangeneintrag",
     "stringData": "String Daten",
-    "stringAdditionalData": "String zusätzliche Daten"
+    "stringAdditionalData": "String zusätzliche Daten",
+    "isTest": "Ist Test"
   },
   "links": {
     "queueItem": "Warteschlangeneintrag",
     "parent": "Bezieht sich auf",
-    "object": "Objekt"
+    "object": "Objekt",
+    "campaign": "Kampagne"
   },
   "options": {
     "action": {
       "Sent": "Gesendet",
       "Opened": "Geöffnet",
-      "Opted Out": "Keine E-Mails",
+      "Opted Out": "Opt-Out gesetzt",
       "Bounced": "Nicht zustellbar",
       "Clicked": "Geklickt",
-      "Lead Created": "Interessent erstellt"
+      "Lead Created": "Interessent erstellt",
+      "Opted In": "Opt-In gesetzt"
     }
   },
   "labels": {
@@ -32,9 +35,10 @@
   "presetFilters": {
     "sent": "Gesendet",
     "opened": "Geöffnet",
-    "optedOut": "Keine E-Mails",
+    "optedOut": "Opt-Out gesetzt",
     "bounced": "Nicht zustellbar",
     "clicked": "Geklickt",
-    "leadCreated": "Interessent erstellt"
+    "leadCreated": "Interessent erstellt",
+    "optedIn": "Opt-In gesetzt"
   }
 }

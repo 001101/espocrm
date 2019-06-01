@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,8 +37,8 @@ Espo.define('views/fields/range-float', ['views/fields/range-int', 'views/fields
         validateFloat: function () {
             var validate = function (name) {
                 if (isNaN(this.model.get(name))) {
-                    var msg = this.translate('fieldShouldBeFloat', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
-                    this.showValidationMessage(msg, '[name="'+name+'"]');
+                    var msg = this.translate('fieldShouldBeFloat', 'messages').replace('{field}', this.getLabelText());
+                    this.showValidationMessage(msg, '[data-name="'+name+'"]');
                     return true;
                 }
             }.bind(this);

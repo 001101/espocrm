@@ -9,5 +9,7 @@
     "stream": true,
     "importable": true,
     "notifications": true,
-    "object": true
+    "object": true,
+    "statusField": "stage",
+    "kanbanStatusIgnoreList": ["Closed Lost"]
 }

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,15 +25,27 @@
  *
  * In accordance with Section 7(b) of the GNU General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
- ************************************************************************/ 
+ ************************************************************************/
 
 namespace Espo\Controllers;
+
+use \Espo\Core\Exceptions\Forbidden;
 
 class Metadata extends \Espo\Core\Controllers\Base
 {
 
     public function actionRead($params, $data)
     {
-        return $this->getMetadata()->getAll(true);
+        return $this->getMetadata()->getAllForFrontend();
+    }
+
+    public function getActionGet($params, $data, $request)
+    {
+        if (!$this->getUser()->isAdmin()) {
+            throw new \Forbidden();
+        }
+        $key = $request->get('key');
+
+        return $this->getMetadata()->get($key, false);
     }
 }

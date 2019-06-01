@@ -6,17 +6,17 @@
     "url": "URL",
     "portalRoles": "Roles",
     "isActive": "Está activo",
-    "isDefault": "Por defecto",
+    "isDefault": "Portal por defecto",
     "tabList": "Lista de pestañas",
-    "quickCreateList": "Crear lista rápida",
-    "theme": "Plantilla",
+    "quickCreateList": "Lista de creación rápida",
+    "theme": "Tema",
     "language": "Idioma",
-    "dashboardLayout": "Distribución del Escritorio",
+    "dashboardLayout": "Diseño del escritorio",
     "dateFormat": "Formato de fecha",
-    "timeFormat": "Formato de tiempo",
+    "timeFormat": "Formato de hora",
     "timeZone": "Zona horaria",
-    "weekStart": "Primer dia de la semana",
-    "defaultCurrency": "Moneda predeterminada",
+    "weekStart": "Primer día de la semana",
+    "defaultCurrency": "Moneda por defecto",
     "customUrl": "URL personalizada",
     "customId": "ID personalizado"
   },
@@ -26,11 +26,11 @@
     "notes": "Notas"
   },
   "tooltips": {
-    "portalRoles": "Los Roles del Portal especificados se aplicarán a todos los usuarios de este portal."
+    "portalRoles": "Los roles del portal indicados se aplicarán a todos los usuarios de este portal."
   },
   "labels": {
-    "Create Portal": "Crear un Portal",
-    "User Interface": "Interfaz de usuario",
+    "Create Portal": "Crear portal",
+    "User Interface": "Interfaz del Usuario",
     "General": "General",
     "Settings": "Ajustes"
   }

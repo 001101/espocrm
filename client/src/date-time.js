@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('date-time', [], function () {
+define('date-time', [], function () {
 
     var DateTime = function () {
 
@@ -37,6 +37,8 @@ Espo.define('date-time', [], function () {
         internalDateFormat: 'YYYY-MM-DD',
 
         internalDateTimeFormat: 'YYYY-MM-DD HH:mm',
+
+        internalDateTimeFullFormat: 'YYYY-MM-DD HH:mm:ss',
 
         dateFormat: 'MM/DD/YYYY',
 
@@ -78,6 +80,14 @@ Espo.define('date-time', [], function () {
 
         getReadableShortDateFormat: function () {
             return this.readableShortDateFormatMap[this.getDateFormat()] || 'MMM D';
+        },
+
+        getReadableDateTimeFormat: function () {
+            return this.getReadableDateFormat() + ' ' + this.timeFormat;
+        },
+
+        getReadableShortDateTimeFormat: function () {
+            return this.getReadableShortDateFormat() + ' ' + this.timeFormat;
         },
 
         fromDisplayDate: function (string) {
@@ -141,11 +151,7 @@ Espo.define('date-time', [], function () {
         },
 
         getNowMoment: function () {
-            var m = moment();
-            if (this.timeZone) {
-                m = m.tz(this.timeZone);
-            }
-            return m;
+            return moment().tz(this.getTimeZone())
         },
 
         toMomentDate: function (string) {
@@ -154,7 +160,7 @@ Espo.define('date-time', [], function () {
         },
 
         toMoment: function (string) {
-            var m = moment.utc(string, this.internalDateTimeFormat);
+            var m = moment.utc(string, this.internalDateTimeFullFormat);
             if (this.timeZone) {
                 m = m.tz(this.timeZone);
             }
@@ -177,7 +183,21 @@ Espo.define('date-time', [], function () {
         },
 
         getToday: function () {
-            return moment.utc().format(this.internalDateFormat);
+            return moment().tz(this.getTimeZone()).format(this.internalDateFormat);
+        },
+
+        getDateTimeShiftedFromNow: function (shift, type, multiplicity) {
+            if (!multiplicity) {
+                return moment.utc().add(type, shift).format(this.internalDateTimeFormat);
+            } else {
+                var unix = moment().unix();
+                unix = unix - (unix % (multiplicity * 60));
+                return moment.unix(unix).utc().add(type, shift).format(this.internalDateTimeFormat);
+            }
+        },
+
+        getDateShiftedFromToday: function (shift, type) {
+            return moment.tz(this.getTimeZone()).add(type, shift).format(this.internalDateFormat);
         },
 
         getNow: function (multiplicity) {
@@ -227,7 +247,7 @@ Espo.define('date-time', [], function () {
         },
 
         setLanguage: function (language) {
-            moment.locale('en', {
+            moment.updateLocale('en', {
                 months: language.translate('monthNames', 'lists'),
                 monthsShort: language.translate('monthNamesShort', 'lists'),
                 weekdays: language.translate('dayNames', 'lists'),
@@ -241,4 +261,3 @@ Espo.define('date-time', [], function () {
     return DateTime;
 
 });
-

@@ -50,6 +50,9 @@
         "sharedCalendarUserList": {
             "type": "jsonArray"
         },
+        "calendarViewDataList": {
+            "type": "jsonArray"
+        },
         "presetFilters": {
             "type": "jsonObject"
         },
@@ -117,7 +120,7 @@
             "tooltip": true
         },
         "signature": {
-            "type": "text",
+            "type": "wysiwyg",
             "view": "views/fields/wysiwyg"
         },
         "defaultReminders": {
@@ -135,7 +138,6 @@
         },
         "tabList": {
             "type": "array",
-            "translation": "Global.scopeNamesPlural",
             "view": "views/preferences/fields/tab-list"
         },
         "emailReplyToAllByDefault": {
@@ -151,6 +153,30 @@
             "notStorable": true
         },
         "doNotFillAssignedUserIfNotRequired": {
+            "type": "bool",
+            "tooltip": true
+        },
+        "followEntityOnStreamPost": {
+            "type": "bool",
+            "default": true
+        },
+        "followCreatedEntities": {
+            "type": "bool",
+            "tooltip": true
+        },
+        "followCreatedEntityTypeList": {
+            "type": "multiEnum",
+            "view": "views/preferences/fields/auto-follow-entity-type-list",
+            "translation": "Global.scopeNamesPlural",
+            "tooltip": true
+        },
+        "emailUseExternalClient": {
+            "type": "bool"
+        },
+        "scopeColorsDisabled": {
+            "type": "bool"
+        },
+        "tabColorsDisabled": {
             "type": "bool"
         }
     }

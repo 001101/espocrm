@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,8 @@
  * In accordance with Section 7(b) of the GNU General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
-Espo.define('view', [], function () {
+
+define('view', [], function () {
 
     return Bull.View.extend({
 
@@ -34,6 +35,10 @@ Espo.define('view', [], function () {
 
             var fullAction = 'click button[data-action=\"'+action+'\"]';
             this.events[fullAction] = handler;
+        },
+
+        escapeString: function (string) {
+            return Handlebars.Utils.escapeExpression(string);
         },
 
         notify: function (label, type, timeout, scope) {
@@ -48,16 +53,6 @@ Espo.define('view', [], function () {
             }
             var text = this.getLanguage().translate(label, 'labels', scope);
             Espo.Ui.notify(text, type, timeout);
-        },
-
-        reRender: function () {
-            if (this.isRendered()) {
-                this.render();
-            } else if (this.isBeingRendered()) {
-                this.once('after:render', function () {
-                    this.render();
-                }, this);
-            }
         },
 
         getHelper: function () {
@@ -112,6 +107,12 @@ Espo.define('view', [], function () {
             }
         },
 
+        getSessionStorage: function () {
+            if (this._helper) {
+                return this._helper.sessionStorage;
+            }
+        },
+
         getLanguage: function () {
             if (this._helper) {
                 return this._helper.language;
@@ -130,15 +131,15 @@ Espo.define('view', [], function () {
             }
         },
 
-        getStorage: function () {
-            if (this._helper) {
-                return this._helper.storage;
-            }
-        },
-
         getDateTime: function () {
             if (this._helper) {
                 return this._helper.dateTime;
+            }
+        },
+
+        getNumberUtil: function () {
+            if (this._helper) {
+                return this._helper.numberUtil;
             }
         },
 
@@ -223,7 +224,31 @@ Espo.define('view', [], function () {
 
         ajaxGetRequest: function (url, data, options) {
             return this.ajaxRequest(url, 'GET', data, options);
+        },
+
+        ajaxDeleteRequest: function (url, data, options) {
+            if (data) {
+                data = JSON.stringify(data);
+            }
+            return this.ajaxRequest(url, 'DELETE', data, options);
+        },
+
+        confirm: function (o, callback, context) {
+            var confirmStyle = null;
+            if (typeof o === 'string' || o instanceof String) {
+                var message = o;
+                var confirmText = this.translate('Yes');
+            } else {
+                o = o || {};
+                var message = o.message;
+                var confirmText = o.confirmText;
+                confirmStyle = o.confirmStyle || null;
+            }
+            Espo.Ui.confirm(message, {
+                confirmText: confirmText,
+                cancelText: this.translate('Cancel'),
+                confirmStyle: confirmStyle
+            }, callback, context);
         }
     });
-
 });

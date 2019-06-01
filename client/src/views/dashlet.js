@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/dashlet', 'view', function (Dep) {
+define('views/dashlet', 'view', function (Dep) {
 
     return Dep.extend({
 
@@ -42,8 +42,9 @@ Espo.define('views/dashlet', 'view', function (Dep) {
             return {
                 name: this.name,
                 id: this.id,
-                title: this.getOption('title') || this.name,
+                title: this.getTitle(),
                 actionList: (this.getView('body') || {}).actionList || [],
+                buttonList: (this.getView('body') || {}).buttonList || [],
                 noPadding: (this.getView('body') || {}).noPadding
             };
         },
@@ -140,16 +141,17 @@ Espo.define('views/dashlet', 'view', function (Dep) {
             return this.getView('body').getOption(key);
         },
 
+        getTitle: function () {
+            return this.getView('body').getTitle();
+        },
+
         actionRemove: function () {
-            if (!confirm(this.translate('confirmation', 'messages'))) {
-                return;
-            }
-            this.trigger('remove-dashlet');
-            this.$el.remove();
-            this.remove();
+            this.confirm(this.translate('confirmation', 'messages'), function () {
+                this.trigger('remove-dashlet');
+                this.$el.remove();
+                this.remove();
+            }, this);
         }
 
     });
 });
-
-

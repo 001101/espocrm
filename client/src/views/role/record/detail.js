@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +38,10 @@ Espo.define('views/role/record/detail', 'views/record/detail', function (Dep) {
 
         editModeDisabled: true,
 
+        columnCount: 3,
+
+        stickButtonsContainerAllTheWay: true,
+
         setup: function () {
             Dep.prototype.setup.call(this);
             this.createView('extra', this.tableView, {
@@ -47,5 +51,3 @@ Espo.define('views/role/record/detail', 'views/record/detail', function (Dep) {
         },
     });
 });
-
-

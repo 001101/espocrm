@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,19 +30,41 @@ Espo.define('views/admin/layouts/list', 'views/admin/layouts/rows', function (De
 
     return Dep.extend({
 
-        dataAttributes: ['name', 'width', 'link', 'notSortable', 'align'],
+        dataAttributeList: ['name', 'width', 'link', 'notSortable', 'align', 'view', 'customLabel', 'widthPx'],
 
         dataAttributesDefs: {
             link: {type: 'bool'},
-            width: {type: 'float'},
+            width: {
+                type: 'float',
+                min: 0,
+                max: 100
+            },
             notSortable: {type: 'bool'},
             align: {
                 type: 'enum',
                 options: ["left", "right"]
+            },
+            view: {
+                type: 'varchar',
+                readOnly: true
+            },
+            customLabel: {
+                type: 'varchar',
+                readOnly: true
+            },
+            widthPx: {
+                type: 'int',
+                readOnly: true
+            },
+            name: {
+                type: 'varchar',
+                readOnly: true
             }
         },
 
         editable: true,
+
+        languageCategory: 'fields',
 
         ignoreList: [],
 
@@ -86,45 +108,72 @@ Espo.define('views/admin/layouts/list', 'views/admin/layouts/rows', function (De
             this.enabledFields = [];
             this.disabledFields = [];
 
+            var labelList = [];
+            var duplicateLabelList = [];
+
             for (var i in layout) {
+                var label = this.getLanguage().translate(layout[i].name, 'fields', this.scope);
+                if (~labelList.indexOf(label)) {
+                    duplicateLabelList.push(label);
+                }
+                labelList.push(label);
                 this.enabledFields.push({
                     name: layout[i].name,
-                    label: this.getLanguage().translate(layout[i].name, 'fields', this.scope)
+                    label: label
                 });
                 this.enabledFieldsList.push(layout[i].name);
             }
 
             for (var i in allFields) {
                 if (!_.contains(this.enabledFieldsList, allFields[i])) {
-                    this.disabledFields.push({
-                        name: allFields[i],
-                        label: this.getLanguage().translate(allFields[i], 'fields', this.scope)
-                    });
+                    var label = this.getLanguage().translate(allFields[i], 'fields', this.scope);
+                    if (~labelList.indexOf(label)) {
+                        duplicateLabelList.push(label);
+                    }
+                    labelList.push(label);
+                    var fieldName = allFields[i];
+                    var o = {
+                        name: fieldName,
+                        label: label
+                    };
+                    var fieldType = this.getMetadata().get(['entityDefs', this.scope, 'fields', fieldName, 'type']);
+                    if (fieldType) {
+                        if (this.getMetadata().get(['fields', fieldType, 'notSortable'])) {
+                            o.notSortable = true;
+                        }
+                    }
+                    this.disabledFields.push(o);
                 }
             }
+
+            this.enabledFields.forEach(function (item) {
+                if (~duplicateLabelList.indexOf(item.label)) {
+                    item.label += ' (' + item.name + ')';
+                }
+            }, this);
+            this.disabledFields.forEach(function (item) {
+                if (~duplicateLabelList.indexOf(item.label)) {
+                    item.label += ' (' + item.name + ')';
+                }
+            }, this);
 
             this.rowLayout = layout;
 
             for (var i in this.rowLayout) {
-                this.rowLayout[i].label = this.getLanguage().translate(this.rowLayout[i].name, 'fields', this.scope);
-            }
-        },
+                var label = this.getLanguage().translate(this.rowLayout[i].name, 'fields', this.scope);
+                this.enabledFields.forEach(function (item) {
+                    if (item.name === this.rowLayout[i].name) {
+                        label = item.label;
+                    }
+                }, this);
+                this.rowLayout[i].label = label;
 
-        parseDataAttributes: function (dialog) {
-            var width = parseFloat(dialog.$el.find("[name='width']").val());
-            if (isNaN(width) || width > 100 || width < 0) {
-                width = '';
+                this.itemsData[this.rowLayout[i].name] = Espo.Utils.cloneDeep(this.rowLayout[i]);
             }
-            return {
-                width: width,
-                link: dialog.$el.find("[name='link']").val()
-            };
         },
 
         checkFieldType: function (type) {
-            if (['linkMultiple'].indexOf(type) != -1) {
-                return false;
-            }
+
             return true;
         },
 
@@ -135,10 +184,12 @@ Espo.define('views/admin/layouts/list', 'views/admin/layouts/rows', function (De
             if (this.ignoreTypeList.indexOf(model.getFieldParam(name, 'type')) != -1) {
                 return false;
             }
+
+            var layoutList = model.getFieldParam(name, 'layoutAvailabilityList');
+            if (layoutList && !~layoutList.indexOf(this.type)) return;
+
             return !model.getFieldParam(name, 'disabled') && !model.getFieldParam(name, 'layoutListDisabled');
         }
 
     });
 });
-
-

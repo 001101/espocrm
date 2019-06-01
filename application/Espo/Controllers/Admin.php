@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ class Admin extends \Espo\Core\Controllers\Base
         return $result;
     }
 
-    public function postActionClearCache($params, $data)
+    public function postActionClearCache($params)
     {
         $result = $this->getContainer()->get('dataManager')->clearCache();
         return $result;
@@ -63,13 +63,13 @@ class Admin extends \Espo\Core\Controllers\Base
     {
         $scheduledJob = $this->getContainer()->get('scheduledJob');
 
-        return $scheduledJob->getAllNamesOnly();
+        return $scheduledJob->getAvailableList();
     }
 
     public function postActionUploadUpgradePackage($params, $data)
     {
         if ($this->getConfig()->get('restrictedMode')) {
-            if (!$this->getUser()->get('isSuperAdmin')) {
+            if (!$this->getUser()->isSuperAdmin()) {
                 throw new Forbidden();
             }
         }
@@ -87,21 +87,31 @@ class Admin extends \Espo\Core\Controllers\Base
     public function postActionRunUpgrade($params, $data)
     {
         if ($this->getConfig()->get('restrictedMode')) {
-            if (!$this->getUser()->get('isSuperAdmin')) {
+            if (!$this->getUser()->isSuperAdmin()) {
                 throw new Forbidden();
             }
         }
 
         $upgradeManager = new \Espo\Core\UpgradeManager($this->getContainer());
-        $upgradeManager->install($data);
+        $upgradeManager->install(get_object_vars($data));
 
         return true;
     }
 
-    public function actionCronMessage($params, $data)
+    public function actionCronMessage($params)
     {
         return $this->getContainer()->get('scheduledJob')->getSetupMessage();
     }
 
-}
+    public function actionAdminNotificationList($params)
+    {
+        $adminNotificationManager = new \Espo\Core\Utils\AdminNotificationManager($this->getContainer());
+        return $adminNotificationManager->getNotificationList();
+    }
 
+    public function actionSystemRequirementList($params)
+    {
+        $systemRequirementManager = new \Espo\Core\Utils\SystemRequirements($this->getContainer());
+        return $systemRequirementManager->getAllRequiredList();
+    }
+}

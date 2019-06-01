@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,16 +32,22 @@ Espo.define('views/fields/wysiwyg', ['views/fields/text', 'lib!Summernote'], fun
 
         type: 'wysiwyg',
 
+        listTemplate: 'fields/wysiwyg/detail',
+
         detailTemplate: 'fields/wysiwyg/detail',
 
         editTemplate: 'fields/wysiwyg/edit',
 
         height: 250,
 
-        rowsDefault: 10,
+        rowsDefault: 15,
+
+        seeMoreDisabled: true,
 
         setup: function () {
             Dep.prototype.setup.call(this);
+
+            this.hasBodyPlainField = !!~this.getFieldManager().getEntityTypeFieldList(this.model.entityType).indexOf(this.name + 'Plain');
 
             if ('height' in this.params) {
                 this.height = this.params.height;
@@ -50,6 +56,8 @@ Espo.define('views/fields/wysiwyg', ['views/fields/text', 'lib!Summernote'], fun
             if ('minHeight' in this.params) {
                 this.minHeight = this.params.minHeight;
             }
+
+            this.useIframe = this.params.useIframe || this.useIframe;
 
             this.toolbar = this.params.toolbar || [
                 ['style', ['style']],
@@ -62,14 +70,41 @@ Espo.define('views/fields/wysiwyg', ['views/fields/text', 'lib!Summernote'], fun
                 ['misc',['codeview', 'fullscreen']]
             ];
 
-            this.listenTo(this.model, 'change:isHtml', function (model) {
-                if (this.mode == 'edit') {
+            this.buttons = {};
+
+            if (!this.params.toolbar) {
+                if (this.params.attachmentField) {
+                    this.toolbar.push([
+                        'attachment',
+                        ['attachment']
+                    ]);
+                    var AttachmentButton = function (context) {
+                        var ui = $.summernote.ui;
+                        var button = ui.button({
+                            contents: '<i class="fas fa-paperclip"></i>',
+                            tooltip: this.translate('Attach File'),
+                            click: function () {
+                                this.attachFile();
+                            }.bind(this)
+                        });
+                        return button.render();
+                    }.bind(this);
+                    this.buttons['attachment'] = AttachmentButton;
+                }
+            }
+
+            this.listenTo(this.model, 'change:isHtml', function (model, value, o) {
+                if (o.ui && this.mode == 'edit') {
                     if (this.isRendered()) {
                         if (!model.has('isHtml') || model.get('isHtml')) {
-        		            var value = this.plainToHtml(this.model.get(this.name));
-        		            this.model.set(this.name, value);
+                            var value = this.plainToHtml(this.model.get(this.name));
+                            if (this.lastHtmlValue && this.model.get(this.name) === this.htmlToPlain(this.lastHtmlValue)) {
+                                value = this.lastHtmlValue;
+                            }
+                            this.model.set(this.name, value);
                             this.enableWysiwygMode();
                         } else {
+                            this.lastHtmlValue = this.model.get(this.name);
         		            var value = this.htmlToPlain(this.model.get(this.name));
         		            this.model.set(this.name, value);
                             this.disableWysiwygMode();
@@ -81,25 +116,56 @@ Espo.define('views/fields/wysiwyg', ['views/fields/text', 'lib!Summernote'], fun
                         this.reRender();
                     }
                 }
-            }.bind(this));
+            }, this);
 
             this.once('remove', function () {
-                $('body > .tooltip').remove();
+                if (this.$summernote) {
+                    this.$summernote.summernote('destroy');
+                }
             });
+
+            this.on('inline-edit-off', function () {
+                if (this.$summernote) {
+                    this.$summernote.summernote('destroy');
+                }
+            });
+
+            this.once('remove', function () {
+                $(window).off('resize.' + this.cid);
+                if (this.$scrollable) {
+                    this.$scrollable.off('scroll.' + this.cid + '-edit');
+                }
+            }.bind(this));
+        },
+
+        data: function () {
+            var data = Dep.prototype.data.call(this);
+
+            data.useIframe = this.useIframe;
+            data.isPlain = this.model.has('isHtml') && !this.model.get('isHtml');
+
+            return data;
         },
 
         getValueForDisplay: function () {
             var value = Dep.prototype.getValueForDisplay.call(this);
-            if (this.mode == 'edit' && value) {
-                value = value.replace(/<[\/]{0,1}(base|BASE)[^><]*>/g, '');
+            return this.sanitizeHtml(value);
+        },
+
+        sanitizeHtml: function (value) {
+            if (value) {
+                value = value.replace(/<[\/]{0,1}(base)[^><]*>/gi, '');
+                value = value.replace(/<[\/]{0,1}(script)[^><]*>/gi, '');
+                value = value.replace(/<[^><]*([^a-z]{1}on[a-z]+)=[^><]*>/gi, function (match) {
+                    return match.replace(/[^a-z]{1}on[a-z]+=/gi, ' data-handler-stripped=');
+                });
             }
             return value || '';
         },
 
         getValueForEdit: function () {
             var value = this.model.get(this.name) || '';
-            value = value.replace(/<[\/]{0,1}(base|BASE)[^><]*>/g, '');
-            return value;
+            return this.sanitizeHtml(value);
         },
 
         afterRender: function () {
@@ -123,46 +189,134 @@ Espo.define('views/fields/wysiwyg', ['views/fields/text', 'lib!Summernote'], fun
                 }
             }
 
-            if (this.mode == 'detail') {
+            if (this.mode == 'detail' || this.mode == 'list') {
                 if (!this.model.has('isHtml') || this.model.get('isHtml')) {
-                    this.$el.find('iframe').removeClass('hidden');
+                    if (!this.useIframe) {
+                        this.$element = this.$el.find('.html-container');
+                    } else {
+                        this.$el.find('iframe').removeClass('hidden');
 
-                    var $iframe = this.$el.find('iframe');
-                    var iframe = this.iframe = $iframe.get(0);
+                        var $iframe = this.$el.find('iframe');
 
-                    if (!iframe) return;
+                        var iframeElement = this.iframe = $iframe.get(0);
+                        if (!iframeElement) return;
 
-                    $iframe.load(function () {
-                        $iframe.contents().find('a').attr('target', '_blank');
-                    });
-
-                    var doc = iframe.contentWindow.document;
-
-                    var link = '<link href="'+this.getBasePath()+'client/css/iframe.css" rel="stylesheet" type="text/css"></link>';
-
-                    doc.open('text/html', 'replace');
-                    var body = this.model.get(this.name) || '';
-                    body += link;
-
-                    doc.write(body);
-                    doc.close();
-
-                    var processHeight = function () {
-                        var $body = $iframe.contents().find('html body');
-                        var height = $body.height();
-                        if (height === 0) {
-                            height = $body.children(0).height() + 100;
-                        }
-                        height += 30;
-                        iframe.style.height = height + 'px';
-                    };
-
-                    setTimeout(function () {
-                        processHeight();
                         $iframe.load(function () {
-                            processHeight();
+                            $iframe.contents().find('a').attr('target', '_blank');
                         });
-                    }, 50);
+
+                        var documentElement = iframeElement.contentWindow.document;
+
+                        var body = this.sanitizeHtml(this.model.get(this.name) || '');
+
+                        var linkElement = iframeElement.contentWindow.document.createElement('link');
+                        linkElement.type = 'text/css';
+                        linkElement.rel = 'stylesheet';
+                        linkElement.href = this.getBasePath() + this.getThemeManager().getIframeStylesheet();
+
+                        body = linkElement.outerHTML + body;
+
+                        documentElement.write(body);
+                        documentElement.close();
+
+                        var $body = $iframe.contents().find('html body');
+
+                        var $document = $(documentElement);
+
+                        var processWidth = function () {
+                            var bodyElement = $body.get(0);
+                            if (bodyElement) {
+                                if (bodyElement.clientWidth !== iframeElement.scrollWidth) {
+                                    iframeElement.style.height = (iframeElement.scrollHeight + 20) + 'px';
+                                }
+                            }
+                        };
+
+                        var increaseHeightStep = 10;
+                        var processIncreaseHeight = function (iteration, previousDiff) {
+                            $body.css('height', '');
+
+                            iteration = iteration || 0;
+
+                            if (iteration > 200) {
+                                return;
+                            }
+
+                            iteration ++;
+
+                            var diff = $document.height() - iframeElement.scrollHeight;
+
+                            if (typeof previousDiff !== 'undefined') {
+                                if (diff === previousDiff) {
+                                    $body.css('height', (iframeElement.clientHeight - increaseHeightStep) + 'px');
+                                    processWidth();
+                                    return;
+                                }
+                            }
+
+                            if (diff) {
+                                var height = iframeElement.scrollHeight + increaseHeightStep;
+                                iframeElement.style.height = height + 'px';
+                                processIncreaseHeight(iteration, diff);
+                            } else {
+                                processWidth();
+                            }
+                        };
+
+                        var processHeight = function (isOnLoad) {
+                            if (!isOnLoad) {
+                                $iframe.css({
+                                    overflowY: 'hidden',
+                                    overflowX: 'hidden'
+                                });
+
+                                iframeElement.style.height = '0px';
+                            } else {
+                                if (iframeElement.scrollHeight >= $document.height()) {
+                                    return;
+                                }
+                            }
+
+                            var $body = $iframe.contents().find('html body');
+                            var height = $body.height();
+                            if (height === 0) {
+                                height = $body.children(0).height() + 100;
+                            }
+
+                            iframeElement.style.height = height + 'px';
+
+                            processIncreaseHeight();
+
+                            if (!isOnLoad) {
+                                $iframe.css({
+                                    overflowY: 'hidden',
+                                    overflowX: 'scroll'
+                                });
+                            }
+                        };
+
+                        $iframe.css({
+                            visibility: 'hidden'
+                        });
+                        setTimeout(function () {
+                            processHeight();
+                            $iframe.css({
+                                visibility: 'visible'
+                            });
+                            $iframe.load(function () {
+                                processHeight(true);
+                            });
+                        }, 40);
+
+                        var windowWidth = $(window).width();
+                        $(window).off('resize.' + this.cid);
+                        $(window).on('resize.' + this.cid, function() {
+                            if ($(window).width() != windowWidth) {
+                                processHeight();
+                                windowWidth = $(window).width();
+                            }
+                        }.bind(this));
+                    }
 
                 } else {
                     this.$el.find('.plain').removeClass('hidden');
@@ -194,39 +348,51 @@ Espo.define('views/fields/wysiwyg', ['views/fields/text', 'lib!Summernote'], fun
                         this.getModelFactory().create('Attachment', function (attachment) {
                             var fileReader = new FileReader();
                             fileReader.onload = function (e) {
-                                $.ajax({
-                                    type: 'POST',
-                                    url: 'Attachment/action/upload',
-                                    data: e.target.result,
-                                    contentType: 'multipart/encrypted',
-                                }).done(function (data) {
-                                    attachment.id = data.attachmentId;
-                                    attachment.set('name', file.name);
-                                    attachment.set('type', file.type);
-                                    attachment.set('role', 'Inline Attachment');
-                                    attachment.set('global', true);
-                                    attachment.set('size', file.size);
-                                    attachment.once('sync', function () {
-                                        var url = '?entryPoint=attachment&id=' + attachment.id;
-                                        this.$summernote.summernote('insertImage', url);
-                                        this.notify(false);
-                                    }, this);
-                                    attachment.save();
-                                }.bind(this));
+                                attachment.set('name', file.name);
+                                attachment.set('type', file.type);
+                                attachment.set('role', 'Inline Attachment');
+                                attachment.set('global', true);
+                                attachment.set('size', file.size);
+                                if (this.model.id) {
+                                    attachment.set('relatedId', this.model.id);
+                                }
+                                attachment.set('relatedType', this.model.name);
+                                attachment.set('file', e.target.result);
+                                attachment.set('field', this.name);
+
+                                attachment.once('sync', function () {
+                                    var url = '?entryPoint=attachment&id=' + attachment.id;
+                                    this.$summernote.summernote('insertImage', url);
+                                    this.notify(false);
+                                }, this);
+                                attachment.save();
                             }.bind(this);
                             fileReader.readAsDataURL(file);
-
                         }, this);
                     }.bind(this),
                     onBlur: function () {
                         this.trigger('change')
                     }.bind(this),
                 },
-                toolbar: this.toolbar
+                onCreateLink: function (link) {
+                    return link;
+                },
+                toolbar: this.toolbar,
+                buttons: this.buttons
             };
 
             if (this.height) {
                 options.height = this.height;
+            } else {
+                var $scrollable = this.$el.closest('.modal-body');
+                if (!$scrollable.length) {
+                    $scrollable = $(window);
+                }
+                this.$scrollable = $scrollable;
+                $scrollable.off('scroll.' + this.cid + '-edit');
+                $scrollable.on('scroll.' + this.cid + '-edit', function (e) {
+                    this.onScrollEdit(e);
+                }.bind(this));
             }
 
             if (this.minHeight) {
@@ -234,6 +400,9 @@ Espo.define('views/fields/wysiwyg', ['views/fields/text', 'lib!Summernote'], fun
             }
 
             this.$summernote.summernote(options);
+
+            this.$toolbar = this.$el.find('.note-toolbar');
+            this.$area = this.$el.find('.note-editing-area');
         },
 
         plainToHtml: function (html) {
@@ -258,21 +427,30 @@ Espo.define('views/fields/wysiwyg', ['views/fields/text', 'lib!Summernote'], fun
         },
 
         disableWysiwygMode: function () {
-            this.$summernote.summernote('destroy');
-
-            this.$summernote.addClass('hidden');
+            if (this.$summernote) {
+                this.$summernote.summernote('destroy');
+                this.$summernote.addClass('hidden');
+            }
             this.$element.removeClass('hidden');
+
+            if (this.$scrollable) {
+                this.$scrollable.off('scroll.' + this.cid + '-edit');
+            }
         },
 
         fetch: function () {
             var data = {};
             if (!this.model.has('isHtml') || this.model.get('isHtml')) {
-                data[this.name] = this.$summernote.summernote('code');
+                var code = this.$summernote.summernote('code');
+                if (code == '<p><br></p>') {
+                    code = '';
+                }
+                data[this.name] = code;
             } else {
                 data[this.name] = this.$element.val();
             }
 
-            if (this.model.has('isHtml')) {
+            if (this.model.has('isHtml') && this.hasBodyPlainField) {
             	if (this.model.get('isHtml')) {
             		data[this.name + 'Plain'] = this.htmlToPlain(data[this.name]);
             	} else {
@@ -280,7 +458,62 @@ Espo.define('views/fields/wysiwyg', ['views/fields/text', 'lib!Summernote'], fun
             	}
             }
             return data;
+        },
+
+        onScrollEdit: function (e) {
+            var $target = $(e.target);
+            var toolbarHeight = this.$toolbar.height();
+            var toolbarWidth = this.$toolbar.parent().width();
+            var edgeTop, edgeTopAbsolute;
+
+            if ($target.get(0) === window.document) {
+                var $buttonContainer = $target.find('.detail-button-container:not(.hidden)');
+                var offset = $buttonContainer.offset();
+                if (offset) {
+                    edgeTop = offset.top + $buttonContainer.height();
+                    edgeTopAbsolute = edgeTop - $(window).scrollTop();
+                }
+            } else {
+                var offset = $target.offset();
+                if (offset) {
+                    edgeTop = offset.top;
+                    edgeTopAbsolute = edgeTop - $(window).scrollTop();
+                }
+            }
+
+            var top = this.$el.offset().top;
+            var bottom = top + this.$el.height() - toolbarHeight;
+
+            var toStick = false;
+            if (edgeTop > top && bottom > edgeTop) {
+                toStick = true;
+            }
+
+            if (toStick) {
+                this.$toolbar.css({
+                    top: edgeTopAbsolute + 'px',
+                    width: toolbarWidth + 'px'
+                });
+                this.$toolbar.addClass('sticked');
+                this.$area.css({
+                    marginTop: toolbarHeight + 'px',
+                    backgroundColor: ''
+                });
+            } else {
+                this.$toolbar.css({
+                    top: '',
+                    width: ''
+                });
+                this.$toolbar.removeClass('sticked');
+                this.$area.css({
+                    marginTop: ''
+                });
+            }
+        },
+
+        attachFile: function () {
+            var $form = this.$el.closest('.record');
+            $form.find('.field[data-name="'+this.params.attachmentField+'"] input.file').click();
         }
     });
 });
-

@@ -19,9 +19,25 @@
          "default": true
       },
       {
+         "name": "options",
+         "type": "multiEnum"
+      },
+      {
          "name":"audited",
+         "type":"bool"
+      },
+      {
+         "name":"readOnly",
          "type":"bool"
       }
    ],
-   "filter": true
+   "validationList": [
+      "required",
+      "maxLength"
+   ],
+   "filter": true,
+   "personalData": true,
+   "textFilter": true,
+   "textFilterForeign": true,
+   "fullTextSearch": true
 }

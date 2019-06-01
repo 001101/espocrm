@@ -1,5 +1,12 @@
 {
-    "labels": {
-        "Create {entityType}": "{entityTypeTranslated} erstellen"
-    }
+  "fields": {
+    "address": "Adresse"
+  },
+  "links": {
+    "calls": "Anrufe",
+    "tasks": "Aufgaben"
+  },
+  "labels": {
+    "Create {entityType}": "{entityTypeTranslated} erstellen"
+  }
 }

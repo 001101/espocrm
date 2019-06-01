@@ -15,15 +15,39 @@
          "name":"defaultType",
          "type":"varchar",
          "default": "Mobile"
+      },
+      {
+         "name":"audited",
+         "type":"bool"
       }
+   ],
+   "actualFields":[
+      "isOptedOut",
+      ""
    ],
    "notActualFields":[
       "data"
+   ],
+   "fields":{
+      "isOptedOut":{
+         "type": "bool",
+         "notStorable": true,
+         "layoutDetailDisabled": true,
+         "foreignAccessDisabled": true,
+         "mergeDisabled": true,
+         "customizationDefaultDisabled": true,
+         "customizationReadOnlyDisabled": true
+      }
+   },
+   "validationList": [
+      "required"
    ],
    "notCreatable": true,
    "filter": true,
    "fieldDefs":{
       "notStorable":true
    },
-   "translatedOptions": true
+   "translatedOptions": true,
+   "textFilter": true,
+   "personalData": true
 }

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/record/list-tree', 'views/record/list', function (Dep) {
+define('views/record/list-tree', 'views/record/list', function (Dep) {
 
     return Dep.extend({
 
@@ -72,8 +72,20 @@ Espo.define('views/record/list-tree', 'views/record/list', function (Dep) {
 
             data.showEditLink = this.showEditLink;
 
-            if (this.level == 0 && this.selectable && !(this.selectedData || {}).id) {
+            if (this.level == 0 && this.selectable && (this.selectedData || {}).id === null) {
                 data.rootIsSelected = true;
+            }
+
+            if (this.level == 0 && this.options.hasExpandedToggler) {
+                data.hasExpandedToggler = true;
+            }
+
+            if (this.level == 0) {
+                data.isExpanded = this.isExpanded;
+            }
+
+            if (data.hasExpandedToggler || this.showEditLink) {
+                data.showRootMenu = true;
             }
 
             return data;
@@ -85,6 +97,8 @@ Espo.define('views/record/list-tree', 'views/record/list', function (Dep) {
             }
 
             this.createDisabled = this.options.createDisabled || this.createDisabled;
+
+            this.isExpanded = this.options.isExpanded;
 
             if ('showRoot' in this.options) {
                 this.showRoot = this.options.showRoot;
@@ -135,6 +149,8 @@ Espo.define('views/record/list-tree', 'views/record/list', function (Dep) {
         setSelected: function (id) {
             if (id === null) {
                 this.selectedData.id = null;
+            } else {
+                this.selectedData.id = id;
             }
             this.rowList.forEach(function (key) {
                 var view = this.getView(key);
@@ -171,7 +187,8 @@ Espo.define('views/record/list-tree', 'views/record/list', function (Dep) {
                         level: this.level,
                         isSelected: model.id == this.selectedData.id,
                         selectedData: this.selectedData,
-                        selectable: this.selectable
+                        selectable: this.selectable,
+                        setViewBeforeCallback: this.options.skipBuildRows && !this.isRendered()
                     }, function () {
                         built++;
                         if (built == count) {
@@ -227,6 +244,18 @@ Espo.define('views/record/list-tree', 'views/record/list', function (Dep) {
                 this.listenToOnce(view, 'after:save', function (model) {
                     view.close();
                     model.set('childCollection', this.collection.createSeed());
+                    if (model.get('parentId') !== attributes.parentId) {
+                        var v = this;
+                        while (1) {
+                            if (v.level) {
+                                v = v.getParentView().getParentView();
+                            } else {
+                                break;
+                            }
+                        }
+                        v.collection.fetch();
+                        return;
+                    }
                     this.collection.push(model);
                     this.buildRows(function () {
                         this.render();
@@ -246,4 +275,3 @@ Espo.define('views/record/list-tree', 'views/record/list', function (Dep) {
 
     });
 });
-

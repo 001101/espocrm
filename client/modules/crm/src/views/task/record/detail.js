@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,14 +26,14 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('Crm:Views.Task.Record.Detail', 'Views.Record.Detail', function (Dep) {
+Espo.define('crm:views/task/record/detail', 'views/record/detail', function (Dep) {
 
     return Dep.extend({
 
         duplicateAction: true,
 
-        setup: function () {
-            Dep.prototype.setup.call(this);
+        setupActionItems: function () {
+            Dep.prototype.setupActionItems.call(this);
             if (this.getAcl().checkModel(this.model, 'edit')) {
                 if (!~['Completed', 'Canceled'].indexOf(this.model.get('status'))) {
                     this.dropdownItemList.push({
@@ -47,6 +47,16 @@ Espo.define('Crm:Views.Task.Record.Detail', 'Views.Record.Detail', function (Dep
                         this.removeButton('setCompleted');
                     }
                 }, this);
+            }
+        },
+
+        manageAccessEdit: function (second) {
+            Dep.prototype.manageAccessEdit.call(this, second);
+
+            if (second) {
+                if (!this.getAcl().checkModel(this.model, 'edit', true)) {
+                    this.hideActionItem('setCompleted');
+                }
             }
         },
 

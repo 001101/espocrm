@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ Espo.define('views/settings/fields/tab-list', 'views/fields/array', function (De
 
     return Dep.extend({
 
-        setup: function () {
+        setupOptions: function () {
 
             this.params.options = Object.keys(this.getMetadata().get('scopes')).filter(function (scope) {
                 if (this.getMetadata().get('scopes.' + scope + '.disabled')) return;
@@ -38,7 +38,15 @@ Espo.define('views/settings/fields/tab-list', 'views/fields/array', function (De
                 return this.translate(v1, 'scopeNamesPlural').localeCompare(this.translate(v2, 'scopeNamesPlural'));
             }.bind(this));
 
-            Dep.prototype.setup.call(this);
+            this.params.options.push('_delimiter_');
+
+            this.translatedOptions = {};
+
+            this.params.options.forEach(function (item) {
+                this.translatedOptions[item] = this.translate(item, 'scopeNamesPlural');
+            }, this);
+
+            this.translatedOptions['_delimiter_'] = '. . .';
         }
 
     });

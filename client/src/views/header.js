@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/header', 'view', function (Dep) {
+define('views/header', 'view', function (Dep) {
 
     return Dep.extend({
 
@@ -37,12 +37,20 @@ Espo.define('views/header', 'view', function (Dep) {
             if ('getHeader' in this.getParentView()) {
                 data.header = this.getParentView().getHeader();
             }
-            data.scope = this.getParentView().scope;
+            data.scope = this.scope || this.getParentView().scope;
             data.items = this.getItems();
+
+            data.isXsSingleRow = this.options.isXsSingleRow;
+
+            if ((data.items.buttons || []).length < 2) {
+                data.isHeaderAdditionalSpace = true;
+            }
+
             return data;
         },
 
         setup: function () {
+            this.scope = this.options.scope;
             if (this.model) {
                 this.listenTo(this.model, 'after:save', function () {
                     if (this.isRendered()) {
@@ -60,7 +68,7 @@ Espo.define('views/header', 'view', function (Dep) {
             var items = this.getParentView().getMenu() || {};
 
             return items;
-        },
+        }
     });
 });
 

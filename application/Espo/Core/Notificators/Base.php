@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,12 +35,12 @@ use \Espo\ORM\Entity;
 
 class Base implements Injectable
 {
-    protected $dependencies = array(
+    protected $dependencyList = [
         'user',
         'entityManager',
-    );
+    ];
 
-    protected $injections = array();
+    protected $injections = [];
 
     public static $order = 9;
 
@@ -62,12 +62,12 @@ class Base implements Injectable
 
     protected function addDependency($name)
     {
-        $this->dependencies[] = $name;
+        $this->dependencyList[] = $name;
     }
 
     public function getDependencyList()
     {
-        return $this->dependencies;
+        return $this->dependencyList;
     }
 
     protected function getInjection($name)
@@ -82,36 +82,61 @@ class Base implements Injectable
 
     protected function getEntityManager()
     {
-        return $this->injections['entityManager'];
+        return $this->getInjection('entityManager');
     }
 
     protected function getUser()
     {
-        return $this->injections['user'];
+        return $this->getInjection('user');
     }
 
-    public function process(Entity $entity)
+    public function process(Entity $entity, array $options = [])
     {
-        if ($entity->has('assignedUserId') && $entity->get('assignedUserId')) {
-            $assignedUserId = $entity->get('assignedUserId');
-            if ($assignedUserId != $this->getUser()->id && $entity->isFieldChanged('assignedUserId')) {
-                $notification = $this->getEntityManager()->getEntity('Notification');
-                $notification->set(array(
-                    'type' => 'Assign',
-                    'userId' => $assignedUserId,
-                    'data' => array(
-                        'entityType' => $entity->getEntityType(),
-                        'entityId' => $entity->id,
-                        'entityName' => $entity->get('name'),
-                        'isNew' => $entity->isNew(),
-                        'userId' => $this->getUser()->id,
-                        'userName' => $this->getUser()->get('name')
-                    )
-                ));
-                $this->getEntityManager()->saveEntity($notification);
+        if ($entity->hasLinkMultipleField('assignedUsers')) {
+            $userIdList = $entity->getLinkMultipleIdList('assignedUsers');
+            $fetchedAssignedUserIdList = $entity->getFetched('assignedUsersIds');
+            if (!is_array($fetchedAssignedUserIdList)) {
+                $fetchedAssignedUserIdList = [];
             }
+
+            foreach ($userIdList as $userId) {
+                if (in_array($userId, $fetchedAssignedUserIdList)) continue;
+                $this->processForUser($entity, $userId);
+            }
+        } else {
+            if (!$entity->get('assignedUserId')) return;
+            if (!$entity->isAttributeChanged('assignedUserId')) return;
+            $assignedUserId = $entity->get('assignedUserId');
+            $this->processForUser($entity, $assignedUserId);
         }
     }
 
-}
+    protected function processForUser(Entity $entity, $assignedUserId)
+    {
+        if ($entity->hasAttribute('createdById') && $entity->hasAttribute('modifiedById')) {
+            if ($entity->isNew()) {
+                $isNotSelfAssignment = $assignedUserId !== $entity->get('createdById');
+            } else {
+                $isNotSelfAssignment = $assignedUserId !== $entity->get('modifiedById');
+            }
+        } else {
+            $isNotSelfAssignment = $assignedUserId !== $this->getUser()->id;
+        }
+        if (!$isNotSelfAssignment) return;
 
+        $notification = $this->getEntityManager()->getEntity('Notification');
+        $notification->set(array(
+            'type' => 'Assign',
+            'userId' => $assignedUserId,
+            'data' => array(
+                'entityType' => $entity->getEntityType(),
+                'entityId' => $entity->id,
+                'entityName' => $entity->get('name'),
+                'isNew' => $entity->isNew(),
+                'userId' => $this->getUser()->id,
+                'userName' => $this->getUser()->get('name')
+            )
+        ));
+        $this->getEntityManager()->saveEntity($notification);
+    }
+}

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,6 +69,11 @@ class Acl
         return $this->getAclManager()->get($this->getUser(), $permission);
     }
 
+    public function checkReadNo($scope)
+    {
+        return $this->getAclManager()->checkReadNo($this->getUser(), $scope);
+    }
+
     public function checkReadOnlyTeam($scope)
     {
         return $this->getAclManager()->checkReadOnlyTeam($this->getUser(), $scope);
@@ -119,6 +124,11 @@ class Acl
         return $this->getAclManager()->getScopeForbiddenFieldList($this->getUser(), $scope, $action, $thresholdLevel);
     }
 
+    public function getScopeForbiddenLinkList($scope, $action = 'read', $thresholdLevel = 'no')
+    {
+        return $this->getAclManager()->getScopeForbiddenLinkList($this->getUser(), $scope, $action, $thresholdLevel);
+    }
+
     public function checkUserPermission($target, $permissionType = 'userPermission')
     {
         return $this->getAclManager()->checkUserPermission($this->getUser(), $target, $permissionType);
@@ -128,5 +138,19 @@ class Acl
     {
         return $this->getAclManager()->checkAssignmentPermission($this->getUser(), $target);
     }
-}
 
+    public function getScopeRestrictedFieldList($scope, $type)
+    {
+        return $this->getAclManager()->getScopeRestrictedFieldList($scope, $type);
+    }
+
+    public function getScopeRestrictedAttributeList($scope, $type)
+    {
+        return $this->getAclManager()->getScopeRestrictedAttributeList($scope, $type);
+    }
+
+    public function getScopeRestrictedLinkList($scope, $type)
+    {
+        return $this->getAclManager()->getScopeRestrictedLinkList($scope, $type);
+    }
+}

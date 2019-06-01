@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,14 +29,17 @@
 /**
  * Controller. Views, Models and Collections are created here.*/
 
-Espo.define('controller', [], function () {
+define('controller', [], function () {
 
     var Controller = function (params, injections) {
-        this.initialize();
         this.params = params || {};
+
+        this.baseController = injections.baseController;
         this.viewFactory = injections.viewFactory;
         this.modelFactory = injections.modelFactory;
         this.collectionFactory = injections.collectionFactory;
+
+        this.initialize();
 
         this._settings = injections.settings || null;
         this._user = injections.user || null;
@@ -189,13 +192,14 @@ Espo.define('controller', [], function () {
             this.handleAccessGlobal();
 
             action = action || this.defaultAction;
-            var method = action;
+            var method = 'action' + Espo.Utils.upperCaseFirst(action);
+
             if (!(method in this)) {
                 throw new Espo.Exceptions.NotFound("Action '" + this.name + "#" + action + "' is not found");
             }
 
-            var preMethod = 'before' + Espo.Utils.upperCaseFirst(method);
-            var postMethod = 'after' + Espo.Utils.upperCaseFirst(method);
+            var preMethod = 'before' + Espo.Utils.upperCaseFirst(action);
+            var postMethod = 'after' + Espo.Utils.upperCaseFirst(action);
 
             if (preMethod in this) {
                 this[preMethod].call(this, options || {});
@@ -242,13 +246,22 @@ Espo.define('controller', [], function () {
          * @return {view}
          */
         main: function (view, options, callback, useStored, storedKey) {
+            var isCanceled = false;
+            this.listenToOnce(this.baseController, 'action', function () {
+                isCanceled = true;
+            }, this);
+
             var view = view || 'views/base';
             var master = this.master(function (master) {
+                if (isCanceled) return;
+
                 master.showLoadingNotification();
                 options = options || {};
                 options.el = '#main';
 
                 var process = function (main) {
+                    if (isCanceled) return;
+
                     if (storedKey) {
                         this.storeMainView(storedKey, main);
                     }
@@ -256,6 +269,11 @@ Espo.define('controller', [], function () {
                         main.updatePageTitle();
                         master.hideLoadingNotification();
                     });
+
+                    main.listenToOnce(this.baseController, 'action', function () {
+                        main.cancelRender();
+                        isCanceled = true;
+                    }, this);
 
                     if (master.currentViewKey) {
                         this.set('storedScrollTop-' + master.currentViewKey, $(window).scrollTop());
@@ -274,17 +292,37 @@ Espo.define('controller', [], function () {
                         }
                     }.bind(this));
 
+                    if (isCanceled) return;
+
                     if (callback) {
                         callback.call(this, main);
                     } else {
                         main.render();
                     }
                 }.bind(this);
+
                 if (useStored) {
                     if (this.hasStoredMainView(storedKey)) {
                         var main = this.getStoredMainView(storedKey);
-                        process(main);
-                        return;
+
+                        var isActual = true;
+                        if (main && typeof main.isActualForReuse === 'function') {
+                            isActual = main.isActualForReuse();
+                        }
+
+                        if (
+                            (!main.lastUrl || main.lastUrl === this.getRouter().getCurrentUrl())
+                            &&
+                            isActual
+                        ) {
+                            process(main);
+                            if (main && typeof main.applyRoutingParams === 'function') {
+                                main.applyRoutingParams(options.params || {});
+                            }
+                            return;
+                        } else {
+                            this.clearStoredMainView(storedKey);
+                        }
                     }
                 }
                 this.viewFactory.create(view, options, process);
@@ -332,5 +370,3 @@ Espo.define('controller', [], function () {
 
     return Controller;
 });
-
-

@@ -9,7 +9,8 @@
             "type": "text"
         },
         "website": {
-            "type": "url"
+            "type": "url",
+            "strip": true
         },
         "emailAddress": {
             "type": "email"
@@ -28,16 +29,20 @@
             "dbType": "varchar"
         },
         "billingAddressCity": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "billingAddressState": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "billingAddressCountry": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "billingAddressPostalCode": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "shippingAddress": {
             "type": "address",
@@ -49,16 +54,20 @@
             "dbType": "varchar"
         },
         "shippingAddressCity": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "shippingAddressState": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "shippingAddressCountry": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "shippingAddressPostalCode": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "createdAt": {
             "type": "datetime",
@@ -127,8 +136,8 @@
         }
     },
     "collection": {
-        "sortBy": "createdAt",
-        "asc": false
+        "orderBy": "createdAt",
+        "order": "desc"
     },
     "indexes": {
         "name": {

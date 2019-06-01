@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,15 +38,34 @@ var PO = require('pofile');
 var isWin = /^win/.test(os.platform());
 
 var espoPath = path.dirname(fs.realpathSync(__filename)) + '';
-
 var resLang = process.argv[2] || 'lang_LANG';
 
-var poPath = process.argv[3] || espoPath + '/build/' + 'espocrm-' + resLang +'.po';
+var onlyModuleName = null;
+if (process.argv.length > 2) {
+    for (var i in process.argv) {
+        if (~process.argv[i].indexOf('--module=')) {
+            onlyModuleName = process.argv[i].substr(('--module=').length);
+        }
+    }
+}
 
+var poPath = espoPath + '/build/' + 'espocrm-' + resLang;
+if (onlyModuleName) {
+    poPath += '-' + onlyModuleName;
+}
+poPath += '.po';
+
+if (process.argv.length > 2) {
+    for (var i in process.argv) {
+        if (~process.argv[i].indexOf('--path=')) {
+            poPath = process.argv[i].substr(('--path=').length);
+        }
+    }
+}
 
 var deleteFolderRecursive = function (path) {
     var files = [];
-    if( fs.existsSync(path) ) {
+    if (fs.existsSync(path)) {
         files = fs.readdirSync(path);
         files.forEach(function(file,index){
             var curPath = path + "/" + file;
@@ -60,7 +79,6 @@ var deleteFolderRecursive = function (path) {
     }
 };
 
-
 function Lang (poPath, espoPath) {
     this.poPath = poPath;
 
@@ -72,6 +90,10 @@ function Lang (poPath, espoPath) {
     this.currentPath = path.dirname(fs.realpathSync(__filename)) + '/';
 
     this.moduleList = ['Crm'];
+    if (onlyModuleName) {
+        this.moduleList = [onlyModuleName];
+    }
+
     this.baseLanguage = 'en_US';
 
     var dirNames = this.dirNames = {};
@@ -82,11 +104,6 @@ function Lang (poPath, espoPath) {
     var dirs = [coreDir];
     dirNames[coreDir] = 'application/Espo/Resources/i18n/' + resLang + '/';
 
-    this.moduleList.forEach(function (moduleName) {
-        var dir = this.espoPath + 'application/Espo/Modules/' + moduleName + '/Resources/i18n/' + this.baseLanguage + '/';
-        dirs.push(dir);
-        dirNames[dir] = 'application/Espo/Modules/' + moduleName + '/Resources/i18n/' + resLang + '/';
-    }, this);
 
     var installDir = this.espoPath + 'install/core/i18n/' + this.baseLanguage + '/';
     dirs.push(installDir);
@@ -96,6 +113,16 @@ function Lang (poPath, espoPath) {
     var templatesDir = this.espoPath + 'application/Espo/Core/Templates/i18n/' + this.baseLanguage + '/';
     dirs.push(templatesDir);
     dirNames[templatesDir] = 'application/Espo/Core/Templates/i18n/' + resLang + '/';
+
+    if (onlyModuleName) {
+        dirs = [];
+    }
+
+    this.moduleList.forEach(function (moduleName) {
+        var dir = this.espoPath + 'application/Espo/Modules/' + moduleName + '/Resources/i18n/' + this.baseLanguage + '/';
+        dirs.push(dir);
+        dirNames[dir] = 'application/Espo/Modules/' + moduleName + '/Resources/i18n/' + resLang + '/';
+    }, this);
 
     this.dirs = dirs;
 };
@@ -127,7 +154,6 @@ Lang.prototype.run = function () {
             translationData[file] = translationData[file] || [];
             translationData[file].push(o);
         });
-
 
         dirs.forEach(function (path) {
             var resDirPath = this.dirNames[path];
@@ -206,7 +232,11 @@ Lang.prototype.run = function () {
 
                     var targetValue = item.stringTranslated;
                     if (targetValue === '') {
-                        targetValue = item.stringOriginal;
+                        return;
+                    } else {
+                        if (item.stringOriginal === item.stringTranslated) {
+                            return;
+                        }
                     }
                     if (isArray) {
                         try {
@@ -243,8 +273,6 @@ Lang.prototype.run = function () {
         }, this);
 
     }.bind(this))
-
-
 };
 
 var lang = new Lang(poPath, espoPath);

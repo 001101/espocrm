@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,27 +41,32 @@ class NumberUtil
         $this->thousandSeparator = $thousandSeparator;
     }
 
-    public function format($value, $decimals = null)
+    public function format($value, $decimals = null, $decimalMark = null, $thousandSeparator = null)
     {
+        if (is_null($decimalMark)) {
+            $decimalMark = $this->decimalMark;
+        }
+        if (is_null($thousandSeparator)) {
+            $thousandSeparator = $this->thousandSeparator;
+        }
+
         if (!is_null($decimals)) {
-             return number_format($value, $decimals, $this->decimalMark, $this->thousandSeparator);
+             return number_format($value, $decimals, $decimalMark, $thousandSeparator);
         } else {
             $s = strval($value);
             $arr = explode('.', $value);
 
             $r = '0';
             if (!empty($arr[0])) {
-                $r = number_format(intval($arr[0]), 0, '.', $this->thousandSeparator);
+                $r = number_format(intval($arr[0]), 0, '.', $thousandSeparator);
             }
 
             if (!empty($arr[1])) {
-                $r = $r . $this->decimalMark . $arr[1];
+                $r = $r . $decimalMark . $arr[1];
             }
 
             return $r;
         }
     }
-
 }
-
 

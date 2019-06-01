@@ -2,28 +2,32 @@
   "labels": {
     "Converted To": "Umgewandelt zu",
     "Create Lead": "Interessent erstellen",
-    "Convert": "Umwandeln"
+    "Convert": "Umwandeln",
+    "convert": "umwandeln"
   },
   "fields": {
-    "name": "Betreff",
     "emailAddress": "E-Mail",
     "title": "Funktion",
     "website": "Webseite",
     "phoneNumber": "Telefon",
     "accountName": "Firmenname",
-    "doNotCall": "Nicht anrufen",
+    "doNotCall": "Anrufe unerwünscht",
     "address": "Adresse",
-    "status": "Status",
     "source": "Quelle",
-    "opportunityAmount": "Verkaufschance Betrag",
-    "opportunityAmountConverted": "Verkaufschance Betrag (konvertiert)",
+    "opportunityAmount": "Verkaufschance Volumen",
+    "opportunityAmountConverted": "Verkaufschance Volumen (umgerechnet)",
     "description": "Beschreibung",
     "createdAccount": "Firma",
     "createdContact": "Kontakt",
     "createdOpportunity": "Verkaufschance",
     "campaign": "Kampagne",
     "targetLists": "Kontaktlisten",
-    "targetList": "Kontaktliste"
+    "targetList": "Kontaktliste",
+    "industry": "Industrie",
+    "acceptanceStatus": "Akzeptanzstatus",
+    "opportunityAmountCurrency": "Währungsbetrag der Verkaufschance",
+    "acceptanceStatusMeetings": "Akzeptanzstatus (Meetings)",
+    "acceptanceStatusCalls": "Akzeptanzstatus (Anrufe)"
   },
   "links": {
     "targetLists": "Kontaktlisten",
@@ -32,7 +36,8 @@
     "createdAccount": "Firma",
     "createdContact": "Kontakt",
     "createdOpportunity": "Verkaufschance",
-    "cases": "Fälle"
+    "cases": "Fälle",
+    "documents": "Dokumente"
   },
   "options": {
     "status": {
@@ -47,10 +52,8 @@
       "": "Kein(e)",
       "Call": "Anruf",
       "Email": "E-Mail",
-      "Existing Customer": "Bestehender Kunde",
-      "Partner": "Partner",
-      "Public Relations": "Public Relations",
-      "Web Site": "Web Seite",
+      "Existing Customer": "Bestandskunde",
+      "Web Site": "Webseite",
       "Campaign": "Kampagne",
       "Other": "Andere"
     }

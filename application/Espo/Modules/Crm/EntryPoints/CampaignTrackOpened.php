@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -86,11 +86,11 @@ class CampaignTrackOpened extends \Espo\Core\EntryPoints\Base
 
         $img  = imagecreatetruecolor(1, 1);
         imagesavealpha($img, true);
-        $color = imagecolorallocatealpha($img, 0, 0, 0, 127);
+        $color = imagecolorallocatealpha($img, 127, 127, 127, 127);
         imagefill($img, 0, 0, $color);
 
         imagepng($img);
-        imagecolordeallocate($background);
+        imagecolordeallocate($img, $color);
         imagedestroy($img);
     }
 }

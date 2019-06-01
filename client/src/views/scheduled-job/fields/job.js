@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,9 @@ Espo.define('views/scheduled-job/fields/job', 'views/fields/enum', function (Dep
                 $.ajax({
                     url: 'Admin/jobs',
                     success: function (data) {
-                        this.params.options = data;
+                        this.params.options = data.filter(function (item) {
+                            return !this.getMetadata().get(['entityDefs', 'ScheduledJob', 'jobs', item, 'isSystem']);
+                        }, this);
                         this.params.options.unshift('');
                         this.wait(false);
                     }.bind(this)

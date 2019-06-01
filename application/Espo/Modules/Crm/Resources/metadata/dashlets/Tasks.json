@@ -15,11 +15,15 @@
             "displayRecords": {
                 "type": "enumInt",
                 "options": [3,4,5,10,15,20,30]
+            },
+            "expandedLayout": {
+                "type": "base",
+                "view": "views/dashlets/fields/records/expanded-layout"
             }
         },
         "defaults": {
-            "sortBy": "dateEnd",
-            "asc": true,
+            "orderBy": "dateEnd",
+            "order": "asc",
             "displayRecords": 5,
             "expandedLayout": {
                 "rows": [
@@ -43,7 +47,7 @@
                 "bool": {
                     "onlyMy": true
                 },
-                "primary": "actualNotDeferred"
+                "primary": "actualStartingNotInFuture"
             }
         },
         "layout": [
@@ -55,6 +59,9 @@
                     [
                         {"name": "displayRecords"},
                         {"name": "autorefreshInterval"}
+                    ],
+                    [
+                        {"name": "expandedLayout", "fullWidth": true}
                     ]
                 ]
             }

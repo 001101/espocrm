@@ -3,7 +3,7 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2016 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Copyright (C) 2014-2017 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
  * Website: http://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
@@ -33,6 +33,7 @@ return array(
             array(
                 'id' => '1',
                 'isAdmin' => true,
+                'type' => 'admin',
                 'userName' => 'admin',
                 'password' => '1',
                 'salutationName' => '',
@@ -47,6 +48,14 @@ return array(
                         'type' => 'Office',
                     ),
                 ),
+            ),
+        ],
+        'Portal' => [
+            array(
+                'id' => 'testPortalId',
+                'isActive' => true,
+                'name' => 'Test portal',
+                'customId' => 'test',
             ),
         ],
     ),

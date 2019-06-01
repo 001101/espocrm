@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,5 +28,5 @@
  ************************************************************************/
 
 return array(
-
+    "INSERT INTO `job` (`id`, `name`, `deleted`, `status`, `execute_time`, `method_name`, `created_at`, `modified_at`, `scheduled_job_id`) VALUES ('". uniqid() ."', 'Dummy', '0', 'Pending', '" . gmdate('Y-m-d H:i:s') . "', 'Dummy', '" . gmdate('Y-m-d H:i:s') . "', '" . gmdate('Y-m-d H:i:s') . "', (SELECT id FROM scheduled_job WHERE deleted = 0 AND job = 'Dummy'));"
 );

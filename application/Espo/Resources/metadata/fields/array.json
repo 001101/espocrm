@@ -21,14 +21,30 @@
          "default": false
       },
       {
+         "name": "maxCount",
+         "type": "int",
+         "min": 1
+      },
+      {
          "name":"audited",
+         "type":"bool"
+      },
+      {
+         "name":"readOnly",
          "type":"bool"
       }
    ],
+   "validationList": [
+      "required",
+      "maxCount"
+   ],
    "filter": true,
    "notCreatable": false,
+   "notSortable": true,
    "fieldDefs":{
-      "type":"jsonArray"
+      "type":"jsonArray",
+      "storeArrayValues": true
    },
-   "translatedOptions": true
+   "translatedOptions": true,
+   "personalData": true
 }

@@ -1,8 +1,6 @@
 {
   "fields": {
-    "name": "Betreff",
     "parent": "Bezieht sich auf",
-    "status": "Status",
     "dateStart": "Startdatum",
     "dateEnd": "Enddatum",
     "direction": "Richtung",
@@ -12,7 +10,8 @@
     "contacts": "Kontakte",
     "leads": "Interessenten",
     "reminders": "Erinnerungen",
-    "account": "Firma"
+    "account": "Firma",
+    "acceptanceStatus": "Akzeptanzstatus"
   },
   "options": {
     "status": {
@@ -32,13 +31,13 @@
     }
   },
   "massActions": {
-    "setHeld": "Auf gehalten setzen",
-    "setNotHeld": "Auf nicht gehalten setzen"
+    "setHeld": "Auf durchgeführt setzen",
+    "setNotHeld": "Auf nicht durchgeführt setzen"
   },
   "labels": {
     "Create Call": "Anruf erstellen",
-    "Set Held": "Auf gehalten setzen",
-    "Set Not Held": "Auf nicht gehalten setzen",
+    "Set Held": "Auf durchgeführt setzen",
+    "Set Not Held": "Auf nicht durchgeführt setzen",
     "Send Invitations": "Einladungen versenden"
   },
   "presetFilters": {

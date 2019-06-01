@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,18 +30,36 @@ Espo.define('views/fields/datetime-short', 'views/fields/datetime', function (De
 
     return Dep.extend({
 
-        getValueForDisplay: function () {
+        listTemplate: 'fields/datetime-short/list',
+
+        detailTemplate: 'fields/datetime-short/detail',
+
+        data: function () {
+            var data = Dep.prototype.data.call(this);
+            if (this.mode == 'list' || this.mode == 'detail') {
+                data.fullDateValue = Dep.prototype.getDateStringValue.call(this);
+            }
+            return data;
+        },
+
+        getDateStringValue: function () {
             if (this.mode == 'list' || this.mode == 'detail') {
                 var value = this.model.get(this.name)
                 if (value) {
                     var string;
+
+                    var timeFormat = this.getDateTime().timeFormat;
+
+                    if (this.params.hasSeconds) {
+                        timeFormat = timeFormat.replace(/:mm/, ':mm:ss');
+                    }
 
                     var d = this.getDateTime().toMoment(value);
 
                     var now = moment().tz(this.getDateTime().timeZone || 'UTC');
 
                     if (d.unix() > now.clone().startOf('day').unix() && d.unix() < now.clone().add(1, 'days').startOf('day').unix()) {
-                        string = d.format(this.getDateTime().timeFormat);
+                        string = d.format(timeFormat);
                         return string;
                     }
 
@@ -57,9 +75,8 @@ Espo.define('views/fields/datetime-short', 'views/fields/datetime', function (De
                 }
             }
 
-            return Dep.prototype.getValueForDisplay.call(this);
+            return Dep.prototype.getDateStringValue.call(this);
         }
 
     });
 });
-

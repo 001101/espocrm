@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,6 +44,8 @@ class EntityManager extends \Espo\Core\Controllers\Base
 
     public function actionCreateEntity($params, $data, $request)
     {
+        $data = get_object_vars($data);
+
         if (!$request->isPost()) {
             throw new BadRequest();
         }
@@ -81,6 +83,20 @@ class EntityManager extends \Espo\Core\Controllers\Base
         if (isset($data['textFilterFields']) && is_array($data['textFilterFields'])) {
             $params['textFilterFields'] = $data['textFilterFields'];
         }
+        if (!empty($data['color'])) {
+            $params['color'] = $data['color'];
+        }
+        if (!empty($data['iconClass'])) {
+            $params['iconClass'] = $data['iconClass'];
+        }
+        if (isset($data['fullTextSearch'])) {
+            $params['fullTextSearch'] = $data['fullTextSearch'];
+        }
+
+        $params['kanbanViewMode'] = !empty($data['kanbanViewMode']);
+        if (!empty($data['kanbanStatusIgnoreList'])) {
+            $params['kanbanStatusIgnoreList'] = $data['kanbanStatusIgnoreList'];
+        }
 
         $result = $this->getContainer()->get('entityManagerUtil')->create($name, $type, $params);
 
@@ -103,6 +119,8 @@ class EntityManager extends \Espo\Core\Controllers\Base
 
     public function actionUpdateEntity($params, $data, $request)
     {
+        $data = get_object_vars($data);
+
         if (!$request->isPost()) {
             throw new BadRequest();
         }
@@ -111,10 +129,6 @@ class EntityManager extends \Espo\Core\Controllers\Base
         }
         $name = $data['name'];
         $name = filter_var($name, \FILTER_SANITIZE_STRING);
-
-        if (!empty($data['sortDirection'])) {
-            $data['asc'] = $data['sortDirection'] === 'asc';
-        }
 
         $result = $this->getContainer()->get('entityManagerUtil')->update($name, $data);
 
@@ -129,6 +143,8 @@ class EntityManager extends \Espo\Core\Controllers\Base
 
     public function actionRemoveEntity($params, $data, $request)
     {
+        $data = get_object_vars($data);
+
         if (!$request->isPost()) {
             throw new BadRequest();
         }
@@ -160,6 +176,8 @@ class EntityManager extends \Espo\Core\Controllers\Base
 
     public function actionCreateLink($params, $data, $request)
     {
+        $data = get_object_vars($data);
+
         if (!$request->isPost()) {
             throw new BadRequest();
         }
@@ -198,6 +216,13 @@ class EntityManager extends \Espo\Core\Controllers\Base
             $params['linkMultipleFieldForeign'] = $data['linkMultipleFieldForeign'];
         }
 
+        if (array_key_exists('audited', $data)) {
+            $params['audited'] = $data['audited'];
+        }
+        if (array_key_exists('auditedForeign', $data)) {
+            $params['auditedForeign'] = $data['auditedForeign'];
+        }
+
         $result = $this->getContainer()->get('entityManagerUtil')->createLink($params);
 
         if ($result) {
@@ -211,6 +236,8 @@ class EntityManager extends \Espo\Core\Controllers\Base
 
     public function actionUpdateLink($params, $data, $request)
     {
+        $data = get_object_vars($data);
+
         if (!$request->isPost()) {
             throw new BadRequest();
         }
@@ -228,7 +255,9 @@ class EntityManager extends \Espo\Core\Controllers\Base
 
         $params = array();
         foreach ($paramList as $item) {
-        	$params[$item] = filter_var($data[$item], \FILTER_SANITIZE_STRING);
+            if (array_key_exists($item, $data)) {
+                $params[$item] = filter_var($data[$item], \FILTER_SANITIZE_STRING);
+            }
         }
 
         foreach ($additionalParamList as $item) {
@@ -240,6 +269,13 @@ class EntityManager extends \Espo\Core\Controllers\Base
         }
         if (array_key_exists('linkMultipleFieldForeign', $data)) {
             $params['linkMultipleFieldForeign'] = $data['linkMultipleFieldForeign'];
+        }
+
+        if (array_key_exists('audited', $data)) {
+            $params['audited'] = $data['audited'];
+        }
+        if (array_key_exists('auditedForeign', $data)) {
+            $params['auditedForeign'] = $data['auditedForeign'];
         }
 
         $result = $this->getContainer()->get('entityManagerUtil')->updateLink($params);
@@ -255,6 +291,8 @@ class EntityManager extends \Espo\Core\Controllers\Base
 
     public function actionRemoveLink($params, $data, $request)
     {
+        $data = get_object_vars($data);
+
         if (!$request->isPost()) {
             throw new BadRequest();
         }
@@ -278,5 +316,34 @@ class EntityManager extends \Espo\Core\Controllers\Base
 
         return true;
     }
-}
 
+    public function postActionFormula($params, $data, $request)
+    {
+        if (empty($data->scope)) {
+            throw new BadRequest();
+        }
+        if (!property_exists($data, 'data')) {
+            throw new BadRequest();
+        }
+
+        $formulaData = get_object_vars($data->data);
+
+        $this->getContainer()->get('entityManagerUtil')->setFormulaData($data->scope, $formulaData);
+
+        $this->getContainer()->get('dataManager')->clearCache();
+
+        return true;
+    }
+
+    public function postActionResetToDefault($params, $data, $request)
+    {
+        if (empty($data->scope)) {
+            throw new BadRequest();
+        }
+
+        $this->getContainer()->get('entityManagerUtil')->resetToDefaults($data->scope);
+        $this->getContainer()->get('dataManager')->clearCache();
+
+        return true;
+    }
+}

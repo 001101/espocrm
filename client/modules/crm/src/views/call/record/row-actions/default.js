@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,22 +26,22 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('crm:views/call/record/row-actions/default', 'views/record/row-actions/default', function (Dep) {
+Espo.define('crm:views/call/record/row-actions/default', ['views/record/row-actions/view-and-edit'], function (Dep) {
 
     return Dep.extend({
 
         getActionList: function () {
-            var actions = Dep.prototype.getActionList.call(this);
+            var actionList = Dep.prototype.getActionList.call(this);
 
             if (this.options.acl.edit && !~['Held', 'Not Held'].indexOf(this.model.get('status'))) {
-                actions.push({
+                actionList.push({
                     action: 'setHeld',
                     label: 'Set Held',
                     data: {
                         id: this.model.id
                     }
                 });
-                actions.push({
+                actionList.push({
                     action: 'setNotHeld',
                     label: 'Set Not Held',
                     data: {
@@ -49,9 +49,19 @@ Espo.define('crm:views/call/record/row-actions/default', 'views/record/row-actio
                     }
                 });
             }
+            if (this.options.acl.delete) {
+                actionList.push({
+                    action: 'quickRemove',
+                    label: 'Remove',
+                    data: {
+                        id: this.model.id,
+                        scope: this.model.name
+                    }
+                });
+            }
 
-            return actions;
-        },
+            return actionList;
+        }
     });
 
 });

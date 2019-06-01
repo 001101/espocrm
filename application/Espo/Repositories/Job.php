@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,14 @@ use Espo\ORM\Entity;
 
 class Job extends \Espo\Core\ORM\Repositories\RDB
 {
+    protected $hooksDisabled = true;
+
+    protected $processFieldsAfterSaveDisabled = true;
+
+    protected $processFieldsBeforeSaveDisabled = true;
+
+    protected $processFieldsAfterRemoveDisabled = true;
+
     protected function init()
     {
         parent::init();
@@ -46,14 +54,13 @@ class Job extends \Espo\Core\ORM\Repositories\RDB
 
     public function beforeSave(Entity $entity, array $options = array())
     {
-        if (!$entity->has('executeTime')) {
+        if (!$entity->has('executeTime') && $entity->isNew()) {
             $entity->set('executeTime', date('Y-m-d H:i:s'));
         }
 
-        if (!$entity->has('attempts')) {
-            $attempts = $this->getConfig()->get('cron.attempts', 0);
+        if (!$entity->has('attempts') && $entity->isNew()) {
+            $attempts = $this->getConfig()->get('jobRerunAttemptNumber', 0);
             $entity->set('attempts', $attempts);
         }
     }
 }
-

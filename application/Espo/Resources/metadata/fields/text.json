@@ -15,20 +15,33 @@
       },
       {
          "name":"seeMoreDisabled",
-         "type":"bool"
+         "type":"bool",
+         "tooltip": true
       },
       {
          "name": "rows",
          "type": "int",
-         "default": 4,
+         "default": 30,
          "min": 1
       },
       {
-         "name": "lengthOfCut",
+         "name": "cutHeight",
          "type": "int",
-         "default": 400,
+         "default": 200,
          "min": 1
+      },
+      {
+         "name": "displayRawText",
+         "type":"bool"
+      },
+      {
+         "name":"readOnly",
+         "type":"bool"
       }
    ],
-   "filter": true
+   "filter": true,
+   "personalData": true,
+   "textFilter": true,
+   "textFilterForeign": true,
+   "fullTextSearch": true
 }

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,42 +33,74 @@ class KnowledgeBaseArticle extends \Espo\Core\Controllers\Record
 {
     public function postActionGetCopiedAttachments($params, $data, $request)
     {
-        if (empty($data['id'])) {
+        if (empty($data->id)) {
             throw new BadRequest();
         }
-        $id = $data['id'];
+        $id = $data->id;
 
         return $this->getRecordService()->getCopiedAttachments($id);
     }
 
-    public function postActionMoveUp($params, $data, $request)
+    public function postActionMoveToTop($params, $data, $request)
     {
-        if (empty($data['id'])) {
+        if (empty($data->id)) {
             throw new BadRequest();
         }
         $where = null;
-        if (!empty($data['where'])) {
-            $where = $data['where'];
+        if (!empty($data->where)) {
+            $where = $data->where;
             $where = json_decode(json_encode($where), true);
         }
 
-        $this->getRecordService()->moveUp($data['id'], $where);
+        $this->getRecordService()->moveToTop($data->id, $where);
+
+        return true;
+    }
+
+    public function postActionMoveUp($params, $data, $request)
+    {
+        if (empty($data->id)) {
+            throw new BadRequest();
+        }
+        $where = null;
+        if (!empty($data->where)) {
+            $where = $data->where;
+            $where = json_decode(json_encode($where), true);
+        }
+
+        $this->getRecordService()->moveUp($data->id, $where);
 
         return true;
     }
 
     public function postActionMoveDown($params, $data, $request)
     {
-        if (empty($data['id'])) {
+        if (empty($data->id)) {
             throw new BadRequest();
         }
         $where = null;
-        if (!empty($data['where'])) {
-            $where = $data['where'];
+        if (!empty($data->where)) {
+            $where = $data->where;
             $where = json_decode(json_encode($where), true);
         }
 
-        $this->getRecordService()->moveDown($data['id'], $where);
+        $this->getRecordService()->moveDown($data->id, $where);
+
+        return true;
+    }
+
+    public function postActionMoveToBottom($params, $data, $request)
+    {
+        if (empty($data->id)) {
+            throw new BadRequest();
+        }
+        $where = null;
+        if (!empty($data->where)) {
+            $where = $data->where;
+            $where = json_decode(json_encode($where), true);
+        }
+
+        $this->getRecordService()->moveToBottom($data->id, $where);
 
         return true;
     }

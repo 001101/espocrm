@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,13 +67,13 @@ Espo.define('views/fields/float', 'views/fields/int', function (Dep) {
             return '';
         },
 
-        defineMaxLength: function () {
+        setupMaxLength: function () {
         },
 
         validateFloat: function () {
             var value = this.model.get(this.name);
             if (isNaN(value)) {
-                var msg = this.translate('fieldShouldBeFloat', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
+                var msg = this.translate('fieldShouldBeFloat', 'messages').replace('{field}', this.getLabelText());
                 this.showValidationMessage(msg);
                 return true;
             }
@@ -90,7 +90,7 @@ Espo.define('views/fields/float', 'views/fields/int', function (Dep) {
         },
 
         fetch: function () {
-            var value = this.$el.find('[name="'+this.name+'"]').val();
+            var value = this.$element.val();
             value = this.parse(value);
 
             var data = {};
@@ -99,4 +99,3 @@ Espo.define('views/fields/float', 'views/fields/int', function (Dep) {
         },
     });
 });
-

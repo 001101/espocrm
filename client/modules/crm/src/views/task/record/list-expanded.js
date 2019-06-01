@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@ Espo.define('crm:views/task/record/list-expanded', ['views/record/list-expanded'
         rowActionsView: 'crm:views/task/record/row-actions/default',
 
         actionSetCompleted: function (data) {
-            console.log(1);
             List.prototype.actionSetCompleted.call(this, data);
         },
 

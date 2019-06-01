@@ -3,33 +3,46 @@
         "token": {
             "type": "varchar",
             "maxLength": "36",
-            "index": true
+            "index": true,
+            "readOnly": true
         },
         "hash": {
             "type": "varchar",
             "maxLength": 150,
-            "index": true
+            "index": true,
+            "readOnly": true
         },
         "userId": {
             "type": "varchar",
-            "maxLength": "36"
+            "maxLength": "36",
+            "readOnly": true
         },
         "user": {
-            "type": "link"
+            "type": "link",
+            "readOnly": true
         },
         "portal": {
-            "type": "link"
+            "type": "link",
+            "readOnly": true
         },
         "ipAddress": {
             "type": "varchar",
-            "maxLength": "36"
+            "maxLength": "45",
+            "readOnly": true
+        },
+        "isActive": {
+            "type": "bool",
+            "default": true
         },
         "lastAccess": {
-            "type": "datetime"
+            "type": "datetime",
+            "readOnly": true,
+            "hasSeconds": true
         },
         "createdAt": {
             "type": "datetime",
-            "readOnly": true
+            "readOnly": true,
+            "hasSeconds": true
         },
         "modifiedAt": {
             "type": "datetime",
@@ -44,11 +57,17 @@
         "portal": {
             "type": "belongsTo",
             "entity": "Portal"
+        },
+        "actionHistoryRecords": {
+            "type": "hasMany",
+            "entity": "ActionHistoryRecord",
+            "foreign": "authToken"
         }
     },
     "collection": {
-        "sortBy": "lastAccess",
-        "asc": false
+        "orderBy": "lastAccess",
+        "order": "desc",
+        "textFilterFields": ["ipAddress", "userName"]
     },
     "indexes": {
         "token": {

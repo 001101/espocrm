@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ namespace Espo\Modules\Crm\Services;
 
 use \Espo\ORM\Entity;
 
-class Contact extends \Espo\Services\Record
+class Contact extends \Espo\Core\Templates\Services\Person
 {
 
     protected $readOnlyAttributeList = [
@@ -39,58 +39,44 @@ class Contact extends \Espo\Services\Record
         'portalUserId'
     ];
 
-    protected function getDuplicateWhereClause(Entity $entity, $data = array())
-    {
-        $data = array(
-            'OR' => array(
-                array(
-                    'firstName' => $entity->get('firstName'),
-                    'lastName' => $entity->get('lastName'),
-                )
-            )
-        );
-        if (
-            ($entity->get('emailAddress') || $entity->get('emailAddressData'))
-            &&
-            ($entity->isNew() || $entity->isFieldChanged('emailAddress') || $entity->isFieldChanged('emailAddressData'))
-        ) {
-            if ($entity->get('emailAddress')) {
-                $list = [$entity->get('emailAddress')];
-            }
-            if ($entity->get('emailAddressData')) {
-                foreach ($entity->get('emailAddressData') as $row) {
-                    if (!in_array($row->emailAddress, $list)) {
-                        $list[] = $row->emailAddress;
-                    }
-                }
-            }
-            foreach ($list as $emailAddress) {
-                $data['OR'][] = array(
-                    'emailAddress' => $emailAddress
-                );
-            }
-        }
+    protected $exportAllowedAttributeList = [
+        'title'
+    ];
 
-        return $data;
-    }
+    protected $linkSelectParams =[
+        'targetLists' => [
+            'additionalColumns' => [
+                'optedOut' => 'isOptedOut'
+            ]
+        ],
+        'opportunities' => [
+            'additionalColumns' => [
+                'role' => 'contactRole'
+            ]
+        ]
+    ];
 
-    public function afterCreate(Entity $entity, array $data = array())
+    protected $mandatorySelectAttributeList = [
+        'accountId',
+        'accountName'
+    ];
+
+    protected function afterCreateEntity(Entity $entity, $data)
     {
-        parent::afterCreate($entity, $data);
-        if (!empty($data['emailId'])) {
-            $email = $this->getEntityManager()->getEntity('Email', $data['emailId']);
+        if (!empty($data->emailId)) {
+            $email = $this->getEntityManager()->getEntity('Email', $data->emailId);
             if ($email && !$email->get('parentId')) {
-                if ($this->getConfig()->get('b2cMode')) {
-                    $email->set(array(
+                if ($this->getConfig()->get('b2cMode') || !$entity->get('accountId')) {
+                    $email->set([
                         'parentType' => 'Contact',
                         'parentId' => $entity->id
-                    ));
+                    ]);
                 } else {
                     if ($entity->get('accountId')) {
-                        $email->set(array(
+                        $email->set([
                             'parentType' => 'Account',
                             'parentId' => $entity->get('accountId')
-                        ));
+                        ]);
                     }
                 }
                 $this->getEntityManager()->saveEntity($email);
@@ -98,4 +84,3 @@ class Contact extends \Espo\Services\Record
         }
     }
 }
-

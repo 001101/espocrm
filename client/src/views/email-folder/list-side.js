@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,12 +35,8 @@ Espo.define('views/email-folder/list-side', 'view', function (Dep) {
         events: {
             'click [data-action="selectFolder"]': function (e) {
                 e.preventDefault();
-
                 var id = $(e.currentTarget).data('id');
-
-                this.$el.find('li.selected').removeClass('selected');
-                this.selectFolder(id);
-                this.$el.find('li[data-id="'+id+'"]').addClass('selected');
+                this.actionSelectFolder(id);
             }
         },
 
@@ -50,6 +46,12 @@ Espo.define('views/email-folder/list-side', 'view', function (Dep) {
             data.showEditLink = this.options.showEditLink;
             data.scope = this.scope;
             return data;
+        },
+
+        actionSelectFolder: function (id) {
+            this.$el.find('li.selected').removeClass('selected');
+            this.selectFolder(id);
+            this.$el.find('li[data-id="'+id+'"]').addClass('selected');
         },
 
         setup: function () {
@@ -64,6 +66,9 @@ Espo.define('views/email-folder/list-side', 'view', function (Dep) {
             this.listenTo(this.emailCollection, 'all-marked-read', function (m) {
                 this.countsData = this.countsData || {};
                 for (var id in this.countsData) {
+                    if (id === 'drafts') {
+                        continue;
+                    }
                     this.countsData[id] = 0;
                 }
                 this.renderCounts();
@@ -97,8 +102,15 @@ Espo.define('views/email-folder/list-side', 'view', function (Dep) {
         },
 
         manageModelRemoving: function (model) {
+            if (model.get('status') === 'Draft') {
+                this.decreaseNotReadCount('drafts');
+                this.renderCounts();
+                return;
+            }
+
             if (!model.get('isUsers')) return;
             if (model.get('isRead')) return;
+
             var folderId = model.get('folderId') || 'inbox';
             this.decreaseNotReadCount(folderId);
             this.renderCounts();
@@ -138,6 +150,9 @@ Espo.define('views/email-folder/list-side', 'view', function (Dep) {
         },
 
         selectFolder: function (id) {
+            this.emailCollection.reset();
+            this.emailCollection.abortLastFetch();
+
             this.selectedFolderId = id;
             this.trigger('select', id);
         },

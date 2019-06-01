@@ -1,7 +1,8 @@
 {
     "fields": {
         "post": {
-            "type": "text"
+            "type": "text",
+            "rows": 30
         },
         "data": {
             "type": "jsonObject",
@@ -9,7 +10,9 @@
         },
         "type": {
             "type": "varchar",
-            "readOnly": true
+            "readOnly": true,
+            "view": "views/fields/enum",
+            "options": ["Post"]
         },
         "targetType": {
             "type": "varchar"
@@ -23,7 +26,7 @@
             "readOnly": true
         },
         "attachments": {
-            "type": "linkMultiple",
+            "type": "attachmentMultiple",
             "view": "views/stream/fields/attachment-multiple"
         },
         "number": {
@@ -53,12 +56,10 @@
         },
         "notifiedUserIdList": {
             "type": "jsonArray",
-            "notStorable": true
+            "notStorable": true,
+            "disabled": true
         },
         "isInternal": {
-            "type": "bool"
-        },
-        "isToSelf": {
             "type": "bool"
         },
         "createdAt": {
@@ -120,85 +121,26 @@
         }
     },
     "collection": {
-        "sortBy": "number",
-        "asc": false
-    },
-    "streamRelated": {
-        "Account": [
-            "meetings",
-            "calls",
-            "tasks"
-        ],
-        "Contact": [
-            "meetings",
-            "calls",
-            "tasks"
-        ],
-        "Lead": [
-            "meetings",
-            "calls",
-            "tasks"
-        ],
-        "Opportunity": [
-            "meetings",
-            "calls",
-            "tasks"
-        ],
-        "Case": [
-            "meetings",
-            "calls",
-            "tasks"
-        ]
+        "orderBy": "number",
+        "order": "desc",
+        "textFilterFields": ["post"]
     },
     "statusStyles": {
         "Lead": {
-            "New" : "primary",
             "Assigned" : "primary",
-            "In Process" : "primary",
-            "Converted" : "success",
-            "Recycled" : "danger",
-            "Dead" : "danger"
+            "In Process" : "primary"
         },
         "Case": {
-            "New" : "primary",
-            "Assigned" : "primary",
-            "Pending" : "default",
-            "Closed" : "success",
-            "Rejected" : "danger",
-            "Duplicate" : "danger"
+            "Assigned" : "primary"
         },
         "Opportunity": {
-            "Prospecting": "primary",
-            "Qualification": "primary",
-            "Needs Analysis": "primary",
-            "Value Proposition": "primary",
-            "Id. Decision Makers": "primary",
-            "Perception Analysis": "primary",
-            "Proposal/Price Quote": "primary",
-            "Negotiation/Review": "primary",
-            "Closed Won" : "success",
-            "Closed Lost" : "danger"
+            "Proposal": "primary",
+            "Negotiation": "primary"
         },
         "Task": {
-            "Completed": "success",
             "Started" : "primary",
             "Canceled" : "danger"
-        },
-        "Meeting": {
-            "Held": "success"
-        },
-        "Call": {
-            "Held": "success"
         }
-    },
-    "statusFields": {
-        "Lead": "status",
-        "Case": "status",
-        "Opportunity": "stage",
-        "Task": "status",
-        "Meeting": "status",
-        "Call": "status",
-        "Campaign": "status"
     },
     "indexes": {
         "createdAt": {

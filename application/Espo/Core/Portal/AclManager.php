@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,8 @@ class AclManager extends \Espo\Core\AclManager
 
     private $portal = null;
 
+    protected $userAclClassName = '\\Espo\\Core\\Portal\\Acl';
+
     public function getImplementation($scope)
     {
         if (empty($this->implementationHashMap[$scope])) {
@@ -61,8 +63,8 @@ class AclManager extends \Espo\Core\AclManager
 
             if (class_exists($className)) {
                 $acl = new $className($scope);
-                $dependencies = $acl->getDependencyList();
-                foreach ($dependencies as $name) {
+                $dependencyList = $acl->getDependencyList();
+                foreach ($dependencyList as $name) {
                     $acl->inject($name, $this->getContainer()->get($name));
                 }
                 $this->implementationHashMap[$scope] = $acl;
@@ -108,7 +110,7 @@ class AclManager extends \Espo\Core\AclManager
             $config = $this->getContainer()->get('config');
             $fileManager = $this->getContainer()->get('fileManager');
             $metadata = $this->getContainer()->get('metadata');
-            $fieldManager = $this->getContainer()->get('fieldManager');
+            $fieldManager = $this->getContainer()->get('fieldManagerUtil');
             $portal = $this->getPortal();
 
             $this->tableHashMap[$key] = new $this->tableClassName($user, $portal, $config, $fileManager, $metadata, $fieldManager);
@@ -176,6 +178,15 @@ class AclManager extends \Espo\Core\AclManager
             return $this->getMainManager()->checkReadOnlyTeam($user, $data);
         }
         return parent::checkReadOnlyTeam($user, $scope);
+    }
+
+    public function checkReadNo(User $user, $scope)
+    {
+        if ($this->checkUserIsNotPortal($user)) {
+            $data = $this->getTable($user)->getScopeData($scope);
+            return $this->getMainManager()->checkReadNo($user, $data);
+        }
+        return parent::checkReadNo($user, $scope);
     }
 
     public function checkReadOnlyOwn(User $user, $scope)
@@ -253,8 +264,7 @@ class AclManager extends \Espo\Core\AclManager
 
     protected function checkUserIsNotPortal($user)
     {
-        return !$user->get('isPortalUser');
+        return !$user->isPortal();
     }
 
 }
-

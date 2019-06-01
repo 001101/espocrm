@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,8 +30,10 @@ Espo.define('crm:views/case/record/detail', 'views/record/detail', function (Dep
 
     return Dep.extend({
 
-        setup: function () {
-            Dep.prototype.setup.call(this);
+        selfAssignAction: true,
+
+        setupActionItems: function () {
+            Dep.prototype.setupActionItems.call(this);
             if (this.getAcl().checkModel(this.model, 'edit')) {
                 if (['Closed', 'Rejected', 'Duplicate'].indexOf(this.model.get('status')) == -1) {
                     this.dropdownItemList.push({
@@ -46,31 +48,52 @@ Espo.define('crm:views/case/record/detail', 'views/record/detail', function (Dep
             }
         },
 
+        manageAccessEdit: function (second) {
+            Dep.prototype.manageAccessEdit.call(this, second);
+
+            if (second) {
+                if (!this.getAcl().checkModel(this.model, 'edit', true)) {
+                    this.hideActionItem('close');
+                    this.hideActionItem('reject');
+                }
+            }
+        },
+
         actionClose: function () {
-                this.model.save({
-                    status: 'Closed'
-                }, {
-                    patch: true,
-                    success: function () {
-                        Espo.Ui.success(this.translate('Closed', 'labels', 'Case'));
-                        this.removeButton('close');
-                        this.removeButton('reject');
-                    }.bind(this),
-                });
+            this.model.save({
+                status: 'Closed'
+            }, {
+                patch: true,
+                success: function () {
+                    Espo.Ui.success(this.translate('Closed', 'labels', 'Case'));
+                    this.removeButton('close');
+                    this.removeButton('reject');
+                }.bind(this),
+            });
         },
 
         actionReject: function () {
-                this.model.save({
-                    status: 'Rejected'
-                }, {
-                    patch: true,
-                    success: function () {
-                        Espo.Ui.success(this.translate('Rejected', 'labels', 'Case'));
-                        this.removeButton('close');
-                        this.removeButton('reject');
-                    }.bind(this),
-                });
+            this.model.save({
+                status: 'Rejected'
+            }, {
+                patch: true,
+                success: function () {
+                    Espo.Ui.success(this.translate('Rejected', 'labels', 'Case'));
+                    this.removeButton('close');
+                    this.removeButton('reject');
+                }.bind(this),
+            });
         },
+
+        getSelfAssignAttributes: function () {
+            if (this.model.get('status') === 'New') {
+                if (~(this.getMetadata().get(['entityDefs', 'Case', 'fields', 'status', 'options']) || []).indexOf('Assigned')) {
+                    return {
+                        'status': 'Assigned'
+                    };
+                }
+            }
+        }
 
     });
 });

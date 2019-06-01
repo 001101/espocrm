@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,25 +26,31 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('Views.Admin.Upgrade.Index', 'View', function (Dep) {
+Espo.define('views/admin/upgrade/index', 'view', function (Dep) {
 
     return Dep.extend({
 
-        template: 'admin.upgrade.index',
+        template: 'admin/upgrade/index',
 
         packageContents: null,
 
         data: function () {
             return {
                 versionMsg: this.translate('Current version') + ': ' + this.getConfig().get('version'),
+                infoMsg: this.translate('upgradeInfo', 'messages', 'Admin').replace('{url}', 'https://www.espocrm.com/documentation/administration/upgrading/'),
                 backupsMsg: this.translate('upgradeBackup', 'messages', 'Admin'),
-                downloadMsg: this.translate('downloadUpgradePackage', 'messages', 'Admin').replace('{url}', 'http://www.espocrm.com/download/upgrades')
+                upgradeRecommendation: this.translate('upgradeRecommendation', 'messages', 'Admin'),
+                downloadMsg: this.translate('downloadUpgradePackage', 'messages', 'Admin').replace('{url}', 'https://www.espocrm.com/download/upgrades')
             };
+        },
+
+        afterRender: function () {
+            this.$el.find('.panel-body a').attr('target', '_BLANK');
         },
 
         events: {
             'change input[name="package"]': function (e) {
-                this.$el.find('button[data-action="upload"]').addClass('disabled');
+                this.$el.find('button[data-action="upload"]').addClass('disabled').attr('disabled', 'disabled');
                 this.$el.find('.message-container').html('');
                 var files = e.currentTarget.files;
                 if (files.length) {
@@ -64,7 +70,7 @@ Espo.define('Views.Admin.Upgrade.Index', 'View', function (Dep) {
             var fileReader = new FileReader();
             fileReader.onload = function (e) {
                 this.packageContents = e.target.result;
-                this.$el.find('button[data-action="upload"]').removeClass('disabled');
+                this.$el.find('button[data-action="upload"]').removeClass('disabled').removeAttr('disabled');
             }.bind(this);
             fileReader.readAsDataURL(file);
         },
@@ -75,7 +81,7 @@ Espo.define('Views.Admin.Upgrade.Index', 'View', function (Dep) {
         },
 
         upload: function () {
-            this.$el.find('button[data-action="upload"]').addClass('disabled');
+            this.$el.find('button[data-action="upload"]').addClass('disabled').attr('disabled', 'disabled');
             this.notify('Uploading...');
             $.ajax({
                 url: 'Admin/action/uploadUpgradePackage',
@@ -93,11 +99,11 @@ Espo.define('Views.Admin.Upgrade.Index', 'View', function (Dep) {
                     return;
                 }
                 this.notify(false);
-                this.createView('popup', 'Admin.Upgrade.Ready', {
+                this.createView('popup', 'views/admin/upgrade/ready', {
                     upgradeData: data
                 }, function (view) {
                     view.render();
-                    this.$el.find('button[data-action="upload"]').removeClass('disabled');
+                    this.$el.find('button[data-action="upload"]').removeClass('disabled').removeAttr('disabled');
 
                     view.once('run', function () {
                         view.close();
@@ -134,7 +140,7 @@ Espo.define('Views.Admin.Upgrade.Index', 'View', function (Dep) {
                 if (cache) {
                     cache.clear();
                 }
-                this.createView('popup', 'Admin.Upgrade.Done', {
+                this.createView('popup', 'views/admin/upgrade/done', {
                     version: version
                 }, function (view) {
                     this.notify(false);

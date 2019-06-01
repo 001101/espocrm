@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,8 +28,9 @@
  ************************************************************************/
 
 namespace Espo\Core\Utils\File;
-use Espo\Core\Utils,
-    Espo\Core\Exceptions\Error;
+
+use Espo\Core\Utils;
+use Espo\Core\Exceptions\Error;
 
 class Manager
 {
@@ -110,7 +111,7 @@ class Manager
         }
 
         if ($isReturnSingleArray) {
-            return $this->getSingeFileList($result, $onlyFileType);
+            return $this->getSingeFileList($result, $onlyFileType, $path);
         }
 
         return $result;
@@ -125,7 +126,7 @@ class Manager
      *
      * @return aray
      */
-    protected function getSingeFileList(array $fileList, $onlyFileType = null, $parentDirName = '')
+    protected function getSingeFileList(array $fileList, $onlyFileType = null, $basePath = null, $parentDirName = '')
     {
         $singleFileList = array();
         foreach($fileList as $dirName => $fileName) {
@@ -133,16 +134,16 @@ class Manager
             if (is_array($fileName)) {
                 $currentDir = Utils\Util::concatPath($parentDirName, $dirName);
 
-                if (!isset($onlyFileType) || $onlyFileType == $this->isFile($currentDir)) {
+                if (!isset($onlyFileType) || $onlyFileType == $this->isFile($currentDir, $basePath)) {
                     $singleFileList[] = $currentDir;
                 }
 
-                $singleFileList = array_merge($singleFileList, $this->getSingeFileList($fileName, $onlyFileType, $currentDir));
+                $singleFileList = array_merge($singleFileList, $this->getSingeFileList($fileName, $onlyFileType, $basePath, $currentDir));
 
             } else {
                 $currentFileName = Utils\Util::concatPath($parentDirName, $fileName);
 
-                if (!isset($onlyFileType) || $onlyFileType == $this->isFile($currentFileName)) {
+                if (!isset($onlyFileType) || $onlyFileType == $this->isFile($currentFileName, $basePath)) {
                     $singleFileList[] = $currentFileName;
                 }
             }
@@ -155,22 +156,14 @@ class Manager
      * Reads entire file into a string
      *
      * @param  string | array  $path  Ex. 'path.php' OR array('dir', 'path.php')
-     * @param  boolean $useIncludePath
-     * @param  resource  $context
-     * @param  integer $offset
-     * @param  integer $maxlen
      * @return mixed
      */
-    public function getContents($path, $useIncludePath = false, $context = null, $offset = -1, $maxlen = null)
+    public function getContents($path)
     {
         $fullPath = $this->concatPaths($path);
 
         if (file_exists($fullPath)) {
-            if (isset($maxlen)) {
-                return file_get_contents($fullPath, $useIncludePath, $context, $offset, $maxlen);
-            } else {
-                return file_get_contents($fullPath, $useIncludePath, $context, $offset);
-            }
+            return file_get_contents($fullPath);
         }
 
         return false;
@@ -200,11 +193,10 @@ class Manager
      * @param  string | array  $path
      * @param  mixed  $data
      * @param  integer $flags
-     * @param  resource  $context
      *
      * @return bool
      */
-    public function putContents($path, $data, $flags = 0, $context = null)
+    public function putContents($path, $data, $flags = 0)
     {
         $fullPath = $this->concatPaths($path); //todo remove after changing the params
 
@@ -212,9 +204,9 @@ class Manager
             throw new Error('Permission denied for '. $fullPath);
         }
 
-        $res = (file_put_contents($fullPath, $data, $flags, $context) !== FALSE);
+        $res = (file_put_contents($fullPath, $data, $flags) !== FALSE);
         if ($res && function_exists('opcache_invalidate')) {
-            opcache_invalidate($fullPath);
+            @opcache_invalidate($fullPath);
         }
 
         return $res;
@@ -230,7 +222,6 @@ class Manager
      */
     public function putPhpContents($path, $data, $withObjects = false)
     {
-
         return $this->putContents($path, $this->wrapForDataExport($data, $withObjects), LOCK_EX);
     }
 
@@ -434,13 +425,7 @@ class Manager
         $sourcePath = $this->concatPaths($sourcePath);
         $destPath = $this->concatPaths($destPath);
 
-        if (isset($fileList)) {
-            if (!empty($sourcePath)) {
-                foreach ($fileList as &$fileName) {
-                    $fileName = $this->concatPaths(array($sourcePath, $fileName));
-                }
-            }
-        } else {
+        if (!isset($fileList)) {
             $fileList = is_file($sourcePath) ? (array) $sourcePath : $this->getFileList($sourcePath, $recursively, '', true, true);
         }
 
@@ -481,6 +466,9 @@ class Manager
 
             if (file_exists($sourceFile) && is_file($sourceFile)) {
                 $res &= copy($sourceFile, $destFile);
+                if (function_exists('opcache_invalidate')) {
+                    @opcache_invalidate($destFile);
+                }
             }
         }
 
@@ -498,8 +486,7 @@ class Manager
         $defaultPermissions = $this->getPermissionUtils()->getDefaultPermissions();
 
         if (file_exists($filePath)) {
-
-            if (!in_array($this->getPermissionUtils()->getCurrentPermission($filePath), array($defaultPermissions['file'], $defaultPermissions['dir']))) {
+            if (!is_writable($filePath) && !in_array($this->getPermissionUtils()->getCurrentPermission($filePath), array($defaultPermissions['file'], $defaultPermissions['dir']))) {
                 return $this->getPermissionUtils()->setDefaultPermissions($filePath, true);
             }
             return true;
@@ -574,6 +561,9 @@ class Manager
             }
 
             if (file_exists($filePath) && is_file($filePath)) {
+                if (function_exists('opcache_invalidate')) {
+                    @opcache_invalidate($filePath, true);
+                }
                 $result &= unlink($filePath);
             }
         }
@@ -605,7 +595,7 @@ class Manager
             }
         }
 
-        if ($removeWithDir) {
+        if ($removeWithDir && $this->isDirEmpty($dirPath)) {
             $result &= $this->rmdir($dirPath);
         }
 
@@ -625,11 +615,18 @@ class Manager
             $items = (array) $items;
         }
 
+        $removeList = array();
         $permissionDeniedList = array();
         foreach ($items as $item) {
             if (isset($dirPath)) {
                 $item = Utils\Util::concatPath($dirPath, $item);
             }
+
+            if (!file_exists($item)) {
+                continue;
+            }
+
+            $removeList[] = $item;
 
             if (!is_writable($item)) {
                 $permissionDeniedList[] = $item;
@@ -644,11 +641,7 @@ class Manager
         }
 
         $result = true;
-        foreach ($items as $item) {
-            if (isset($dirPath)) {
-                $item = Utils\Util::concatPath($dirPath, $item);
-            }
-
+        foreach ($removeList as $item) {
             if (is_dir($item)) {
                 $result &= $this->removeInDir($item, true);
             } else {
@@ -685,10 +678,16 @@ class Manager
      * Check if $dirname is directory.
      *
      * @param  string  $dirname
+     * @param  string  $basePath
+     *
      * @return boolean
      */
-    public function isDir($dirname)
+    public function isDir($dirname, $basePath = null)
     {
+        if (!empty($basePath)) {
+            $dirname = $this->concatPaths([$basePath, $dirname]);
+        }
+
         return is_dir($dirname);
     }
 
@@ -696,10 +695,16 @@ class Manager
      * Check if $filename is file. If $filename doesn'ot exist, check by pathinfo
      *
      * @param  string  $filename
+     * @param  string  $basePath
+     *
      * @return boolean
      */
-    public function isFile($filename)
+    public function isFile($filename, $basePath = null)
     {
+        if (!empty($basePath)) {
+            $filename = $this->concatPaths([$basePath, $filename]);
+        }
+
         if (file_exists($filename)) {
             return is_file($filename);
         }
@@ -892,6 +897,20 @@ class Manager
     }
 
     /**
+     * Check if $path is writable
+     *
+     * @param  string | array  $path
+     *
+     * @return boolean
+     */
+    public function isReadable($path)
+    {
+        $existFile = $this->getExistsPath($path);
+
+        return is_readable($existFile);
+    }
+
+    /**
      * Get exists path. Ex. if check /var/www/espocrm/custom/someFile.php and this file doesn't extist, result will be /var/www/espocrm/custom
      *
      * @param  string | array $path
@@ -909,4 +928,3 @@ class Manager
         return $fullPath;
     }
 }
-

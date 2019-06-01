@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('crm:views/dashlets/opportunities-by-stage', 'crm:views/dashlets/abstract/chart', function (Dep) {
+define('crm:views/dashlets/opportunities-by-stage', 'crm:views/dashlets/abstract/chart', function (Dep) {
 
     return Dep.extend({
 
@@ -38,7 +38,12 @@ Espo.define('crm:views/dashlets/opportunities-by-stage', 'crm:views/dashlets/abs
         },
 
         url: function () {
-            return 'Opportunity/action/reportByStage?dateFrom=' + this.getOption('dateFrom') + '&dateTo=' + this.getOption('dateTo');
+            var url = 'Opportunity/action/reportByStage?dateFilter='+ this.getDateFilter();
+
+            if (this.getDateFilter() === 'between') {
+                url += '&dateFrom=' + this.getOption('dateFrom') + '&dateTo=' + this.getOption('dateTo');
+            }
+            return url;
         },
 
         prepareData: function (response) {
@@ -53,14 +58,17 @@ Espo.define('crm:views/dashlets/opportunities-by-stage', 'crm:views/dashlets/abs
 
             this.stageList = [];
 
+            this.isEmpty = true;
+
             var data = [];
             var i = 0;
             d.forEach(function (item) {
+                if (item.value) this.isEmpty = false;
                 var o = {
                     data: [[item.value, d.length - i]],
                     label: this.getLanguage().translateOption(item.stage, 'stage', 'Opportunity'),
                 }
-                if (item.stage == 'Closed Won') {
+                if (item.stagsuccessColore == 'Closed Won') {
                     o.color = this.successColor;
                 }
                 data.push(o);
@@ -68,18 +76,32 @@ Espo.define('crm:views/dashlets/opportunities-by-stage', 'crm:views/dashlets/abs
                 i++;
             }, this);
 
+            var max = 0;
+            if (d.length) {
+                d.forEach(function (item) {
+                    if ( item.value && item.value > max) {
+                        max = item.value;
+                    }
+                }, this);
+            }
+            this.max = max;
+
             return data;
         },
 
         setup: function () {
             this.currency = this.getConfig().get('defaultCurrency');
-            this.currencySymbol = '';
+            this.currencySymbol = this.getMetadata().get(['app', 'currency', 'symbolMap', this.currency]) || '';
         },
 
-        drow: function () {
+        isNoData: function () {
+            return this.isEmpty;
+        },
+
+        draw: function () {
             var self = this;
             this.flotr.draw(this.$container.get(0), this.chartData, {
-                colors: this.colors,
+                colors: this.colorList,
                 shadowSize: false,
                 bars: {
                     show: true,
@@ -87,44 +109,60 @@ Espo.define('crm:views/dashlets/opportunities-by-stage', 'crm:views/dashlets/abs
                     shadowSize: 0,
                     lineWidth: 1,
                     fillOpacity: 1,
-                    barWidth: 0.5,
+                    barWidth: 0.5
                 },
                 grid: {
                     horizontalLines: false,
                     outline: 'sw',
-                    color: this.outlineColor
+                    color: this.gridColor,
+                    tickColor: this.tickColor
                 },
                 yaxis: {
                     min: 0,
                     showLabels: false,
+                    color: this.textColor
                 },
                 xaxis: {
                     min: 0,
+                    color: this.textColor,
+                    max: this.max + 0.08 * this.max,
                     tickFormatter: function (value) {
-                        if (value != 0) {
-                            return self.formatNumber(value) + ' ' + self.currency;
+                        if (value == 0) {
+                            return '';
+                        }
+                        if (value % 1 == 0) {
+                            if (value > self.max + 0.05 * this.max) {
+                                return '';
+                            }
+                            return self.currencySymbol + self.formatNumber(Math.floor(value), false, true).toString();
                         }
                         return '';
-                    },
+                    }
                 },
                 mouse: {
                     track: true,
                     relative: true,
-                    position: 's',
+                    position: 'w',
+                    autoPositionHorizontal: true,
+                    lineColor: this.hoverColor,
                     trackFormatter: function (obj) {
-                        return self.formatNumber(obj.x) + ' ' + self.currency;
-                    },
+                        var label = (obj.series.label || self.translate('None'));
+                        var value = label  + '<br>' + self.currencySymbol + self.formatNumber(obj.x, true);
+                        return value;
+                    }
                 },
                 legend: {
                     show: true,
-                    noColumns: 5,
+                    noColumns: this.getLegendColumnNumber(),
                     container: this.$el.find('.legend-container'),
-                    labelBoxMargin: 0
-                },
+                    labelBoxMargin: 0,
+                    labelFormatter: self.labelFormatter.bind(self),
+                    labelBoxBorderColor: 'transparent',
+                    backgroundOpacity: 0
+                }
             });
-        },
 
+            this.adjustLegend();
+        }
     });
 });
-
-

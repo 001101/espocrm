@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,42 +36,65 @@ class BelongsTo extends Base
         $linkParams = $this->getLinkParams();
 
         $foreignEntityName = $this->getForeignEntityName();
+        $foreignLinkName = $this->getForeignLinkName();
+
+        $index = true;
+        if (!empty($linkParams['noIndex'])) {
+            $index = false;
+        }
+
+        $noForeignName = false;
+        if (!empty($linkParams['noForeignName'])) {
+            $noForeignName = true;
+        } else {
+            if (!empty($linkParams['foreignName'])) {
+                $foreign = $linkParams['foreignName'];
+            } else {
+                $foreign = $this->getForeignField('name', $foreignEntityName);
+            }
+        }
 
         if (!empty($linkParams['noJoin'])) {
-            $fieldNameDefs = array(
+            $fieldNameDefs = [
                 'type' => 'varchar',
                 'notStorable' => true,
                 'relation' => $linkName,
                 'foreign' => $this->getForeignField('name', $foreignEntityName),
-            );
+            ];
         } else {
-            $fieldNameDefs = array(
+            $fieldNameDefs = [
                 'type' => 'foreign',
                 'relation' => $linkName,
-                'foreign' => $this->getForeignField('name', $foreignEntityName),
-                'notStorable' => false,
-            );
+                'foreign' => $foreign,
+                'notStorable' => false
+            ];
         }
 
-        return array (
-            $entityName => array (
-                'fields' => array(
-                    $linkName.'Name' => $fieldNameDefs,
-                    $linkName.'Id' => array(
+        $data = [
+            $entityName => [
+                'fields' => [
+                    $linkName.'Id' => [
                         'type' => 'foreignId',
-                        'index' => true,
-                    ),
-                ),
-                'relations' => array(
-                    $linkName => array(
+                        'index' => $index
+                    ]
+                ],
+                'relations' => [
+                    $linkName => [
                         'type' => 'belongsTo',
                         'entity' => $foreignEntityName,
                         'key' => $linkName.'Id',
                         'foreignKey' => 'id',
-                    ),
-                ),
-            ),
-        );
+                        'foreign' => $foreignLinkName
+                    ]
+                ]
+            ]
+        ];
+
+        if (!$noForeignName) {
+            $data[$entityName]['fields'][$linkName.'Name'] = $fieldNameDefs;
+        }
+
+        return $data;
     }
 
 }

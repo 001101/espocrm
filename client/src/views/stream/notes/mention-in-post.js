@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,7 +46,9 @@ Espo.define('views/stream/notes/mention-in-post', 'views/stream/note', function 
                 this.createField('post', null, null, 'views/stream/fields/post');
             }
             if ((this.model.get('attachmentsIds') || []).length) {
-                this.createField('attachments', 'attachmentMultiple', {}, 'views/stream/fields/attachment-multiple');
+                this.createField('attachments', 'attachmentMultiple', {}, 'views/stream/fields/attachment-multiple', {
+                    previewSize: this.options.isNotification ? 'small' : null
+                });
             }
 
             var data = this.model.get('data');
@@ -96,6 +98,8 @@ Espo.define('views/stream/notes/mention-in-post', 'views/stream/note', function 
                                     }, this);
                                     this.messageData['target'] = userHtmlList.join(', ');
                                 }
+                            } else if (this.model.get('targetType') === 'self') {
+                                this.messageName = 'mentionYouInPostTargetNoTarget';
                             }
                         }
                     } else {

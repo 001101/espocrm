@@ -12,13 +12,14 @@
         "label": "Configuration",
         "rows": [
             [{"name": "outboundEmailFromAddress"}, {"name": "outboundEmailIsShared"}],
-            [{"name": "outboundEmailFromName"}, false]
+            [{"name": "outboundEmailFromName"}, {"name": "outboundEmailBccAddress"}]
         ]
     },
     {
         "label": "Mass Email",
         "rows": [
-            [{"name": "massEmailMaxPerHourCount"}, {"name": "massEmailDisableMandatoryOptOutLink"}]
+            [{"name": "massEmailMaxPerHourCount"}, {"name": "massEmailDisableMandatoryOptOutLink"}],
+            [{"name": "massEmailOpenTracking"}, false]
         ]
     }
 ]

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,11 +38,11 @@ class Call extends \Espo\Core\Controllers\Record
 
     public function postActionSendInvitations($params, $data)
     {
-        if (empty($data['id'])) {
+        if (empty($data->id)) {
             throw new BadRequest();
         }
 
-        $entity = $this->getRecordService()->getEntity($data['id']);
+        $entity = $this->getRecordService()->getEntity($data->id);
 
         if (!$entity) {
             throw new NotFound();
@@ -61,20 +61,28 @@ class Call extends \Espo\Core\Controllers\Record
 
     public function postActionMassSetHeld($params, $data)
     {
-        if (empty($data['ids']) && !is_array($data['ids'])) {
+        if (empty($data->ids) || !is_array($data->ids)) {
             throw new BadRequest();
         }
 
-        return $this->getRecordService()->massSetHeld($data['ids']);
+        return $this->getRecordService()->massSetHeld($data->ids);
     }
 
     public function postActionMassSetNotHeld($params, $data)
     {
-        if (empty($data['ids']) && !is_array($data['ids'])) {
+        if (empty($data->ids) || !is_array($data->ids)) {
             throw new BadRequest();
         }
 
-        return $this->getRecordService()->massSetNotHeld($data['ids']);
+        return $this->getRecordService()->massSetNotHeld($data->ids);
     }
 
+    public function postActionSetAcceptanceStatus($params, $data)
+    {
+        if (empty($data->id) || empty($data->status)) {
+            throw new BadRequest();
+        }
+
+        return $this->getRecordService()->setAcceptanceStatus($data->id, $data->status);
+    }
 }

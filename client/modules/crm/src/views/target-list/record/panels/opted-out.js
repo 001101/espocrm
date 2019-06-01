@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -108,6 +108,10 @@ Espo.define('crm:views/target-list/record/panels/opted-out', ['views/record/pane
             this.listenTo(this.model, 'opt-out', function () {
                 this.actionRefresh();
             }, this);
+
+            this.listenTo(this.model, 'cancel-opt-out', function () {
+                this.actionRefresh();
+            }, this);
         },
 
         afterRender: function () {
@@ -140,7 +144,7 @@ Espo.define('crm:views/target-list/record/panels/opted-out', ['views/record/pane
         },
 
         actionCancelOptOut: function (data) {
-            if (confirm(this.translate('confirmation', 'messages'))) {
+            this.confirm(this.translate('confirmation', 'messages'), function () {
                 $.ajax({
                     url: 'TargetList/action/cancelOptOut',
                     type: 'POST',
@@ -152,7 +156,7 @@ Espo.define('crm:views/target-list/record/panels/opted-out', ['views/record/pane
                 }).done(function () {
                     this.collection.fetch();
                 }.bind(this));
-            }
+            }, this);
         }
 
     });

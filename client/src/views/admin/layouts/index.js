@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,19 @@ Espo.define('views/admin/layouts/index', 'view', function (Dep) {
 
         scopeList: null,
 
-        typeList: ['list', 'detail', 'listSmall', 'detailSmall', 'filters', 'massUpdate', 'relationships', 'sidePanelsDetail', 'sidePanelsEdit'],
+        typeList: [
+            'list',
+            'detail',
+            'listSmall',
+            'detailSmall',
+            'filters',
+            'massUpdate',
+            'relationships',
+            'sidePanelsDetail',
+            'sidePanelsEdit',
+            'sidePanelsDetailSmall',
+            'sidePanelsEditSmall'
+        ],
 
         scope: null,
 
@@ -55,6 +67,10 @@ Espo.define('views/admin/layouts/index', 'view', function (Dep) {
                         var additionalLayouts = this.getMetadata().get('clientDefs.' + scope + '.additionalLayouts') || {};
                         for (var item in additionalLayouts) {
                             d.typeList.push(item);
+                        }
+
+                        if (this.getMetadata().get(['clientDefs', scope, 'kanbanViewMode'])) {
+                            d.typeList.push('kanban');
                         }
 
                         dataList.push(d);

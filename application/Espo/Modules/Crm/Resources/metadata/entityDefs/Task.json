@@ -8,7 +8,6 @@
         "status": {
             "type": "enum",
             "options": ["Not Started", "Started", "Completed", "Canceled", "Deferred"],
-            "view": "views/fields/enum-styled",
             "style": {
                 "Completed": "success"
             },
@@ -50,6 +49,11 @@
             "view": "crm:views/task/fields/is-overdue",
             "disabled": true
         },
+        "reminders": {
+            "type": "jsonArray",
+            "notStorable": true,
+            "view": "crm:views/meeting/fields/reminders"
+        },
         "description": {
             "type": "text"
         },
@@ -58,6 +62,10 @@
             "entityList": ["Account", "Contact", "Lead", "Opportunity", "Case"]
         },
         "account": {
+            "type": "link",
+            "readOnly": true
+        },
+        "contact": {
             "type": "link",
             "readOnly": true
         },
@@ -90,8 +98,7 @@
         },
         "attachments": {
             "type": "attachmentMultiple",
-            "sourceList": ["Document"],
-            "layoutListDisabled": true
+            "sourceList": ["Document"]
         }
     },
     "links": {
@@ -105,7 +112,8 @@
         },
         "assignedUser": {
             "type": "belongsTo",
-            "entity": "User"
+            "entity": "User",
+            "foreign": "tasks"
         },
         "teams": {
             "type": "hasMany",
@@ -120,11 +128,15 @@
         "account": {
             "type": "belongsTo",
             "entity": "Account"
+        },
+        "contact": {
+            "type": "belongsTo",
+            "entity": "Contact"
         }
     },
     "collection": {
-        "sortBy": "createdAt",
-        "asc": false
+        "orderBy": "createdAt",
+        "order": "desc"
     },
     "indexes": {
         "dateStartStatus": {

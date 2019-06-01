@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/record/detail-middle', 'view', function (Dep) {
+define('views/record/detail-middle', 'view', function (Dep) {
 
     return Dep.extend({
 
@@ -135,13 +135,27 @@ Espo.define('views/record/detail-middle', 'view', function (Dep) {
         },
 
         getFieldViews: function () {
-            return Espo.Utils.clone(this.nestedViews);
+            var nestedViews = this.nestedViews;
+            var fieldViews = {};
+            for (var viewKey in this.nestedViews) {
+                var name = this.nestedViews[viewKey].name;
+                fieldViews[name] = this.nestedViews[viewKey];
+            }
+            return fieldViews;
         },
 
         getFieldView: function (name) {
             return (this.getFieldViews() || {})[name];
+        },
+
+        // TODO remove in 5.4.0
+        getView: function (name) {
+            var view = Dep.prototype.getView.call(this, name);
+            if (!view) {
+                view = this.getFieldView(name);
+            }
+            return view;
         }
+
     });
 });
-
-

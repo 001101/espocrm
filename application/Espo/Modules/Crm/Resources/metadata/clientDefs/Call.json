@@ -8,13 +8,18 @@
         "list":"crm:views/call/record/list",
         "detail":"crm:views/call/record/detail"
     },
+    "modalViews": {
+        "detail":"crm:views/meeting/modals/detail"
+    },
     "sidePanels":{
         "detail":[
             {
                 "name":"attendees",
                 "label":"Attendees",
                 "view":"crm:views/meeting/record/panels/attendees",
-                "sticked": true
+                "sticked": true,
+                "isForm": true,
+                "notRefreshable": true
             }
         ],
         "detailSmall":[
@@ -22,7 +27,9 @@
                 "name":"attendees",
                 "label":"Attendees",
                 "view":"crm:views/meeting/record/panels/attendees",
-                "sticked": true
+                "sticked": true,
+                "isForm": true,
+                "notRefreshable": true
             }
         ],
         "edit":[
@@ -30,7 +37,9 @@
                 "name":"attendees",
                 "label":"Attendees",
                 "view":"crm:views/meeting/record/panels/attendees",
-                "sticked": true
+                "sticked": true,
+                "isForm": true,
+                "notRefreshable": true
             }
         ],
         "editSmall":[
@@ -38,7 +47,9 @@
                 "name":"attendees",
                 "label":"Attendees",
                 "view":"crm:views/meeting/record/panels/attendees",
-                "sticked": true
+                "sticked": true,
+                "isForm": true,
+                "notRefreshable": true
             }
         ]
     },
@@ -59,5 +70,31 @@
         "link": "calls",
         "activitiesCreate": true,
         "historyCreate": true
-    }
+    },
+    "dynamicLogic":{
+        "fields":{
+            "reminders": {
+                "visible": {
+                    "conditionGroup": [
+                        {
+                            "type":"and",
+                            "value": [
+                                {
+                                    "type":"notEquals",
+                                    "attribute":"status",
+                                    "value":"Held"
+                                },
+                                {
+                                    "type":"notEquals",
+                                    "attribute":"status",
+                                    "value":"Not Held"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "iconClass": "fas fa-phone"
 }

@@ -34,7 +34,6 @@
         },
         "tabList": {
             "type": "array",
-            "translation": "Global.scopeNamesPlural",
             "view": "views/portal/fields/tab-list"
         },
         "quickCreateList": {
@@ -140,7 +139,7 @@
         }
     },
     "collection": {
-        "sortBy": "name",
-        "asc": true
+        "orderBy": "name",
+        "order": "asc"
     }
 }

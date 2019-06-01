@@ -8,6 +8,15 @@
       {
          "name":"audited",
          "type":"bool"
+      },
+      {
+         "name":"readOnly",
+         "type":"bool"
+      },
+      {
+         "name":"default",
+         "type":"link",
+         "view": "views/admin/field-manager/fields/link/default"
       }
    ],
    "actualFields":[
@@ -15,6 +24,9 @@
    ],
    "notActualFields":[
       "name"
+   ],
+   "validationList": [
+      "required"
    ],
    "filter": true,
    "notCreatable": true

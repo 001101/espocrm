@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,8 +31,12 @@ namespace Espo\Modules\Crm\Repositories;
 
 use Espo\ORM\Entity;
 
-class Task extends \Espo\Core\ORM\Repositories\RDB
+class Task extends \Espo\Core\Repositories\Event
 {
+    protected $reminderDateAttribute = 'dateEnd';
+
+    protected $reminderSkippingStatusList = ['Completed', 'Canceled'];
+
     protected function init()
     {
         parent::init();
@@ -67,9 +71,7 @@ class Task extends \Espo\Core\ORM\Repositories\RDB
 
     protected function beforeSave(Entity $entity, array $options = array())
     {
-        parent::beforeSave($entity, $options);
-
-        if ($entity->isFieldChanged('status')) {
+        if ($entity->isAttributeChanged('status')) {
             if ($entity->get('status') == 'Completed') {
                 $entity->set('dateCompleted', date('Y-m-d H:i:s'));
             } else {
@@ -101,29 +103,101 @@ class Task extends \Espo\Core\ORM\Repositories\RDB
             }
         }
 
+        if (!$entity->isNew() && $entity->isAttributeChanged('parentId')) {
+            $entity->set('accountId', null);
+            $entity->set('contactId', null);
+            $entity->set('accountName', null);
+            $entity->set('contactName', null);
+        }
+
         $parentId = $entity->get('parentId');
         $parentType = $entity->get('parentType');
-        if (!empty($parentId) || !empty($parentType)) {
-            $parent = $this->getEntityManager()->getEntity($parentType, $parentId);
-            if (!empty($parent)) {
-                $accountId = null;
+
+        if ($entity->isAttributeChanged('parentId') || $entity->isAttributeChanged('parentType')) {
+            $parent = null;
+            if ($parentId && $parentType) {
+                if ($this->getEntityManager()->hasRepository($parentType)) {
+                    $columnList = ['id', 'name'];
+                    if ($this->getEntityManager()->getMetadata()->get($parentType, ['fields', 'accountId'])) {
+                        $columnList[] = 'accountId';
+                    }
+                    if ($this->getEntityManager()->getMetadata()->get($parentType, ['fields', 'contactId'])) {
+                        $columnList[] = 'contactId';
+                    }
+                    if ($parentType === 'Lead') {
+                        $columnList[] = 'status';
+                        $columnList[] = 'createdAccountId';
+                        $columnList[] = 'createdAccountName';
+                        $columnList[] = 'createdContactId';
+                        $columnList[] = 'createdContactName';
+                    }
+                    $parent = $this->getEntityManager()->getRepository($parentType)->select($columnList)->get($parentId);
+                }
+            }
+
+            $accountId = null;
+            $contactId = null;
+            $accountName = null;
+            $contactName = null;
+
+            if ($parent) {
                 if ($parent->getEntityType() == 'Account') {
                     $accountId = $parent->id;
-                } else if ($parent->get('accountId')) {
-                    $accountId = $parent->get('accountId');
+                    $accountName = $parent->get('name');
                 } else if ($parent->getEntityType() == 'Lead') {
                     if ($parent->get('status') == 'Converted') {
                         if ($parent->get('createdAccountId')) {
                             $accountId = $parent->get('createdAccountId');
+                            $accountName = $parent->get('createdAccountName');
+                        }
+                        if ($parent->get('createdContactId')) {
+                            $contactId = $parent->get('createdContactId');
+                            $contactName = $parent->get('createdContactName');
                         }
                     }
+                } else if ($parent->getEntityType() == 'Contact') {
+                    $contactId = $parent->id;
+                    $contactName = $parent->get('name');
                 }
-                if (!empty($accountId)) {
-                    $entity->set('accountId', $accountId);
+
+                if (!$accountId && $parent->get('accountId') && $parent->getRelationParam('account', 'entity') == 'Account') {
+                    $accountId = $parent->get('accountId');
+                }
+                if (!$contactId && $parent->get('contactId') && $parent->getRelationParam('contact', 'entity') == 'Contact') {
+                    $contactId = $parent->get('contactId');
+                }
+            }
+
+            $entity->set('accountId', $accountId);
+            $entity->set('accountName', $accountName);
+
+            $entity->set('contactId', $contactId);
+            $entity->set('contactName', $contactName);
+
+            if (
+                $entity->get('accountId')
+                &&
+                !$entity->get('accountName')
+            ) {
+                $account = $this->getEntityManager()->getRepository('Account')->select(['id', 'name'])->get($entity->get('accountId'));
+                if ($account) {
+                    $entity->set('accountName', $account->get('name'));
+                }
+            }
+
+            if (
+                $entity->get('contactId')
+                &&
+                !$entity->get('contactName')
+            ) {
+                $contact = $this->getEntityManager()->getRepository('Contact')->select(['id', 'name'])->get($entity->get('contactId'));
+                if ($contact) {
+                    $entity->set('contactName', $contact->get('name'));
                 }
             }
         }
+
+
+        parent::beforeSave($entity, $options);
     }
-
 }
-

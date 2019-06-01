@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,6 +70,9 @@ Espo.define('views/stream/note', 'view', function (Dep) {
                 }
             }
 
+            if (this.getUser().isAdmin()) {
+                this.isRemovable = true;
+            }
 
             if (this.messageName && this.isThis) {
                 this.messageName += 'This';
@@ -115,9 +118,9 @@ Espo.define('views/stream/note', 'view', function (Dep) {
             return string;
         },
 
-        createField: function (name, type, params, view) {
+        createField: function (name, type, params, view, options) {
             type = type || this.model.getFieldType(name) || 'base';
-            this.createView(name, view || this.getFieldManager().getViewName(type), {
+            var o = {
                 model: this.model,
                 defs: {
                     name: name,
@@ -125,7 +128,13 @@ Espo.define('views/stream/note', 'view', function (Dep) {
                 },
                 el: this.options.el + ' .cell-' + name,
                 mode: 'list'
-            });
+            };
+            if (options) {
+                for (var i in options) {
+                    o[i] = options[i];
+                }
+            }
+            this.createView(name, view || this.getFieldManager().getViewName(type), o);
         },
 
         isMale: function () {
@@ -167,23 +176,19 @@ Espo.define('views/stream/note', 'view', function (Dep) {
         },
 
         getAvatarHtml: function () {
-            if (this.getConfig().get('avatarsDisabled')) {
-                return '';
-            }
-            var t;
-            var cache = this.getCache();
-            if (cache) {
-                t = cache.get('app', 'timestamp');
-            } else {
-                t = Date.now();
-            }
             var id = this.model.get('createdById');
             if (this.isSystemAvatar) {
                 id = 'system';
             }
-            return '<img class="avatar" width="20" src="'+this.getBasePath()+'?entryPoint=avatar&size=small&id=' + id + '&t='+t+'">';
+            return this.getHelper().getAvatarHtml(id, 'small', 20);
+        },
+
+        getIconHtml: function (scope, id) {
+            if (this.isThis && scope === this.parentModel.name) return;
+            var iconClass = this.getMetadata().get(['clientDefs', scope, 'iconClass']);
+            if (!iconClass) return;
+            return '<span class="'+iconClass+' action text-muted icon" style="cursor: pointer;" title="'+this.translate('View')+'" data-action="quickView" data-id="'+id+'" data-scope="'+scope+'"></span>';
         }
 
     });
 });
-

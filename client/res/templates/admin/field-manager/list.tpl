@@ -11,15 +11,15 @@
 
 <table class="table">
     <thead>
-        <th width="35%">{{translate 'Name'}}</td>
-        <th width="35%">{{translate 'Label'}}</td>
-        <th width="20%">{{translate 'Type'}}</td>
+        <th width="35%">{{translate 'Name' scope='FieldManager'}}</td>
+        <th width="35%">{{translate 'Label' scope='FieldManager'}}</td>
+        <th width="20%">{{translate 'Type' scope='FieldManager'}}</td>
         <th width="10%" align="right"></td>
     </thead>
     <tbody>
     {{#each fieldDefsArray}}
     <tr>
-        <td><a href="javascript:" class="field-link" data-scope="{{../scope}}" data-field="{{name}}">{{name}}</td>
+        <td><a href="#Admin/fieldManager/scope={{../scope}}&field={{name}}" class="field-link" data-scope="{{../scope}}" data-field="{{name}}">{{name}}</td>
         <td>{{translate name scope=../scope category='fields'}}</td>
         <td>{{translate type category='fieldTypes' scope='Admin'}}</td>
         <td align="right">{{#if isCustom}}<a href="javascript:" data-action="removeField" data-name="{{name}}">remove</a>{{/if}}</td>

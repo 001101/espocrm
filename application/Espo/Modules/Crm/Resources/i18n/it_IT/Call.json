@@ -3,16 +3,15 @@
     "name": "Nome",
     "parent": "Genitore",
     "status": "Stato",
-    "dateStart": "Data d'inizio",
-    "dateEnd": "Data di fine",
+    "dateStart": "Data inizio",
+    "dateEnd": "Data termine",
     "direction": "Direzione",
     "duration": "Durata",
     "description": "Descrizione",
     "users": "Utenti",
     "contacts": "Contatti",
-    "leads": "Comando",
     "reminders": "Promemoria",
-    "account": "Account"
+    "acceptanceStatus": "Stato accettazione"
   },
   "options": {
     "status": {
@@ -25,7 +24,7 @@
       "Inbound": "in Ingresso"
     },
     "acceptanceStatus": {
-      "None": "Nessun",
+      "None": "Nessuno",
       "Accepted": "Accettato",
       "Declined": "Rifiutato",
       "Tentative": "Provvisorio"
@@ -36,14 +35,12 @@
     "setNotHeld": "Non Trattenuto"
   },
   "labels": {
-    "Create Call": "Creare delle chiamate",
+    "Create Call": "Crea chiamata",
     "Set Held": "Trattenuto",
     "Set Not Held": "Non Trattenuto",
     "Send Invitations": "Inviare inviti"
   },
   "presetFilters": {
-    "planned": "Pianificato",
-    "held": "Held",
-    "todays": "Today's"
+    "planned": "Pianificato"
   }
 }

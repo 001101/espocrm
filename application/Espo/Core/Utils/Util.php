@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ class Util
      */
     protected static $separator = DIRECTORY_SEPARATOR;
 
-    protected static $reservedWords = array('Case');
+    protected static $reservedWordList = ['Case'];
 
 
     /**
@@ -49,6 +49,16 @@ class Util
     public static function getSeparator()
     {
         return static::$separator;
+    }
+
+    public static function camelCaseToUnderscore(string $string) : string
+    {
+        return static::toUnderScore($string);
+    }
+
+    public static function hyphenToCamelCase(string $string) : string
+    {
+        return self::toCamelCase($string, '-');
     }
 
 
@@ -86,10 +96,12 @@ class Util
             return $name;
         }
 
-        if($capitaliseFirstChar) {
-            $name[0] = strtoupper($name[0]);
+        $name = lcfirst($name);
+        if ($capitaliseFirstChar) {
+            $name = ucfirst($name);
         }
-        return preg_replace_callback('/'.$symbol.'([a-z])/', 'static::toCamelCaseConversion', $name);
+
+        return preg_replace_callback('/'.$symbol.'([a-zA-Z])/', 'static::toCamelCaseConversion', $name);
     }
 
     protected static function toCamelCaseConversion($matches)
@@ -146,19 +158,15 @@ class Util
     {
         $mergeIdentifier = '__APPEND__';
 
-        if (is_array($currentArray) && (!is_array($newArray) || empty($newArray))) {
+        if (is_array($currentArray) && !is_array($newArray)) {
             return $currentArray;
-        } else if ((!is_array($currentArray) || empty($currentArray)) && is_array($newArray)) {
+        } else if (!is_array($currentArray) && is_array($newArray)) {
             return $newArray;
         } else if ((!is_array($currentArray) || empty($currentArray)) && (!is_array($newArray) || empty($newArray))) {
             return array();
         }
 
         foreach ($newArray as $newName => $newValue) {
-
-            if (is_array($newValue) && empty($newValue)) {
-                continue;
-            }
 
             if (is_array($newValue) && array_key_exists($newName, $currentArray) && is_array($currentArray[$newName])) {
 
@@ -296,7 +304,7 @@ class Util
      */
     public static function normilizeClassName($name)
     {
-        if (in_array($name, self::$reservedWords)) {
+        if (in_array($name, self::$reservedWordList)) {
             $name .= 'Obj';
         }
         return $name;
@@ -310,7 +318,7 @@ class Util
      */
     public static function normilizeScopeName($name)
     {
-        foreach (self::$reservedWords as $reservedWord) {
+        foreach (self::$reservedWordList as $reservedWord) {
             if ($reservedWord.'Obj' == $name) {
                 return $reservedWord;
             }
@@ -451,7 +459,7 @@ class Util
     public static function getClassName($filePath)
     {
         $className = preg_replace('/\.php$/i', '', $filePath);
-        $className = preg_replace('/^(application|custom)\//i', '', $className);
+        $className = preg_replace('/^(application|custom)(\/|\\\)/i', '', $className);
         $className = '\\'.static::toFormat($className, '\\');
 
         return $className;
@@ -552,10 +560,155 @@ class Util
         return uniqid() . substr(md5(rand()), 0, 4);
     }
 
+    public static function generateApiKey()
+    {
+        if (!function_exists('random_bytes')) {
+            return self::generateId();
+        }
+        return bin2hex(random_bytes(16));
+    }
+
+    public static function generateKey()
+    {
+        return md5(uniqid(rand(), true));
+    }
+
     public static function sanitizeFileName($fileName)
     {
         return preg_replace("/([^\w\s\d\-_~,;:\[\]\(\).])/u", '_', $fileName);
     }
 
-}
+    /**
+     * Improved computing the difference of arrays
+     *
+     * @param  array  $array1
+     * @param  array  $array2
+     *
+     * @return array
+     */
+    public static function arrayDiff(array $array1, array $array2)
+    {
+        $diff = array();
 
+        foreach ($array1 as $key1 => $value1) {
+            if (array_key_exists($key1, $array2)) {
+                if ($value1 !== $array2[$key1]) {
+                    $diff[$key1] = $array2[$key1];
+                }
+                continue;
+            }
+
+            $diff[$key1] = $value1;
+        }
+
+        $diff = array_merge($diff, array_diff_key($array2, $array1));
+
+        return $diff;
+    }
+
+    /**
+     * Fill array with specified keys
+     *
+     * @param  array|string $keys
+     * @param  mixed $value
+     *
+     * @return array
+     */
+    public static function fillArrayKeys($keys, $value)
+    {
+        $arrayKeys = is_array($keys) ? $keys : explode('.', $keys);
+
+        $array = array();
+        foreach (array_reverse($arrayKeys) as $i => $key) {
+            $array = array(
+                $key => ($i == 0) ? $value : $array,
+            );
+        }
+
+        return $array;
+    }
+
+    /**
+     * Array keys exists
+     *
+     * @param  array  $keys
+     * @param  array  $array
+     *
+     * @return boolean
+     */
+    public static function arrayKeysExists(array $keys, array $array)
+    {
+       return !array_diff_key(array_flip($keys), $array);
+    }
+
+    public static function convertToByte($value)
+    {
+        $value = trim($value);
+        $last = strtoupper(substr($value, -1));
+
+        switch ( $last )
+        {
+            case 'G':
+            $value = (int) $value * 1024;
+            case 'M':
+            $value = (int) $value * 1024;
+            case 'K':
+            $value = (int) $value * 1024;
+        }
+
+        return $value;
+    }
+
+    public static function areValuesEqual($v1, $v2, $isUnordered = false)
+    {
+        if (is_array($v1) && is_array($v2)) {
+            if ($isUnordered) {
+                sort($v1);
+                sort($v2);
+            }
+            if ($v1 != $v2) {
+                return false;
+            }
+            foreach ($v1 as $i => $itemValue) {
+                if (is_object($v1[$i]) && is_object($v2[$i])) {
+                    if (!self::areValuesEqual($v1[$i], $v2[$i])) {
+                        return false;
+                    }
+                    continue;
+                }
+                if ($v1[$i] !== $v2[$i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if (is_object($v1) && is_object($v2)) {
+            if ($v1 != $v2) {
+                return false;
+            }
+            $a1 = get_object_vars($v1);
+            $a2 = get_object_vars($v2);
+            foreach ($v1 as $key => $itemValue) {
+                if (is_object($a1[$key]) && is_object($a2[$key])) {
+                    if (!self::areValuesEqual($a1[$key], $a2[$key])) {
+                        return false;
+                    }
+                    continue;
+                }
+                if (is_array($a1[$key]) && is_array($a2[$key])) {
+                    if (!self::areValuesEqual($a1[$key], $a2[$key])) {
+                        return false;
+                    }
+                    continue;
+                }
+                if ($a1[$key] !== $a2[$key]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        return $v1 === $v2;
+    }
+}

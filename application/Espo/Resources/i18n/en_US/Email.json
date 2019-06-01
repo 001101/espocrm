@@ -10,12 +10,14 @@
         "bcc": "BCC",
         "replyTo": "Reply To",
         "replyToString": "Reply To (String)",
+        "personStringData": "Person String Data",
         "isHtml": "Is Html",
         "body": "Body",
+        "bodyPlain": "Body (Plain)",
         "subject": "Subject",
         "attachments": "Attachments",
         "selectTemplate": "Select Template",
-        "fromEmailAddress": "From Address",
+        "fromEmailAddress": "From Address (link)",
         "toEmailAddresses": "To Address",
         "emailAddress": "Email Address",
         "deliveryDate": "Delivery Date",
@@ -33,13 +35,37 @@
         "sentBy": "Sent by (User)",
         "folder": "Folder",
         "inboundEmails": "Group Accounts",
-        "emailAccounts": "Personal Accounts"
+        "emailAccounts": "Personal Accounts",
+        "hasAttachment": "Has Attachment",
+        "assignedUsers": "Assigned Users",
+        "sentBy": "Sent By",
+        "toEmailAddresses": "To EmailAddresses",
+        "ccEmailAddresses": "CC Email Addresses",
+        "bccEmailAddresses": "BCC EmailAddresses",
+        "replyToEmailAddresses": "Reply-To EmailAddresses",
+        "messageId": "Message Id",
+        "messageIdInternal": "Message Id (Internal)",
+        "folderId": "Folder Id",
+        "fromName": "From Name",
+        "fromString": "From String",
+        "fromAddress": "From Address",
+        "replyToName": "Reply-To Name",
+        "replyToAddress": "Reply-To Address",
+        "isSystem": "Is System"
     },
     "links": {
         "replied": "Replied",
         "replies": "Replies",
         "inboundEmails": "Group Accounts",
-        "emailAccounts": "Personal Accounts"
+        "emailAccounts": "Personal Accounts",
+        "assignedUsers": "Assigned Users",
+        "sentBy": "Sent By",
+        "attachments": "Attachments",
+        "fromEmailAddress": "From Email Address",
+        "toEmailAddresses": "To EmailAddresses",
+        "ccEmailAddresses": "CC EmailAddresses",
+        "bccEmailAddresses": "BCC EmailAddresses",
+        "replyToEmailAddresses": "Reply-To EmailAddresses"
     },
     "options": {
         "status": {
@@ -77,13 +103,15 @@
         "Retrieve from Trash": "Retrieve from Trash",
         "Move to Folder": "Move to Folder",
         "Filters": "Filters",
-        "Folders": "Folders"
+        "Folders": "Folders",
+        "View Users": "View Users"
     },
     "messages": {
         "noSmtpSetup": "No SMTP setup. {link}.",
         "testEmailSent": "Test email has been sent",
         "emailSent": "Email has been sent",
-        "savedAsDraft": "Saved as draft"
+        "savedAsDraft": "Saved as draft",
+        "confirmInsertTemplate": "The email body will be lost. Are you sure you want to insert the template?"
     },
     "presetFilters": {
         "sent": "Sent",

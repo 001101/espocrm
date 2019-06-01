@@ -3,9 +3,9 @@
     "users": "Usuarios"
   },
   "labels": {
-    "Access": "Acceso",
-    "Create PortalRole": "Crear Roles para el portal",
-    "Scope Level": "Nivel alcance",
-    "Field Level": "Nivel de campo"
+    "Access": "Acceder",
+    "Create PortalRole": "Crear rol del portal",
+    "Scope Level": "Nivel de acceso a entidades",
+    "Field Level": "Nivel de acceso a campos"
   }
 }

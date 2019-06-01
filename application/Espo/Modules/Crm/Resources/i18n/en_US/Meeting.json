@@ -11,7 +11,12 @@
         "contacts": "Contacts",
         "leads": "Leads",
         "reminders": "Reminders",
-        "account": "Account"
+        "account": "Account",
+        "acceptanceStatus": "Acceptance Status",
+        "dateStartDate": "Date Start (all day)",
+        "dateEndDate": "Date End (all day)",
+        "isAllDay": "Is All-Day",
+        "Acceptance": "Acceptance"
     },
     "links": {
     },
@@ -38,11 +43,15 @@
         "Set Not Held": "Set Not Held",
         "Send Invitations": "Send Invitations",
         "on time": "on time",
-        "before": "before"
+        "before": "before",
+        "All-Day": "All-Day"
     },
     "presetFilters": {
         "planned": "Planned",
         "held": "Held",
         "todays": "Today's"
+    },
+    "messages": {
+        "nothingHasBeenSent": "Nothing were sent"
     }
 }

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,27 +31,28 @@ Espo.define('views/record/row-actions/relationship-edit-and-remove', 'views/reco
     return Dep.extend({
 
         getActionList: function () {
+            var list = [];
             if (this.options.acl.edit) {
-                return [
-                    {
-                        action: 'quickEdit',
-                        label: 'Edit',
-                        data: {
-                            id: this.model.id
-                        }
-                    },
-                    {
-                        action: 'removeRelated',
-                        label: 'Remove',
-                        data: {
-                            id: this.model.id
-                        }
+                list.push({
+                    action: 'quickEdit',
+                    label: 'Edit',
+                    data: {
+                        id: this.model.id
                     }
-                ];
+                });
             }
-        },
+            if (this.options.acl.delete) {
+                list.push({
+                    action: 'quickRemove',
+                    label: 'Remove',
+                    data: {
+                        id: this.model.id
+                    }
+                });
+            }
+            return list;
+        }
 
     });
 
 });
-

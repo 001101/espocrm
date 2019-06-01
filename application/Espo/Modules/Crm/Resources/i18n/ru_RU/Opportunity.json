@@ -12,12 +12,17 @@
     "description": "Описание",
     "amountConverted": "Сумма (сконвертированная)",
     "amountWeightedConverted": "Сумма (средневзвешенная)",
-    "campaign": "Кампания"
+    "campaign": "Кампания",
+    "originalLead": "Изначальный кандидат",
+    "amountCurrency": "Валюта суммы",
+    "contactRole": "Роль контактов",
+    "lastStage": "Последняя стадия"
   },
   "links": {
     "contacts": "Контакты",
     "documents": "Документы",
-    "campaign": "Кампания"
+    "campaign": "Кампания",
+    "originalLead": "Изначальный кандидат"
   },
   "options": {
     "stage": {
@@ -30,7 +35,9 @@
       "Proposal/Price Quote": "Отправлено предложение/оферта",
       "Negotiation/Review": "Согласование/рассмотрение",
       "Closed Won": "Закрыто - Успех",
-      "Closed Lost": "Закрыто - Провал"
+      "Closed Lost": "Закрыто - Провал",
+      "Proposal": "Предложение",
+      "Negotiation": "Согласование"
     }
   },
   "labels": {

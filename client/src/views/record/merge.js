@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/record/merge', 'view', function (Dep) {
+define('views/record/merge', 'view', function (Dep) {
 
     return Dep.extend({
 
@@ -52,9 +52,11 @@ Espo.define('views/record/merge', 'view', function (Dep) {
             }.bind(this));
             return {
                 rows: rows,
-                models: this.models,
+                modelList: this.models,
                 scope: this.scope,
-                width: Math.round(((80 - this.models.length * 5) / this.models.length * 10)) / 10
+                hasCreatedAt: this.hasCreatedAt,
+                width: Math.round(((80 - this.models.length * 5) / this.models.length * 10)) / 10,
+                dataList: this.getDataList()
             };
         },
 
@@ -141,10 +143,14 @@ Espo.define('views/record/merge', 'view', function (Dep) {
             for (var field in fieldsDefs) {
                 var type = fieldsDefs[field].type;
                 if (type === 'linkMultiple') continue;
+                if (fieldsDefs[field].disabled) continue
+                if (fieldsDefs[field].mergeDisabled) continue
+
                 if (fieldManager.isMergeable(type) && !this.models[0].isFieldReadOnly(field)) {
-                    var actualFields = fieldManager.getActualAttributeList(type, field);
+                    var actualAttributeList = fieldManager.getActualAttributeList(type, field);
+
                     var differs = false;
-                    actualFields.forEach(function (field) {
+                    actualAttributeList.forEach(function (field) {
                         var values = [];
                         this.models.forEach(function (model) {
                             values.push(model.get(field));
@@ -164,14 +170,14 @@ Espo.define('views/record/merge', 'view', function (Dep) {
             this.fields = differentFieldList;
 
             this.fields.forEach(function (field) {
-                var type = Espo.Utils.upperCaseFirst(this.models[0].getFieldParam(field, 'type'));
+                var type = this.models[0].getFieldParam(field, 'type');
 
                 this.models.forEach(function (model) {
-                    var viewName = model.getFieldParam(name, 'view') || this.getFieldManager().getViewName(type);
+                    var viewName = model.getFieldParam(field, 'view') || this.getFieldManager().getViewName(type);
 
                     this.createView(model.id + '-' + field, viewName, {
                         model: model,
-                        el: '.merge .' + model.id + ' .field[data-name="' + field + '"]',
+                        el: '.merge [data-id="'+model.id+'"] .field[data-name="' + field + '"]',
                         defs: {
                             name: field,
                         },
@@ -181,8 +187,34 @@ Espo.define('views/record/merge', 'view', function (Dep) {
                 }.bind(this));
 
             }.bind(this));
+
+            this.hasCreatedAt = this.getMetadata().get(['entityDefs', this.scope, 'fields', 'createdAt']);
+
+            if (this.hasCreatedAt) {
+                this.models.forEach(function (model) {
+                    this.createView(model.id + '-' + 'createdAt', 'views/fields/datetime', {
+                        model: model,
+                        el: '.merge [data-id="'+model.id+'"] .field[data-name="createdAt"]',
+                        defs: {
+                            name: 'createdAt',
+                        },
+                        mode: 'detail',
+                        readOnly: true,
+                    });
+                }, this);
+            }
+        },
+
+        getDataList: function () {
+            var dataList = [];
+            this.models.forEach(function (model, i) {
+                var o = {};
+                o.id = model.id;
+                o.name = Handlebars.Utils.escapeExpression(model.get('name'));
+                o.createdAtViewName = model.id + '-' + 'createdAt';
+                dataList.push(o);
+            }, this);
+            return dataList;
         },
     });
 });
-
-

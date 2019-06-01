@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,25 +34,54 @@ Espo.define('views/email/record/list', 'views/record/list', function (Dep) {
 
         massActionList: ['remove', 'massUpdate'],
 
-        buttonList: [
+        dropdownItemList: [
             {
                 name: 'markAllAsRead',
-                label: 'Mark all as read',
-                style: 'default'
+                label: 'Mark all as read'
             }
         ],
 
         setup: function () {
             Dep.prototype.setup.call(this);
 
-            this.massActionList.push('moveToTrash');
+            this.addMassAction('retrieveFromTrash', false, true);
+            this.addMassAction('moveToFolder', false, true);
+            this.addMassAction('markAsNotImportant', false, true);
+            this.addMassAction('markAsImportant', false, true);
+            this.addMassAction('markAsNotRead', false, true);
+            this.addMassAction('markAsRead', false, true);
+            this.addMassAction('moveToTrash', false, true);
+
+            /*this.massActionList.push('moveToTrash');
 
             this.massActionList.push('markAsRead');
             this.massActionList.push('markAsNotRead');
             this.massActionList.push('markAsImportant');
             this.massActionList.push('markAsNotImportant');
             this.massActionList.push('moveToFolder');
-            this.massActionList.push('retrieveFromTrash');
+            this.massActionList.push('retrieveFromTrash');*/
+
+            this.listenTo(this.collection, 'moving-to-trash', function (id) {
+                var model = this.collection.get(id);
+                if (model) {
+                    model.set('inTrash', true);
+                }
+
+                if (this.collection.data.folderId !== 'trash' && this.collection.data.folderId !== 'all') {
+                    this.removeRecordFromList(id);
+                }
+            }, this);
+
+            this.listenTo(this.collection, 'retrieving-from-trash', function (id) {
+                var model = this.collection.get(id);
+                if (model) {
+                    model.set('inTrash', false);
+                }
+
+                if (this.collection.data.folderId === 'trash') {
+                    this.removeRecordFromList(id);
+                }
+            }, this);
         },
 
         massActionMarkAsRead: function () {
@@ -155,7 +184,6 @@ Espo.define('views/email/record/list', 'views/record/list', function (Dep) {
 
             ids.forEach(function (id) {
                 this.collection.trigger('moving-to-trash', id);
-                this.removeRecordFromList(id);
             }, this);
         },
 
@@ -177,7 +205,6 @@ Espo.define('views/email/record/list', 'views/record/list', function (Dep) {
 
             ids.forEach(function (id) {
                 this.collection.trigger('retrieving-from-trash', id);
-                this.removeRecordFromList(id);
             }, this);
         },
 
@@ -258,7 +285,6 @@ Espo.define('views/email/record/list', 'views/record/list', function (Dep) {
             }).then(function () {
                 Espo.Ui.warning(this.translate('Moved to Trash', 'labels', 'Email'));
                 this.collection.trigger('moving-to-trash', id);
-                this.removeRecordFromList(id);
             }.bind(this));
         },
 
@@ -269,7 +295,6 @@ Espo.define('views/email/record/list', 'views/record/list', function (Dep) {
             }).then(function () {
                 Espo.Ui.warning(this.translate('Retrieved from Trash', 'labels', 'Email'));
                 this.collection.trigger('retrieving-from-trash', id);
-                this.removeRecordFromList(id);
             }.bind(this));
         },
 

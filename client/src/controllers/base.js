@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,12 +25,14 @@
  * In accordance with Section 7(b) of the GNU General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
-Espo.define('controllers/base', 'controller', function (Dep) {
+
+define('controllers/base', 'controller', function (Dep) {
 
     return Dep.extend({
 
         login: function () {
-            this.entire('views/login', {}, function (login) {
+            var viewName = this.getMetadata().get(['clientDefs', 'App', 'loginView']) || 'views/login';
+            this.entire(viewName, {}, function (login) {
                 login.render();
                 login.on('login', function (data) {
                     this.trigger('login', data);
@@ -38,20 +40,30 @@ Espo.define('controllers/base', 'controller', function (Dep) {
             }.bind(this));
         },
 
+        actionLogin: function () {
+            this.login();
+        },
+
         logout: function () {
+            var title = this.getConfig().get('applicationName') || 'EspoCRM';
+            $('head title').text(title);
             this.trigger('logout');
         },
 
-        clearCache: function (options) {
-            var cache = this.getCache();
-            if (cache) {
-                cache.clear();
-                this.getRouter().navigateBack();
-                window.location.reload();
-            } else {
-                Espo.Ui.notify('Cache is not enabled', 'error', 3000);
-                this.getRouter().navigateBack();
-            }
+        actionLogout: function () {
+            this.logout();
+        },
+
+        actionClearCache: function () {
+            this.clearCache();
+        },
+
+        clearCache: function () {
+            this.entire('views/clear-cache', {
+                cache: this.getCache()
+            }, function (view) {
+                view.render();
+            });
         },
 
         error404: function () {
@@ -68,4 +80,3 @@ Espo.define('controllers/base', 'controller', function (Dep) {
 
     });
 });
-

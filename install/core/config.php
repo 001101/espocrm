@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,94 +27,79 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-return array(
-
-	'apiPath' => '/api/v1',
-
-	'requirements' => array(
-		'phpVersion' => '5.5',
-
-		'phpRequires' => array(
-			'JSON',
-			'mcrypt',
-			'pdo_mysql'
-		),
-
-		'phpRecommendations' => array(
-			'zip',
-			'gd',
-			'mbstring',
-			'imap',
-			'curl',
-			'max_execution_time' => 180,
-			'max_input_time' => 180,
-			'memory_limit' => '256M',
-			'post_max_size' => '20M',
-			'upload_max_filesize' => '20M',
-		),
-
-		'mysqlVersion' => '5.1',
-		'mysqlRequires' => array(
-
-		),
-
-		'mysqlRecommendations' => array(
-
-		),
-	),
-
-	'rewriteRules' => array(
-		'APACHE1' => 'a2enmod rewrite
+return [
+    'apiPath' => '/api/v1',
+    'rewriteRules' => [
+        'APACHE1' => 'a2enmod rewrite
 service apache2 restart',
-		'APACHE2' => '&#60;Directory /PATH_TO_ESPO/&#62;
+        'APACHE2' => '&#60;Directory /PATH_TO_ESPO/&#62;
  AllowOverride <b>All</b>
 &#60;/Directory&#62;',
-		'APACHE3' => 'service apache2 restart',
-		'APACHE4' => '# RewriteBase /',
-		'APACHE5' => 'RewriteBase {ESPO_PATH}{API_PATH}',
-		'NGINX' => 'location /api/v1/ {
-    if (!-e $request_filename){
-        rewrite ^/api/v1/(.*)$ /api/v1/index.php last; break;
-    }
-}
+        'APACHE3' => 'service apache2 restart',
+        'APACHE4' => '# RewriteBase /',
+        'APACHE5' => 'RewriteBase {ESPO_PATH}{API_PATH}',
+        'NGINX' => 'server {
+    # ...
 
-location ~ /reset/?$ {
-    try_files /reset.html =404;
-}
+    client_max_body_size 50M;
 
-location ^~ (data|api)/ {
-    if (-e $request_filename){
-        return 403;
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
     }
-}
-location ^~ /data/logs/ {
-    deny all;
-}
-location ^~ /data/config.php {
-    deny all;
-}
-location ^~ /data/cache/ {
-    deny all;
-}
-location ^~ /data/upload/ {
-    deny all;
-}
-location ^~ /application/ {
-    deny all;
-}
-location ^~ /custom/ {
-    deny all;
-}
-location ^~ /vendor/ {
-    deny all;
-}
-location ~ /\.ht {
-    deny all;
+
+    location /api/v1/ {
+        if (!-e $request_filename){
+            rewrite ^/api/v1/(.*)$ /api/v1/index.php last; break;
+        }
+    }
+
+    location /portal/ {
+        try_files $uri $uri/ /portal/index.php?$query_string;
+    }
+
+    location /api/v1/portal-access {
+        if (!-e $request_filename){
+            rewrite ^/api/v1/(.*)$ /api/v1/portal-access/index.php last; break;
+        }
+    }
+
+    location ~ /reset/?$ {
+        try_files /reset.html =404;
+    }
+
+    location ^~ (data|api)/ {
+        if (-e $request_filename){
+            return 403;
+        }
+    }
+    location ^~ /data/logs/ {
+        deny all;
+    }
+    location ^~ /data/config.php {
+        deny all;
+    }
+    location ^~ /data/cache/ {
+        deny all;
+    }
+    location ^~ /data/upload/ {
+        deny all;
+    }
+    location ^~ /application/ {
+        deny all;
+    }
+    location ^~ /custom/ {
+        deny all;
+    }
+    location ^~ /vendor/ {
+        deny all;
+    }
+    location ~ /\.ht {
+        deny all;
+    }
 }',
-	),
+    ],
 
-	'blog' => 'http://blog.espocrm.com',
-	'twitter' => 'https://twitter.com/espocrm',
-	'forum' => 'http://forum.espocrm.com',
-
-);
+    'blog' => 'http://blog.espocrm.com',
+    'twitter' => 'https://twitter.com/espocrm',
+    'forum' => 'http://forum.espocrm.com',
+];

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,11 +26,12 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('acl', [], function () {
+define('acl', [], function () {
 
-    var Acl = function (user, scope) {
+    var Acl = function (user, scope, aclAllowDeleteCreated) {
         this.user = user || null;
         this.scope = scope;
+        this.aclAllowDeleteCreated = aclAllowDeleteCreated;
     }
 
     _.extend(Acl.prototype, {
@@ -151,7 +152,7 @@ Espo.define('acl', [], function () {
             }
 
             if (model.has('createdById')) {
-                if (model.get('createdById') === this.getUser().id) {
+                if (model.get('createdById') === this.getUser().id && this.aclAllowDeleteCreated) {
                     if (!model.has('assignedUserId')) {
                         return true;
                     } else {
@@ -169,14 +170,24 @@ Espo.define('acl', [], function () {
         },
 
         checkIsOwner: function (model) {
+            var result = false;
+
             if (model.hasField('assignedUser')) {
                 if (this.getUser().id === model.get('assignedUserId')) {
                     return true;
+                } else {
+                    if (!model.has('assignedUserId')) {
+                        result = null;
+                    }
                 }
             } else {
                 if (model.hasField('createdBy')) {
                     if (this.getUser().id === model.get('createdById')) {
                         return true;
+                    } else {
+                        if (!model.has('createdById')) {
+                            result = null;
+                        }
                     }
                 }
             }
@@ -188,10 +199,12 @@ Espo.define('acl', [], function () {
 
                 if (~(model.get('assignedUsersIds') || []).indexOf(this.getUser().id)) {
                     return true;
+                } else {
+                    result = false;
                 }
             }
 
-            return false;
+            return result;
         },
 
         checkInTeam: function (model) {
@@ -219,4 +232,3 @@ Espo.define('acl', [], function () {
 
     return Acl;
 });
-

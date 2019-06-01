@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,8 @@ Espo.define('views/dashlets/options/base', ['views/modal', 'views/record/detail'
         template: 'dashlets/options/base',
 
         cssName: 'options-modal',
+
+        className: 'dialog dialog-record',
 
         fieldsMode: 'edit',
 
@@ -80,7 +82,9 @@ Espo.define('views/dashlets/options/base', ['views/modal', 'views/record/detail'
 
         init: function () {
             Dep.prototype.init.call(this);
-            this.fields = this.options.fields;
+
+            this.fields = Espo.Utils.cloneDeep(this.options.fields);
+
             this.fieldList = Object.keys(this.fields);
             this.optionsData = this.options.optionsData;
         },
@@ -98,6 +102,10 @@ Espo.define('views/dashlets/options/base', ['views/modal', 'views/record/detail'
             };
             model.set(this.optionsData);
 
+            model.dashletName = this.name;
+
+            this.setupBeforeFinal();
+
             this.createView('record', 'views/record/detail-middle', {
                 model: model,
                 recordHelper: this.recordHelper,
@@ -109,16 +117,20 @@ Espo.define('views/dashlets/options/base', ['views/modal', 'views/record/detail'
                 layoutData: {
                     model: model,
                     columnCount: 2,
-                },
+                }
             });
 
-            this.header = this.getLanguage().translate('Dashlet Options') + ': ' + this.getLanguage().translate(this.name, 'dashlets');
+            this.header =
+                this.getLanguage().translate('Dashlet Options') + ': ' +
+                Handlebars.Utils.escapeExpression(this.getLanguage().translate(this.name, 'dashlets'));
         },
+
+        setupBeforeFinal: function () {},
 
         fetchAttributes: function () {
             var attributes = {};
             this.fieldList.forEach(function (field) {
-                var fieldView = this.getView('record').getView(field);
+                var fieldView = this.getView('record').getFieldView(field);
                 _.extend(attributes, fieldView.fetch());
             }, this);
 
@@ -126,8 +138,10 @@ Espo.define('views/dashlets/options/base', ['views/modal', 'views/record/detail'
 
             var valid = true;
             this.fieldList.forEach(function (field) {
-                var fieldView = this.getView('record').getView(field);
-                valid = !fieldView.validate() && valid;
+                var fieldView = this.getView('record').getFieldView(field);
+                if (fieldView && fieldView.isEditMode() && !fieldView.disabled && !fieldView.readOnly) {
+                    valid = !fieldView.validate() && valid;
+                }
             }, this);
 
             if (!valid) {
@@ -154,7 +168,7 @@ Espo.define('views/dashlets/options/base', ['views/modal', 'views/record/detail'
             return {};
         },
 
-        getFieldView: function () {
+        getFieldView: function (name) {
             return (this.getFieldViews(true) || {})[name] || null;
         },
 

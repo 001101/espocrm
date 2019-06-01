@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,39 +50,42 @@ class Uninstall extends \Espo\Core\Upgrades\Actions\Base
 
         $this->checkIsWritable();
 
+        $this->enableMaintenanceMode();
+
         $this->beforeRunAction();
 
-        /* run before install script */
-        if (!isset($data['isNotRunScriptBefore']) || !$data['isNotRunScriptBefore']) {
+        /* run before uninstall script */
+        if (!isset($data['skipBeforeScript']) || !$data['skipBeforeScript']) {
             $this->runScript('beforeUninstall');
         }
 
         $backupPath = $this->getPath('backupPath');
         if (file_exists($backupPath)) {
-
             /* copy core files */
             if (!$this->copyFiles()) {
                 $this->throwErrorAndRemovePackage('Cannot copy files.');
             }
+        }
 
-            /* remove extension files, saved in fileList */
-            if (!$this->deleteFiles(true)) {
-                $this->throwErrorAndRemovePackage('Permission denied to delete files.');
+        /* remove extension files, saved in fileList */
+        if (!$this->deleteFiles('delete', true)) {
+            $this->throwErrorAndRemovePackage('Permission denied to delete files.');
+        }
+
+        $this->disableMaintenanceMode();
+
+        if (!isset($data['skipSystemRebuild']) || !$data['skipSystemRebuild']) {
+            if (!$this->systemRebuild()) {
+                $this->throwErrorAndRemovePackage('Error occurred while EspoCRM rebuild.');
             }
         }
 
-        if (!$this->systemRebuild()) {
-            $this->throwErrorAndRemovePackage('Error occurred while EspoCRM rebuild.');
-        }
-
         /* run after uninstall script */
-        if (!isset($data['isNotRunScriptAfter']) || !$data['isNotRunScriptAfter']) {
+        if (!isset($data['skipAfterScript']) || !$data['skipAfterScript']) {
             $this->runScript('afterUninstall');
         }
 
         $this->afterRunAction();
-
-        $this->clearCache();
 
         /* delete backup files */
         $this->deletePackageFiles();
@@ -90,20 +93,27 @@ class Uninstall extends \Espo\Core\Upgrades\Actions\Base
         $this->finalize();
 
         $GLOBALS['log']->debug('Uninstallation process ['.$processId.']: end run.');
+
+        $this->clearCache();
     }
 
     protected function restoreFiles()
     {
         $packagePath = $this->getPath('packagePath');
-        $filesPath = Util::concatPath($packagePath, self::FILES);
 
-        if (!file_exists($filesPath)) {
+        $manifestPath = Util::concatPath($packagePath, $this->manifestName);
+        if (!file_exists($manifestPath)) {
             $this->unzipArchive($packagePath);
         }
 
-        $res = $this->copy($filesPath, '', true);
+        $fileDirs = $this->getFileDirs($packagePath);
+        foreach ($fileDirs as $filesPath) {
+            if (file_exists($filesPath)) {
+                $res = $this->copy($filesPath, '', true);
+            }
+        }
 
-        $manifestJson = $this->getFileManager()->getContents(array($packagePath, $this->manifestName));
+        $manifestJson = $this->getFileManager()->getContents($manifestPath);
         $manifest = Json::decode($manifestJson, true);
         if (!empty($manifest['delete'])) {
             $res &= $this->getFileManager()->remove($manifest['delete'], null, true);
@@ -114,10 +124,10 @@ class Uninstall extends \Espo\Core\Upgrades\Actions\Base
         return $res;
     }
 
-    protected function copyFiles()
+    protected function copyFiles($type = null, $dest = '')
     {
         $backupPath = $this->getPath('backupPath');
-        $res = $this->copy(array($backupPath, self::FILES), '', true);
+        $res = $this->copy(array($backupPath, self::FILES), $dest, true);
 
         return $res;
     }
@@ -179,13 +189,15 @@ class Uninstall extends \Espo\Core\Upgrades\Actions\Base
         return $this->data['restoreFileList'];
     }
 
-    protected function getDeleteFileList()
+    protected function getDeleteList($type = 'delete')
     {
-        $packageFileList = $this->getRestoreFileList();
-        $backupFileList = $this->getCopyFileList();
+        if ($type == 'delete') {
+            $packageFileList = $this->getRestoreFileList();
+            $backupFileList = $this->getCopyFileList();
 
-        $deleteFileList = array_diff($packageFileList, $backupFileList);
+            return array_diff($packageFileList, $backupFileList);
+        }
 
-        return $deleteFileList;
+        return array();
     }
 }

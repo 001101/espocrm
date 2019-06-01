@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
+Espo.define('views/fields/phone', 'views/fields/varchar', function (Dep) {
 
     return Dep.extend({
 
@@ -38,17 +38,39 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
 
         listTemplate: 'fields/phone/list',
 
-        searchTemplate: 'fields/phone/search',
-
-        validations: ['required'],
+        validations: ['required', 'phoneData'],
 
         validateRequired: function () {
             if (this.isRequired()) {
                 if (!this.model.get(this.name) || !this.model.get(this.name) === '') {
-                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
+                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.getLabelText());
                     this.showValidationMessage(msg, 'div.phone-number-block:nth-child(1) input');
                     return true;
                 }
+            }
+        },
+
+        validatePhoneData: function () {
+            var data = this.model.get(this.dataFieldName);
+            if (!data || !data.length) return;
+
+            var numberList = [];
+
+            var notValid = false;
+            data.forEach(function (row, i) {
+                var number = row.phoneNumber;
+                var numberClean = String(number).replace(/[\s\+]/g, '');
+
+                if (~numberList.indexOf(numberClean)) {
+                    var msg = this.translate('fieldValueDuplicate', 'messages').replace('{field}', this.getLabelText());
+                    this.showValidationMessage(msg, 'div.phone-number-block:nth-child(' + (i + 1).toString() + ') input');
+                    notValid = true;
+                    return;
+                }
+                numberList.push(numberClean);
+            }, this);
+            if (notValid) {
+                return true;
             }
         },
 
@@ -59,10 +81,18 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
 
                 if (this.model.isNew() || !this.model.get(this.name)) {
                     if (!phoneNumberData || !phoneNumberData.length) {
-                         phoneNumberData = [{
+                        var optOut = false;
+                        if (this.model.isNew()) {
+                            optOut = this.phoneNumberOptedOutByDefault && this.model.name !== 'User';
+                        } else {
+                            optOut = this.model.get(this.isOptedOutFieldName)
+                        }
+                        phoneNumberData = [{
                             phoneNumber: this.model.get(this.name) || '',
                             primary: true,
-                            type: this.defaultType
+                            type: this.defaultType,
+                            optOut: optOut,
+                            invalid: false
                         }];
                     }
                 }
@@ -70,18 +100,48 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
                 phoneNumberData = this.model.get(this.dataFieldName) || false;
             }
 
-            if ((!phoneNumberData || phoneNumberData.length === 0) && this.model.get(this.name)) {
-                 phoneNumberData = [{
-                    phoneNumber: this.model.get(this.name),
-                    primary: true,
-                    primary: true,
-                    type: this.defaultType
-                }];
+            if (phoneNumberData) {
+                phoneNumberData = Espo.Utils.cloneDeep(phoneNumberData);
+                phoneNumberData.forEach(function (item) {
+                    item.erased = item.phoneNumber.indexOf(this.erasedPlaceholder) === 0;
+                    if (!item.erased) {
+                        item.valueForLink = item.phoneNumber.replace(/ /g, '');
+                    }
+                    item.lineThrough = item.optOut || item.invalid || this.model.get('doNotCall');
+                }, this);
             }
 
-            return _.extend({
-                phoneNumberData: phoneNumberData
+            if ((!phoneNumberData || phoneNumberData.length === 0) && this.model.get(this.name)) {
+                var o = {
+                    phoneNumber: this.model.get(this.name),
+                    primary: true
+                };
+                if (this.mode === 'edit' && this.model.isNew()) {
+                    o.type = this.defaultType;
+                }
+                phoneNumberData = [o];
+            }
+
+            var data = _.extend({
+                phoneNumberData: phoneNumberData,
+                doNotCall: this.model.get('doNotCall'),
+                lineThrough: this.model.get('doNotCall') || this.model.get(this.isOptedOutFieldName)
             }, Dep.prototype.data.call(this));
+
+            if (this.isReadMode()) {
+                data.isOptedOut = this.model.get(this.isOptedOutFieldName);
+                if (this.model.get(this.name)) {
+                    data.isErased = this.model.get(this.name).indexOf(this.erasedPlaceholder) === 0;
+                    if (!data.isErased) {
+                        data.valueForLink = this.model.get(this.name).replace(/ /g, '');
+                    }
+                }
+                data.valueIsSet = this.model.has(this.name);
+            }
+
+            data.itemMaxLength = this.itemMaxLength;
+
+            return data;
         },
 
         events: {
@@ -110,7 +170,7 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
 
             'click [data-action="removePhoneNumber"]': function (e) {
                 var $block = $(e.currentTarget).closest('div.phone-number-block');
-                if ($block.parent().children().size() == 1) {
+                if ($block.parent().children().length == 1) {
                     $block.find('input.phone-number').val('');
                 } else {
                     this.removePhoneNumberBlock($block);
@@ -123,7 +183,7 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
                 var $block = $input.closest('div.phone-number-block');
 
                 if ($input.val() == '') {
-                    if ($block.parent().children().size() == 1) {
+                    if ($block.parent().children().length == 1) {
                         $block.find('input.phone-number').val('');
                     } else {
                         this.removePhoneNumberBlock($block);
@@ -151,7 +211,9 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
                 o = {
                     phoneNumber: '',
                     primary: data.length ? false : true,
-                    type: false
+                    type: false,
+                    optOut: this.emailAddressOptedOutByDefault,
+                    invalid: false,
                 };
 
                 data.push(o);
@@ -191,17 +253,17 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
                 }
             });
 
-            if (c == $input.size()) {
-                this.$el.find('[data-action="addPhoneNumber"]').removeClass('disabled');
+            if (c == $input.length) {
+                this.$el.find('[data-action="addPhoneNumber"]').removeClass('disabled').removeAttr('disabled');
             } else {
-                this.$el.find('[data-action="addPhoneNumber"]').addClass('disabled');
+                this.$el.find('[data-action="addPhoneNumber"]').addClass('disabled').attr('disabled', 'disabled');
             }
         },
 
         manageButtonsVisibility: function () {
             var $primary = this.$el.find('button[data-property-type="primary"]');
             var $remove = this.$el.find('button[data-action="removePhoneNumber"]');
-            if ($primary.size() > 1) {
+            if ($primary.length > 1) {
                 $primary.removeClass('hidden');
                 $remove.removeClass('hidden');
             } else {
@@ -213,6 +275,22 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
         setup: function () {
             this.dataFieldName = this.name + 'Data';
             this.defaultType = this.defaultType || this.getMetadata().get('entityDefs.' + this.model.name + '.fields.' + this.name + '.defaultType');
+
+            this.isOptedOutFieldName = this.name + 'IsOptedOut';
+
+            this.phoneNumberOptedOutByDefault = this.getConfig().get('phoneNumberIsOptedOutByDefault');
+
+            if (this.model.has('doNotCall')) {
+                this.listenTo(this.model, 'change:doNotCall', function (model, value, o) {
+                    if (this.mode !== 'detail' && this.mode !== 'list') return;
+                    if (!o.ui) return;
+                    this.reRender();
+                }, this);
+            }
+
+            this.erasedPlaceholder = 'ERASED:';
+
+            this.itemMaxLength = this.getMetadata().get(['entityDefs', 'PhoneNumber', 'fields', 'name', 'maxLength']);
         },
 
         fetchPhoneNumberData: function () {
@@ -220,7 +298,7 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
 
             var $list = this.$el.find('div.phone-number-block');
 
-            if ($list.size()) {
+            if ($list.length) {
                 $list.each(function (i, d) {
                     var row = {};
                     var $d = $(d);
@@ -230,6 +308,8 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
                     }
                     row.primary = $d.find('button[data-property-type="primary"]').hasClass('active');
                     row.type = $d.find('select[data-property-type="type"]').val();
+                    row.optOut = $d.find('button[data-property-type="optOut"]').hasClass('active');
+                    row.invalid = $d.find('button[data-property-type="invalid"]').hasClass('active');
                     data.push(row);
                 }.bind(this));
             }
@@ -240,45 +320,36 @@ Espo.define('views/fields/phone', 'views/fields/base', function (Dep) {
         fetch: function () {
             var data = {};
 
-            var adderssData = this.fetchPhoneNumberData() || [];
-            data[this.dataFieldName] = adderssData;
+            var addressData = this.fetchPhoneNumberData() || [];
+            data[this.dataFieldName] = addressData;
             data[this.name] = null;
+            data[this.isOptedOutFieldName] = false;
 
             var primaryIndex = 0;
-            adderssData.forEach(function (item, i) {
+            addressData.forEach(function (item, i) {
                 if (item.primary) {
                     primaryIndex = i;
+                    if (item.optOut) {
+                        data[this.isOptedOutFieldName] = true;
+                    }
                     return;
                 }
-            });
+            }, this);
 
-            if (adderssData.length && primaryIndex > 0) {
-                var t = adderssData[0];
-                adderssData[0] = adderssData[primaryIndex];
-                adderssData[primaryIndex] = t;
+            if (addressData.length && primaryIndex > 0) {
+                var t = addressData[0];
+                addressData[0] = addressData[primaryIndex];
+                addressData[primaryIndex] = t;
             }
 
-            if (adderssData.length) {
-                data[this.name] = adderssData[0].phoneNumber;
+            if (addressData.length) {
+                data[this.name] = addressData[0].phoneNumber;
+            } else {
+                data[this.isOptedOutFieldName] = null;
             }
 
             return data;
-        },
+        }
 
-        fetchSearch: function () {
-            var value = this.$element.val().trim() || null;
-            if (value) {
-                var data = {
-                    type: 'like',
-                    value: value + '%',
-                    valueText: value
-                };
-                return data;
-            }
-            return false;
-        },
     });
-
 });
-
-

@@ -49,17 +49,38 @@
         "Single Quote": "Single Quote",
         "Imported": "Imported",
         "Duplicates": "Duplicates",
-        "Updated": "Updated"
+        "Updated": "Updated",
+        "Skip searching for duplicates": "Skip searching for duplicates",
+        "Timezone": "Timezone",
+        "Remove Import Log": "Remove Import Log",
+        "New Import": "New Import",
+        "Import Results": "Import Results",
+        "Silent Mode": "Silent Mode"
     },
     "messages": {
         "utf8": "Should be UTF-8 encoded",
-        "duplicatesRemoved": "Duplicates removed"
+        "duplicatesRemoved": "Duplicates removed",
+        "inIdle": "Execute in idle (for big data; via cron)",
+        "revert": "This will remove all imported records permanently.",
+        "removeDuplicates": "This will permanently remove all imported records that were recognized as duplicates.",
+        "confirmRevert": "This will remove all imported records permanently. Are you sure?",
+        "confirmRemoveDuplicates": "This will permanently remove all imported records that were recognized as duplicates. Are you sure?",
+        "confirmRemoveImportLog" : "This will remove the import log. All imported records will be kept. You wan't be able to revert import results. Are you sure you?",
+        "removeImportLog": "This will remove the import log. All imported records will be kept. Use it if you are sure that import is fine."
     },
     "fields": {
         "file": "File",
         "entityType": "Entity Type",
         "imported": "Imported Records",
         "duplicates": "Duplicate Records",
-        "updated": "Updated Records"
+        "updated": "Updated Records",
+        "status": "Status"
+    },
+    "options": {
+        "status": {
+            "Failed": "Failed",
+            "In Process": "In Process",
+            "Complete": "Complete"
+        }
     }
 }

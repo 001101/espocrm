@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ Espo.define('views/user/fields/generate-password', 'views/fields/base', function
 
     return Dep.extend({
 
-        _template: '<button type="button" class="btn" data-action="generatePassword">{{translate \'Generate\' scope=\'User\'}}</button>',
+        _template: '<button type="button" class="btn btn-default" data-action="generatePassword">{{translate \'Generate\' scope=\'User\'}}</button>',
 
         events: {
             'click [data-action="generatePassword"]': function () {
@@ -37,9 +37,21 @@ Espo.define('views/user/fields/generate-password', 'views/fields/base', function
 
                 this.model.set({
                     password: password,
-                    passwordConfirm: password
-                });
+                    passwordConfirm: password,
+                    passwordPreview: password
+                }, {isGenerated: true});
             }
+        },
+
+        setup: function () {
+            Dep.prototype.setup.call(this);
+
+            this.listenTo(this.model, 'change:password', function (model, value, o) {
+                if (o.isGenerated) return;
+                this.model.set({
+                    passwordPreview: ''
+                });
+            }, this);
         },
 
         fetch: function () {

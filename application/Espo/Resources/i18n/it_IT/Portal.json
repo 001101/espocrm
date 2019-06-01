@@ -1,29 +1,21 @@
 {
   "fields": {
     "name": "Nome",
-    "logo": "Logo",
-    "companyLogo": "Logo",
-    "url": "URL",
     "portalRoles": "Ruoli",
     "isActive": "Attivo",
     "isDefault": "Default",
-    "tabList": "Lista delle schede",
-    "quickCreateList": "Creazione rapida List",
+    "tabList": "Elenco schede",
+    "quickCreateList": "Elenco creazione rapida",
     "theme": "Tema",
     "language": "Lingua",
-    "dashboardLayout": "Dashboard Layout",
     "dateFormat": "Formato Data",
     "timeFormat": "Formato Ora",
-    "timeZone": "Time Zone",
     "weekStart": "Primo giorno della Settimana",
-    "defaultCurrency": "Valuta di default",
-    "customUrl": "Custom URL",
-    "customId": "Custom ID"
+    "defaultCurrency": "Valuta di default"
   },
   "links": {
     "users": "Utenti",
-    "portalRoles": "Ruoli",
-    "notes": "Notes"
+    "portalRoles": "Ruoli"
   },
   "tooltips": {
     "portalRoles": "I Ruoli specificati verranno applicati a tutti gli utenti di questo portale ."
@@ -32,6 +24,6 @@
     "Create Portal": "Crea Portale",
     "User Interface": "Interfaccia Utente",
     "General": "Generale",
-    "Settings": "Settaggi"
+    "Settings": "Impostazioni"
   }
 }

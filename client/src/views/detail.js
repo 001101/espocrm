@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/detail', 'views/main', function (Dep) {
+define('views/detail', 'views/main', function (Dep) {
 
     return Dep.extend({
 
@@ -36,7 +36,7 @@ Espo.define('views/detail', 'views/main', function (Dep) {
 
         name: 'Detail',
 
-        optionsToPass: ['attributes', 'returnUrl', 'returnDispatchParams'],
+        optionsToPass: ['attributes', 'returnUrl', 'returnDispatchParams', 'rootUrl'],
 
         headerView: 'views/header',
 
@@ -60,8 +60,7 @@ Espo.define('views/detail', 'views/main', function (Dep) {
                 name: 'follow',
                 label: 'Follow',
                 style: 'default',
-                icon: 'glyphicon glyphicon-share-alt',
-                html: '<span class="glyphicon glyphicon-share-alt"></span> ' + this.translate('Follow'),
+                html: '<span class="fas fa-rss fa-sm"></span> ' + this.translate('Follow'),
                 action: 'follow'
             }, true);
         },
@@ -89,19 +88,36 @@ Espo.define('views/detail', 'views/main', function (Dep) {
         setupHeader: function () {
             this.createView('header', this.headerView, {
                 model: this.model,
-                el: '#main > .header'
+                el: '#main > .header',
+                scope: this.scope
             });
+
+            this.listenTo(this.model, 'sync', function (model) {
+                if (model && model.hasChanged('name')) {
+                    if (this.getView('header')) {
+                        this.getView('header').reRender();
+                    }
+                    this.updatePageTitle();
+                }
+            }, this);
         },
 
         setupRecord: function () {
             var o = {
                 model: this.model,
-                el: '#main > .record'
+                el: '#main > .record',
+                scope: this.scope
             };
             this.optionsToPass.forEach(function (option) {
                 o[option] = this.options[option];
             }, this);
-            this.createView('record', this.getRecordViewName(), o);
+            if (this.options.params && this.options.params.rootUrl) {
+                o.rootUrl = this.options.params.rootUrl;
+            }
+            if (this.model.get('deleted')) {
+                o.readOnly = true;
+            }
+            return this.createView('record', this.getRecordViewName(), o);
         },
 
         getRecordViewName: function () {
@@ -154,8 +170,20 @@ Espo.define('views/detail', 'views/main', function (Dep) {
         getHeader: function () {
             var name = Handlebars.Utils.escapeExpression(this.model.get('name'));
 
+            if (name === '') {
+                name = this.model.id;
+            }
+
+            if (this.model.get('deleted')) {
+                name = '<span style="text-decoration: line-through;">' + name + '</span>';
+            }
+
+            var rootUrl = this.options.rootUrl || this.options.params.rootUrl || '#' + this.scope;
+
+            var headerIconHtml = this.getHeaderIconHtml();
+
             return this.buildHeaderHtml([
-                '<a href="#' + this.model.name + '" class="action" data-action="navigateToRoot">' + this.getLanguage().translate(this.model.name, 'scopeNamesPlural') + '</a>',
+                headerIconHtml + '<a href="' + rootUrl + '" class="action" data-action="navigateToRoot">' + this.getLanguage().translate(this.scope, 'scopeNamesPlural') + '</a>',
                 name
             ]);
         },
@@ -224,19 +252,13 @@ Espo.define('views/detail', 'views/main', function (Dep) {
         actionSelectRelated: function (data) {
             var link = data.link;
 
-            if (!this.model.defs['links'][link]) {
+            if (!data.foreignEntityType && !this.model.defs['links'][link]) {
                 throw new Error('Link ' + link + ' does not exist.');
             }
-            var scope = this.model.defs['links'][link].entity;
-            var foreign = this.model.defs['links'][link].foreign;
 
-            var massRelateEnabled = false;
-            if (foreign) {
-                var foreignType = this.getMetadata().get('entityDefs.' + scope + '.links.' + foreign + '.type');
-                if (foreignType == 'hasMany') {
-                    massRelateEnabled = true;
-                }
-            }
+            var scope = data.foreignEntityType || this.model.defs['links'][link].entity;
+
+            var massRelateEnabled = data.massSelect;
 
             var self = this;
             var attributes = {};
@@ -258,7 +280,14 @@ Espo.define('views/detail', 'views/main', function (Dep) {
                 primaryFilterName = primaryFilterName.call(this);
             }
 
-            var boolFilterList = data.boolFilterList || Espo.Utils.cloneDeep(this.selectBoolFilterLists[link] || []);
+
+            var dataBoolFilterList = data.boolFilterList;
+            if (typeof data.boolFilterList == 'string') {
+                dataBoolFilterList = data.boolFilterList.split(',');
+            }
+
+            var boolFilterList = dataBoolFilterList || Espo.Utils.cloneDeep(this.selectBoolFilterLists[link] || []);
+
             if (typeof boolFilterList == 'function') {
                 boolFilterList = boolFilterList.call(this);
             }
@@ -329,4 +358,3 @@ Espo.define('views/detail', 'views/main', function (Dep) {
 
     });
 });
-

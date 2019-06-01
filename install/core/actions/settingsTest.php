@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,28 +31,75 @@ ob_start();
 
 $result = array('success' => true, 'errors' => array());
 
-$res = $systemHelper->checkRequirements();
-$result['success'] &= $res['success'];
-if (!empty($res['errors'])) {
-	$result['errors'] = array_merge($result['errors'], $res['errors']);
+$phpRequiredList = $installer->getSystemRequirementList('php', true);
+
+foreach ($phpRequiredList as $name => $details) {
+    if (!$details['acceptable']) {
+
+        switch ($details['type']) {
+            case 'version':
+                $result['success'] = false;
+                $result['errors']['phpVersion'] = $details['required'];
+                break;
+
+            default:
+                $result['success'] = false;
+                $result['errors']['phpRequires'][] = $name;
+                break;
+        }
+    }
 }
 
 if ($result['success'] && !empty($_REQUEST['dbName']) && !empty($_REQUEST['hostName']) && !empty($_REQUEST['dbUserName'])) {
-	$connect = false;
+    $connect = false;
 
-	$dbName = trim($_REQUEST['dbName']);
-	if (strpos($_REQUEST['hostName'],':') === false) {
-		$_REQUEST['hostName'] .= ":";
-	}
-	list($hostName, $port) = explode(':', trim($_REQUEST['hostName']));
-	$dbUserName = trim($_REQUEST['dbUserName']);
-	$dbUserPass = trim($_REQUEST['dbUserPass']);
+    $dbName = trim($_REQUEST['dbName']);
+    if (strpos($_REQUEST['hostName'],':') === false) {
+        $_REQUEST['hostName'] .= ":";
+    }
+    list($hostName, $port) = explode(':', trim($_REQUEST['hostName']));
+    $dbUserName = trim($_REQUEST['dbUserName']);
+    $dbUserPass = trim($_REQUEST['dbUserPass']);
 
-	$res = $systemHelper->checkDbConnection($hostName, $port, $dbUserName, $dbUserPass, $dbName);
-	$result['success'] &= $res['success'];
-	if (!empty($res['errors'])) {
-		$result['errors'] = array_merge($result['errors'], $res['errors']);
-	}
+    $databaseParams = [
+        'host' => $hostName,
+        'port' => $port,
+        'user' => $dbUserName,
+        'password' => $dbUserPass,
+        'dbname' => $dbName,
+    ];
+
+    $isConnected = true;
+
+    try {
+        $installer->checkDatabaseConnection($databaseParams, true);
+    } catch (\Exception $e) {
+        $isConnected = false;
+        $result['success'] = false;
+        $result['errors']['dbConnect']['errorCode'] = $e->getCode();
+        $result['errors']['dbConnect']['errorMsg'] = $e->getMessage();
+    }
+
+    if ($isConnected) {
+        $databaseRequiredList = $installer->getSystemRequirementList('database', true, ['database' => $databaseParams]);
+
+        foreach ($databaseRequiredList as $name => $details) {
+            if (!$details['acceptable']) {            
+
+                switch ($details['type']) {
+                    case 'version':
+                        $result['success'] = false;
+                        $result['errors'][$name] = $details['required'];
+                        break;
+
+                    default:
+                        $result['success'] = false;
+                        $result['errors'][$name][] = $name;
+                        break;
+                }
+            }
+        }
+    }
 
 }
 

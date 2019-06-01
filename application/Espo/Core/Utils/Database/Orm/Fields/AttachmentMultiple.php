@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,20 +37,24 @@ class AttachmentMultiple extends Base
             $entityType => array (
                 'fields' => array(
                     $fieldName.'Ids' => array(
-                        'type' => 'varchar',
-                        'notStorable' => true
+                        'type' => 'jsonArray',
+                        'notStorable' => true,
+                        'orderBy' => [['createdAt', 'ASC'], ['name', 'ASC']],
+                        'isLinkMultipleIdList' => true,
+                        'relation' => $fieldName
                     ),
                     $fieldName.'Names' => array(
-                        'type' => 'varchar',
-                        'notStorable' => true
-                    ),
+                        'type' => 'jsonObject',
+                        'notStorable' => true,
+                        'isLinkMultipleNameMap' => true
+                    )
                 )
             ),
             'unset' => array(
                 $entityType => array(
                     'fields.'.$fieldName,
-                ),
-            ),
+                )
+            )
         );
 
         return $data;

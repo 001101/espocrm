@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,16 +34,18 @@ use \Espo\Core\Exceptions\BadRequest;
 
 class EmailAccount extends \Espo\Core\Controllers\Record
 {
-    public function actionGetFolders($params, $data, $request)
+    public function postActionGetFolders($params, $data)
     {
-        return $this->getRecordService()->getFolders(array(
-            'host' => $request->get('host'),
-            'port' => $request->get('port'),
-            'ssl' => $request->get('ssl') === 'true',
-            'username' => $request->get('username'),
-            'password' => $request->get('password'),
-            'id' => $request->get('id')
-        ));
+        return $this->getRecordService()->getFolders([
+            'host' => $data->host ?? null,
+            'port' => $data->port ?? null,
+            'ssl' =>  $data->ssl ?? false,
+            'username' => $data->username ?? null,
+            'password' => $data->password ?? null,
+            'id' => $data->id ?? null,
+            'emailAddress' => $data->emailAddress ?? null,
+            'userId' => $data->userId ?? null,
+        ]);
     }
 
     protected function checkControllerAccess()
@@ -53,15 +55,11 @@ class EmailAccount extends \Espo\Core\Controllers\Record
         }
     }
 
-    public function actionTestConnection($params, $data, $request)
+    public function postActionTestConnection($params, $data, $request)
     {
-        if (!$request->isPost()) {
-            throw new BadRequest();
-        }
-
-        if (is_null($data['password'])) {
-            $emailAccount = $this->getEntityManager()->getEntity('EmailAccount', $data['id']);
-            if (!$emailAccount) {
+        if (is_null($data->password)) {
+            $emailAccount = $this->getEntityManager()->getEntity('EmailAccount', $data->id);
+            if (!$emailAccount || !$emailAccount->id) {
                 throw new Error();
             }
 
@@ -69,10 +67,9 @@ class EmailAccount extends \Espo\Core\Controllers\Record
                 throw new Forbidden();
             }
 
-            $data['password'] = $this->getContainer()->get('crypt')->decrypt($emailAccount->get('password'));
+            $data->password = $this->getContainer()->get('crypt')->decrypt($emailAccount->get('password'));
         }
 
-        return $this->getRecordService()->testConnection($data);
+        return $this->getRecordService()->testConnection(get_object_vars($data));
     }
 }
-

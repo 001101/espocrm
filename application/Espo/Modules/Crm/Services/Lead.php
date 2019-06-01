@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,48 +34,32 @@ use \Espo\Core\Exceptions\Forbidden;
 
 use \Espo\ORM\Entity;
 
-class Lead extends \Espo\Services\Record
+class Lead extends \Espo\Core\Templates\Services\Person
 {
-    protected function getDuplicateWhereClause(Entity $entity, $data = array())
-    {
-        $data = array(
-            'OR' => array(
-                array(
-                    'firstName' => $entity->get('firstName'),
-                    'lastName' => $entity->get('lastName'),
-                )
-            )
-        );
-        if (
-            ($entity->get('emailAddress') || $entity->get('emailAddressData'))
-            &&
-            ($entity->isNew() || $entity->isFieldChanged('emailAddress') || $entity->isFieldChanged('emailAddressData'))
-        ) {
-            if ($entity->get('emailAddress')) {
-                $list = [$entity->get('emailAddress')];
-            }
-            if ($entity->get('emailAddressData')) {
-                foreach ($entity->get('emailAddressData') as $row) {
-                    if (!in_array($row->emailAddress, $list)) {
-                        $list[] = $row->emailAddress;
-                    }
-                }
-            }
-            foreach ($list as $emailAddress) {
-                $data['OR'][] = array(
-                    'emailAddress' => $emailAddress
-                );
-            }
-        }
 
-        return $data;
+    protected function init()
+    {
+        parent::init();
+        $this->addDependency('container');
     }
 
-    public function afterCreate(Entity $entity, array $data = array())
+    protected $linkSelectParams = array(
+        'targetLists' => array(
+            'additionalColumns' => array(
+                'optedOut' => 'isOptedOut'
+            )
+        )
+    );
+
+    protected function getFieldManager()
     {
-        parent::afterCreate($entity, $data);
-        if (!empty($data['emailId'])) {
-            $email = $this->getEntityManager()->getEntity('Email', $data['emailId']);
+        return $this->getInjection('container')->get('fieldManager');
+    }
+
+    protected function afterCreateEntity(Entity $entity, $data)
+    {
+        if (!empty($data->emailId)) {
+            $email = $this->getEntityManager()->getEntity('Email', $data->emailId);
             if ($email && !$email->get('parentId')) {
                 $email->set(array(
                     'parentType' => 'Lead',
@@ -98,6 +82,105 @@ class Lead extends \Espo\Services\Record
         		$this->getEntityManager()->saveEntity($log);
         	}
         }
+    }
+
+    public function getConvertAttributes($id)
+    {
+        $lead = $this->getEntity($id);
+
+        if (!$this->getAcl()->check($lead, 'read')) {
+            throw new Forbidden();
+        }
+
+        $data = array();
+
+        $entityList = $this->getMetadata()->get('entityDefs.Lead.convertEntityList', []);
+
+        $ignoreAttributeList = ['createdAt', 'modifiedAt', 'modifiedById', 'modifiedByName', 'createdById', 'createdByName'];
+
+        $convertFieldsDefs = $this->getMetadata()->get('entityDefs.Lead.convertFields', array());
+
+        foreach ($entityList as $entityType) {
+            if (!$this->getAcl()->checkScope($entityType, 'edit')) continue;
+
+            $attributes = array();
+
+            $target = $this->getEntityManager()->getEntity($entityType);
+
+            $fieldMap = array();
+
+            $fieldList = array_keys($this->getMetadata()->get('entityDefs.Lead.fields', array()));
+            foreach ($fieldList as $field) {
+                if (!$this->getMetadata()->get('entityDefs.'.$entityType.'.fields.' . $field)) continue;
+                if (
+                    $this->getMetadata()->get(['entityDefs', $entityType, 'fields', $field, 'type'])
+                    !==
+                    $this->getMetadata()->get(['entityDefs', 'Lead', 'fields', $field, 'type'])
+                ) continue;
+
+                $fieldMap[$field] = $field;
+            }
+            if (array_key_exists($entityType, $convertFieldsDefs)) {
+                foreach ($convertFieldsDefs[$entityType] as $field => $leadField) {
+                    $fieldMap[$field] = $leadField;
+                }
+            }
+
+            foreach ($fieldMap as $field => $leadField) {
+                $type = $this->getMetadata()->get(['entityDefs', 'Lead', 'fields', $field, 'type']);
+
+
+                if (in_array($type, ['file', 'image'])) {
+                    $attachment = $lead->get($field);
+                    if ($attachment) {
+                        $attachment = $this->getEntityManager()->getRepository('Attachment')->getCopiedAttachment($attachment);
+                        $idAttribute = $field . 'Id';
+                        $nameAttribute = $field . 'Name';
+                        if ($attachment) {
+                            $attributes[$idAttribute] = $attachment->id;
+                            $attributes[$nameAttribute] = $attachment->get('name');
+                        }
+                    }
+                    continue;
+                } else if (in_array($type, ['attachmentMultiple'])) {
+                    $attachmentList = $lead->get($field);
+                    if (count($attachmentList)) {
+                        $idList = [];
+                        $nameHash = (object) [];
+                        $typeHash = (object) [];
+                        foreach ($attachmentList as $attachment) {
+                            $attachment = $this->getEntityManager()->getRepository('Attachment')->getCopiedAttachment($attachment);
+                            if ($attachment) {
+                                $idList[] = $attachment->id;
+                                $nameHash->{$attachment->id} = $attachment->get('name');
+                                $typeHash->{$attachment->id} = $attachment->get('type');
+                            }
+                        }
+                        $attributes[$field . 'Ids'] = $idList;
+                        $attributes[$field . 'Names'] = $nameHash;
+                        $attributes[$field . 'Types'] = $typeHash;
+                    }
+                    continue;
+                }
+
+                $leadAttributeList = $this->getFieldManager()->getAttributeList('Lead', $leadField);
+                $attributeList = $this->getFieldManager()->getAttributeList($entityType, $field);
+
+                foreach ($attributeList as $i => $attribute) {
+                    if (in_array($attribute, $ignoreAttributeList)) continue;
+
+                    $leadAttribute = $leadAttributeList[$i];
+                    if (!$lead->has($leadAttribute)) continue;
+
+                    $attributes[$attribute] = $lead->get($leadAttribute);
+                }
+            }
+
+            $data[$entityType] = $attributes;
+
+        }
+
+        return $data;
     }
 
     public function convert($id, $recordsData)

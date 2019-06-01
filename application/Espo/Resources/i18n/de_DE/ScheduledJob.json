@@ -1,8 +1,5 @@
 {
   "fields": {
-    "name": "Betreff",
-    "status": "Status",
-    "job": "Job",
     "scheduling": "Planung"
   },
   "links": {
@@ -17,7 +14,9 @@
       "CheckInboundEmails": "Gruppen E-Mail Konten überprüfen",
       "CheckEmailAccounts": "Persönliche E-Mail Konten prüfen",
       "SendEmailReminders": "E-Mail Erinnerungen senden",
-      "AuthTokenControl": "Auth Token Überwachung"
+      "AuthTokenControl": "Auth Token-Überwachung",
+      "SendEmailNotifications": "E-Mail-Benachrichtigungen senden",
+      "CheckNewVersion": "Nach neuer Version suchen"
     },
     "cronSetup": {
       "linux": "Hinweis: Fügen Sie diese Zeile zu Ihrer Crontab Datei hinzu, um geplante Aufgaben durchführen zu können:",

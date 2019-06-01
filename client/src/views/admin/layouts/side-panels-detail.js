@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,12 +30,27 @@ Espo.define('views/admin/layouts/side-panels-detail', 'views/admin/layouts/rows'
 
     return Dep.extend({
 
-        dataAttributes: ['name'],
+        dataAttributeList: ['name', 'style', 'sticked', 'dynamicLogicVisible'],
 
         dataAttributesDefs: {
+            style: {
+                type: 'enum',
+                options: ['default', 'success', 'danger', 'primary', 'info', 'warning'],
+                translation: 'LayoutManager.options.style'
+            },
+            dynamicLogicVisible: {
+                type: 'base',
+                view: 'views/admin/field-manager/fields/dynamic-logic-conditions'
+            },
+            sticked: {
+                type: 'bool'
+            },
+            name: {
+                readOnly: true
+            }
         },
 
-        editable: false,
+        editable: true,
 
         ignoreList: [],
 
@@ -45,6 +60,9 @@ Espo.define('views/admin/layouts/side-panels-detail', 'views/admin/layouts/rows'
 
         setup: function () {
             Dep.prototype.setup.call(this);
+
+            this.dataAttributesDefs = Espo.Utils.cloneDeep(this.dataAttributesDefs);
+            this.dataAttributesDefs.dynamicLogicVisible.scope = this.scope;
 
             this.wait(true);
             this.loadLayout(function () {
@@ -64,12 +82,23 @@ Espo.define('views/admin/layouts/side-panels-detail', 'views/admin/layouts/rows'
         readDataFromLayout: function (layout) {
             var panelListAll = [];
             var labels = {};
+            var params = {};
+
+            if (
+                this.getMetadata().get(['clientDefs', this.scope, 'defaultSidePanel', this.viewType]) !== false
+                &&
+                !this.getMetadata().get(['clientDefs', this.scope, 'defaultSidePanelDisabled'])
+            ) {
+                panelListAll.push('default');
+                labels['default'] = 'Default';
+            }
             (this.getMetadata().get(['clientDefs', this.scope, 'sidePanels', this.viewType]) || []).forEach(function (item) {
                 if (!item.name) return;
                 panelListAll.push(item.name);
                 if (item.label) {
                     labels[item.name] = item.label;
                 }
+                params[item.name] = item;
             }, this);
 
             this.disabledFields = [];
@@ -78,9 +107,10 @@ Espo.define('views/admin/layouts/side-panels-detail', 'views/admin/layouts/rows'
 
             this.rowLayout = [];
 
-            panelListAll.forEach(function (item) {
+            panelListAll.forEach(function (item, index) {
                 var disabled = false;
-                if ((layout[item] || {}).disabled) {
+                var itemData = layout[item] || {};
+                if (itemData.disabled) {
                     disabled = true;
                 }
                 var labelText;
@@ -96,25 +126,63 @@ Espo.define('views/admin/layouts/side-panels-detail', 'views/admin/layouts/rows'
                         label: labelText
                     });
                 } else {
-                    this.rowLayout.push({
+                    var o = {
                         name: item,
                         label: labelText
-                    });
+                    };
+                    if (o.name in params) {
+                        this.dataAttributeList.forEach(function (attribute) {
+                            if (attribute === 'name') return;
+                            var itemParams = params[o.name] || {};
+                            if (attribute in itemParams) {
+                                o[attribute] = itemParams[attribute];
+                            }
+                        }, this);
+                    }
+                    for (var i in itemData) {
+                        o[i] = itemData[i];
+                    }
+                    o.index = ('index' in itemData) ? itemData.index : index;
+                    this.rowLayout.push(o);
+
+                    this.itemsData[o.name] = Espo.Utils.cloneDeep(o);
                 }
             }, this);
-
+            this.rowLayout.sort(function (v1, v2) {
+                return v1.index - v2.index;
+            });
         },
-
 
         fetch: function () {
             var layout = {};
             $("#layout ul.disabled > li").each(function (i, el) {
-                var o = {};
                 var name = $(el).attr('data-name');
                 layout[name] = {
                     disabled: true
                 };
             }.bind(this));
+
+            $("#layout ul.enabled > li").each(function (i, el) {
+                var $el = $(el);
+                var o = {};
+                var name = $el.attr('data-name');
+
+                var attributes = this.itemsData[name] || {};
+                attributes.name = name;
+
+                this.dataAttributeList.forEach(function (attribute) {
+                    if (attribute === 'name') return;
+                    var value = attributes[attribute] || null;
+                    if (value) {
+                        o[attribute] = value;
+                    }
+                }, this);
+
+                o.index = i;
+
+                layout[name] = o;
+            }.bind(this))
+
             return layout;
         },
 

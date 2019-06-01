@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,41 +52,49 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
             var data = Dep.prototype.data.call(this);
             data.ucName = Espo.Utils.upperCaseFirst(this.name);
 
-            data.postalCodeValue = this.model.get(this.postalCodeField);
-            data.streetValue = this.model.get(this.streetField);
-            data.cityValue = this.model.get(this.cityField);
-            data.stateValue = this.model.get(this.stateField);
-            data.countryValue = this.model.get(this.countryField);
+            this.addressPartList.forEach(function (item) {
+                var value = this.model.get(this[item + 'Field']);
+                data[item + 'Value'] = value;
+            }, this);
 
             if (this.mode == 'detail' || this.mode == 'list') {
                 data.formattedAddress = this.getFormattedAddress();
             }
 
-            data.isEmpty = !(data.postalCodeValue ||
-                           data.streetValue ||
-                           data.cityValue ||
-                           data.stateValue ||
-                           data.countryValue);
+            if (this.isEditMode()) {
+                data.stateMaxLength = this.stateMaxLength;
+                data.streetMaxLength = this.streetMaxLength;
+                data.postalCodeMaxLength = this.postalCodeMaxLength;
+                data.cityMaxLength = this.cityMaxLength;
+                data.countryMaxLength = this.countryMaxLength;
+            }
+
+            var isNotEmpty = false;
 
             return data;
         },
 
-        getFormattedAddress: function () {
-            var postalCodeValue = this.model.get(this.postalCodeField);
-            var streetValue = this.model.get(this.streetField);
-            var cityValue = this.model.get(this.cityField);
-            var stateValue = this.model.get(this.stateField);
-            var countryValue = this.model.get(this.countryField);
+        setupSearch: function () {
+            this.searchData.value = this.getSearchParamsData().value || this.searchParams.additionalValue;
+        },
 
-            var isEmpty = !(
-                postalCodeValue ||
-                streetValue ||
-                cityValue ||
-                stateValue ||
-                countryValue
-            );
+        getFormattedAddress: function () {
+            var isNotEmpty = false;
+            var isSet = false;
+            this.addressAttributeList.forEach(function (attribute) {
+                isNotEmpty = isNotEmpty || this.model.get(attribute);
+                isSet = isSet || this.model.has(attribute);
+            }, this);
+
+            var isEmpty = !isNotEmpty;
 
             if (isEmpty) {
+                if (this.mode === 'list') {
+                    return '';
+                }
+                if (!isSet) {
+                    return this.translate('...');
+                }
                 return this.translate('None');
             }
 
@@ -106,11 +114,11 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
 
             var html = '';
             if (streetValue) {
-                html += streetValue.replace(/(\r\n|\n|\r)/gm, '<br>');
+                html += streetValue;
             }
             if (cityValue || stateValue || postalCodeValue) {
                 if (html != '') {
-                    html += '<br>'
+                    html += '\n';
                 }
                 if (cityValue) {
                     html += cityValue;
@@ -130,7 +138,7 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
             }
             if (countryValue) {
                 if (html != '') {
-                    html += '<br>';
+                    html += '\n';
                 }
                 html += countryValue;
             }
@@ -146,11 +154,11 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
 
             var html = '';
             if (streetValue) {
-                html += streetValue.replace(/(\r\n|\n|\r)/gm, '<br>');
+                html += streetValue;
             }
             if (cityValue || postalCodeValue) {
                 if (html != '') {
-                    html += '<br>'
+                    html += '\n';
                 }
                 if (postalCodeValue) {
                     html += postalCodeValue;
@@ -164,7 +172,7 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
             }
             if (stateValue || countryValue) {
                 if (html != '') {
-                    html += '<br>';
+                    html += '\n';
                 }
                 if (stateValue) {
                     html += stateValue;
@@ -192,7 +200,7 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
             }
             if (cityValue || stateValue || postalCodeValue) {
                 if (html != '') {
-                    html += '<br>'
+                    html += '\n';
                 }
                 if (postalCodeValue) {
                     html += postalCodeValue;
@@ -212,9 +220,9 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
             }
             if (streetValue) {
                 if (html != '') {
-                    html += '<br>';
+                    html += '\n';
                 }
-                html += streetValue.replace(/(\r\n|\n|\r)/gm, '<br>');
+                html += streetValue;
             }
             return html;
         },
@@ -228,17 +236,17 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
 
             var html = '';
             if (streetValue) {
-                html += streetValue.replace(/(\r\n|\n|\r)/gm, '<br>');
+                html += streetValue;
             }
             if (cityValue) {
                 if (html != '') {
-                    html += '<br>';
+                    html += '\n';
                 }
                 html += cityValue;
             }
             if (countryValue || stateValue || postalCodeValue) {
                 if (html != '') {
-                    html += '<br>'
+                    html += '\n';
                 }
                 if (countryValue) {
                     html += countryValue;
@@ -278,11 +286,11 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
             var self = this;
 
             if (this.mode == 'edit') {
-                this.$street = this.$el.find('[name="' + this.streetField + '"]');
-                this.$postalCode = this.$el.find('[name="' + this.postalCodeField + '"]');
-                this.$state = this.$el.find('[name="' + this.stateField + '"]');
-                this.$city = this.$el.find('[name="' + this.cityField + '"]');
-                this.$country = this.$el.find('[name="' + this.countryField + '"]');
+                this.$street = this.$el.find('[data-name="' + this.streetField + '"]');
+                this.$postalCode = this.$el.find('[data-name="' + this.postalCodeField + '"]');
+                this.$state = this.$el.find('[data-name="' + this.stateField + '"]');
+                this.$city = this.$el.find('[data-name="' + this.cityField + '"]');
+                this.$country = this.$el.find('[data-name="' + this.countryField + '"]');
 
                 this.$street.on('change', function () {
                     self.trigger('change');
@@ -300,37 +308,165 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
                     self.trigger('change');
                 });
 
-                this.$street.on('input', function (e) {
-                    var numberOfLines = e.currentTarget.value.split('\n').length;
-                    var numberOfRows = this.$street.prop('rows');
+                var countryList = this.getConfig().get('addressCountryList') || [];
+                if (countryList.length) {
+                    this.$country.autocomplete({
+                        minChars: 0,
+                        lookup: countryList,
+                        maxHeight: 200,
+                        formatResult: function (suggestion) {
+                            return this.getHelper().escapeString(suggestion.value);
+                        }.bind(this),
+                        lookupFilter: function (suggestion, query, queryLowerCase) {
+                            if (suggestion.value.toLowerCase().indexOf(queryLowerCase) === 0) {
+                                if (suggestion.value.length === queryLowerCase.length) return false;
+                                return true;
+                            }
+                            return false;
+                        },
+                        onSelect: function () {
+                            this.trigger('change');
+                        }.bind(this)
+                    });
+                    this.$country.on('focus', function () {
+                        if (this.$country.val()) return;
+                        this.$country.autocomplete('onValueChange');
+                    }.bind(this));
+                    this.once('render', function () {
+                        this.$country.autocomplete('dispose');
+                    }, this);
+                    this.once('remove', function () {
+                        this.$country.autocomplete('dispose');
+                    }, this);
+                    this.$country.attr('autocomplete', 'espo-country');
+                }
 
-                    if (numberOfRows < numberOfLines) {
-                        this.$street.prop('rows', numberOfLines);
-                    } else if (numberOfRows > numberOfLines) {
-                        this.$street.prop('rows', numberOfLines);
-                    }
+                this.controlStreetTextareaHeight();
+                this.$street.on('input', function (e) {
+                    this.controlStreetTextareaHeight();
                 }.bind(this));
 
-                var numberOfLines = this.$street.val().split('\n').length;
-                this.$street.prop('rows', numberOfLines);
+                var cityList = this.getConfig().get('addressCityList') || [];
+                if (cityList.length) {
+                    this.$city.autocomplete({
+                        minChars: 0,
+                        lookup: cityList,
+                        maxHeight: 200,
+                        formatResult: function (suggestion) {
+                            return this.getHelper().escapeString(suggestion.value);
+                        }.bind(this),
+                        lookupFilter: function (suggestion, query, queryLowerCase) {
+                            if (suggestion.value.toLowerCase().indexOf(queryLowerCase) === 0) {
+                                if (suggestion.value.length === queryLowerCase.length) return false;
+                                return true;
+                            }
+                            return false;
+                        },
+                        onSelect: function () {
+                            this.trigger('change');
+                        }.bind(this)
+                    });
+                    this.$city.on('focus', function () {
+                        if (this.$city.val()) return;
+                        this.$city.autocomplete('onValueChange');
+                    }.bind(this));
+                    this.once('render', function () {
+                        this.$city.autocomplete('dispose');
+                    }, this);
+                    this.once('remove', function () {
+                        this.$city.autocomplete('dispose');
+                    }, this);
+                    this.$city.attr('autocomplete', 'espo-city');
+                }
+
+                this.controlStreetTextareaHeight();
+                this.$street.on('input', function (e) {
+                    this.controlStreetTextareaHeight();
+                }.bind(this));
+
+                var stateList = this.getConfig().get('addressStateList') || [];
+                if (stateList.length) {
+                    this.$state.autocomplete({
+                        minChars: 0,
+                        lookup: stateList,
+                        maxHeight: 200,
+                        formatResult: function (suggestion) {
+                            return this.getHelper().escapeString(suggestion.value);
+                        }.bind(this),
+                        lookupFilter: function (suggestion, query, queryLowerCase) {
+                            if (suggestion.value.toLowerCase().indexOf(queryLowerCase) === 0) {
+                                if (suggestion.value.length === queryLowerCase.length) return false;
+                                return true;
+                            }
+                            return false;
+                        },
+                        onSelect: function () {
+                            this.trigger('change');
+                        }.bind(this)
+                    });
+                    this.$state.on('focus', function () {
+                        if (this.$state.val()) return;
+                        this.$state.autocomplete('onValueChange');
+                    }.bind(this));
+                    this.once('render', function () {
+                        this.$state.autocomplete('dispose');
+                    }, this);
+                    this.once('remove', function () {
+                        this.$state.autocomplete('dispose');
+                    }, this);
+                    this.$state.attr('autocomplete', 'espo-state');
+                }
+
+                this.controlStreetTextareaHeight();
+                this.$street.on('input', function (e) {
+                    this.controlStreetTextareaHeight();
+                }.bind(this));
             }
         },
 
-        init: function () {
-            this.postalCodeField = this.options.defs.name + 'PostalCode';
-            this.streetField = this.options.defs.name + 'Street';
-            this.stateField = this.options.defs.name + 'State';
-            this.cityField = this.options.defs.name + 'City';
-            this.countryField = this.options.defs.name + 'Country';
-            Dep.prototype.init.call(this);
+        controlStreetTextareaHeight: function (lastHeight) {
+            var scrollHeight = this.$street.prop('scrollHeight');
+            var clientHeight = this.$street.prop('clientHeight');
+
+            if (typeof lastHeight === 'undefined' && clientHeight === 0) {
+                setTimeout(this.controlStreetTextareaHeight.bind(this), 10);
+                return;
+            }
+
+            if (clientHeight === lastHeight) return;
+
+            if (scrollHeight > clientHeight + 1) {
+                var rows = this.$street.prop('rows');
+                this.$street.attr('rows', rows + 1);
+                this.controlStreetTextareaHeight(clientHeight);
+            }
+            if (this.$street.val().length === 0) {
+                this.$street.attr('rows', 1);
+            }
+        },
+
+        setup: function () {
+            Dep.prototype.setup.call(this);
+
+            var actualAttributePartList = this.getMetadata().get(['fields', this.type, 'actualFields']) || [];
+            this.addressAttributeList = [];
+            this.addressPartList = [];
+            actualAttributePartList.forEach(function (item) {
+                var attribute = this.name + Espo.Utils.upperCaseFirst(item);
+                this.addressAttributeList.push(attribute);
+                this.addressPartList.push(item);
+                this[item + 'Field'] = attribute;
+
+                this[item + 'MaxLength'] = this.getMetadata().get(['entityDefs', this.model.name, 'fields', attribute, 'maxLength']);
+            }, this);
         },
 
         validateRequired: function () {
             var validate = function (name) {
                 if (this.model.isRequired(name)) {
                     if (this.model.get(name) === '') {
-                        var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
-                        this.showValidationMessage(msg, '[name="'+name+'"]');
+                        var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.translate(name, 'fields', this.model.name));
+                        this.showValidationMessage(msg, '[data-name="'+name+'"]');
                         return true;
                     }
                 }
@@ -349,7 +485,7 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
             return this.model.getFieldParam(this.postalCodeField, 'required') ||
                    this.model.getFieldParam(this.streetField, 'required') ||
                    this.model.getFieldParam(this.stateField, 'required') ||
-                   this.model.getFieldParam(this.cityField, 'required');
+                   this.model.getFieldParam(this.cityField, 'required') ||
                    this.model.getFieldParam(this.countryField, 'required');
         },
 
@@ -364,44 +500,44 @@ Espo.define('views/fields/address', 'views/fields/base', function (Dep) {
         },
 
         fetchSearch: function () {
-            var value = this.$el.find('[name="'+this.name+'"]').val().toString().trim();
+            var value = this.$el.find('input.main-element').val().toString().trim();
             if (value) {
-                value += '%';
                 var data = {
                     type: 'or',
                     value: [
                         {
                             type: 'like',
                             field: this.postalCodeField,
-                            value: value
+                            value: value + '%'
                         },
                         {
                             type: 'like',
                             field: this.streetField,
-                            value: value
+                            value: value + '%'
                         },
                         {
                             type: 'like',
                             field: this.cityField,
-                            value: value
+                            value: value + '%'
                         },
                         {
                             type: 'like',
                             field: this.stateField,
-                            value: value
+                            value: value + '%'
                         },
                             {
                             type: 'like',
                             field: this.countryField,
-                            value: value
-                        },
+                            value: value + '%'
+                        }
                     ],
-                    additionalValue: value
+                    data: {
+                        value: value
+                    }
                 };
                 return data;
             }
             return false;
-        },
+        }
     });
 });
-

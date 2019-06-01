@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +38,8 @@ use Espo\ORM\Entity;
 
 class Import extends \Espo\Services\Record
 {
+    const REVERT_PERMANENTLY_REMOVE_PERIOD_DAYS = 2;
+
     protected function init()
     {
         parent::init();
@@ -45,9 +47,10 @@ class Import extends \Espo\Services\Record
         $this->addDependency('serviceFactory');
         $this->addDependency('fileManager');
         $this->addDependency('selectManagerFactory');
+        $this->addDependency('fileStorageManager');
     }
 
-    protected $dateFormatsMap = array(
+    protected $dateFormatsMap = [
         'YYYY-MM-DD' => 'Y-m-d',
         'DD-MM-YYYY' => 'd-m-Y',
         'MM-DD-YYYY' => 'm-d-Y',
@@ -56,21 +59,27 @@ class Import extends \Espo\Services\Record
         'DD.MM.YYYY' => 'd.m.Y',
         'MM.DD.YYYY' => 'm.d.Y',
         'YYYY.MM.DD' => 'Y.m.d',
-    );
+    ];
 
-    protected $timeFormatsMap = array(
+    protected $timeFormatsMap = [
         'HH:mm' => 'H:i',
+        'HH:mm:ss' => 'H:i:s',
         'hh:mm a' => 'h:i a',
         'hh:mma' => 'h:ia',
         'hh:mm A' => 'h:iA',
         'hh:mmA' => 'h:iA',
-    );
+    ];
 
-    protected $services = array();
+    protected $services = [];
 
     protected function getSelectManagerFactory()
     {
         return $this->injections['selectManagerFactory'];
+    }
+
+    protected function getFileStorageManager()
+    {
+        return $this->injections['fileStorageManager'];
     }
 
     protected function getFileManager()
@@ -100,27 +109,26 @@ class Import extends \Espo\Services\Record
         $importedCount = $this->getRepository()->countRelated($entity, 'imported');
         $duplicateCount = $this->getRepository()->countRelated($entity, 'duplicates');
         $updatedCount = $this->getRepository()->countRelated($entity, 'updated');
-        $entity->set(array(
+        $entity->set([
             'importedCount' => $importedCount,
             'duplicateCount' => $duplicateCount,
-            'updatedCount' => $updatedCount,
-        ));
+            'updatedCount' => $updatedCount
+        ]);
     }
 
-    public function findLinkedEntities($id, $link, $params)
+    public function findLinked($id, $link, $params)
     {
         $entity = $this->getRepository()->get($id);
-        $foreignEntityName = $entity->get('entityType');
+        $foreignEntityType = $entity->get('entityType');
 
         if (!$this->getAcl()->check($entity, 'read')) {
             throw new Forbidden();
         }
-        if (!$this->getAcl()->check($foreignEntityName, 'read')) {
+        if (!$this->getAcl()->check($foreignEntityType, 'read')) {
             throw new Forbidden();
         }
 
-
-        $selectParams = $this->getSelectManager($foreignEntityName)->getSelectParams($params, true);
+        $selectParams = $this->getSelectManager($foreignEntityType)->getSelectParams($params, true);
 
         if (array_key_exists($link, $this->linkSelectParams)) {
             $selectParams = array_merge($selectParams, $this->linkSelectParams[$link]);
@@ -128,7 +136,7 @@ class Import extends \Espo\Services\Record
 
         $collection = $this->getRepository()->findRelated($entity, $link, $selectParams);
 
-        $recordService = $this->getRecordService($foreignEntityName);
+        $recordService = $this->getRecordService($foreignEntityType);
 
         foreach ($collection as $e) {
             $recordService->loadAdditionalFieldsForList($e);
@@ -137,15 +145,15 @@ class Import extends \Espo\Services\Record
 
         $total = $this->getRepository()->countRelated($entity, $link, $selectParams);
 
-        return array(
+        return [
             'total' => $total,
             'collection' => $collection
-        );
+        ];
     }
 
     protected function readCsvString(&$string, $CSV_SEPARATOR = ';', $CSV_ENCLOSURE = '"', $CSV_LINEBREAK = "\n")
     {
-        $o = array();
+        $o = [];
         $cnt = strlen($string);
         $esc = false;
         $escesc = false;
@@ -211,10 +219,24 @@ class Import extends \Espo\Services\Record
             throw new NotFound();
         }
 
+        if (!$this->getAcl()->check($import, 'delete')) {
+            throw new Forbidden();
+        }
+
         $pdo = $this->getEntityManager()->getPDO();
 
-
         $sql = "SELECT * FROM import_entity WHERE import_id = ".$pdo->quote($import->id) . " AND is_imported = 1";
+
+        $removeFromDb = false;
+        $createdAt = $import->get('createdAt');
+        if ($createdAt) {
+            $dtNow = new \DateTime();
+            $createdAtDt = new \DateTime($createdAt);
+            $dayDiff = ($dtNow->getTimestamp() - $createdAtDt->getTimestamp()) / 60 / 60 / 24;
+            if ($dayDiff < self::REVERT_PERMANENTLY_REMOVE_PERIOD_DAYS) {
+                $removeFromDb = true;
+            }
+        }
 
         $sth = $pdo->prepare($sql);
         $sth->execute();
@@ -227,12 +249,20 @@ class Import extends \Espo\Services\Record
 
             $entity = $this->getEntityManager()->getEntity($entityType, $entityId);
             if ($entity) {
-                $this->getEntityManager()->removeEntity($entity);
+                $this->getEntityManager()->removeEntity($entity, [
+                    'noStream' => true,
+                    'noNotifications' => true,
+                    'import' => true
+                ]);
             }
-            $this->getEntityManager()->getRepository($entityType)->deleteFromDb($entityId);
+            if ($removeFromDb) {
+                $this->getEntityManager()->getRepository($entityType)->deleteFromDb($entityId);
+            }
         }
 
         $this->getEntityManager()->removeEntity($import);
+
+        $this->processActionHistoryRecord('delete', $import);
 
         return true;
     }
@@ -242,6 +272,10 @@ class Import extends \Espo\Services\Record
         $import = $this->getEntityManager()->getEntity('Import', $id);
         if (empty($import)) {
             throw new NotFound();
+        }
+
+        if (!$this->getAcl()->check($import, 'delete')) {
+            throw new Forbidden();
         }
 
         $pdo = $this->getEntityManager()->getPDO();
@@ -262,93 +296,190 @@ class Import extends \Espo\Services\Record
             if ($entity) {
                 $this->getEntityManager()->removeEntity($entity);
             }
-            $this->getEntityManager()->getRepository($scope)->deleteFromDb($entityId);
+            $this->getEntityManager()->getRepository($entity->getEntityType())->deleteFromDb($entityId);
         }
 
         return true;
     }
 
-    public function import($scope, array $importFieldList, $attachmentId, array $params = array())
+    public function jobRunIdleImport($data)
+    {
+        if (
+            empty($data->userId) ||
+            empty($data->userId) ||
+            !isset($data->importAttributeList) ||
+            !isset($data->params) ||
+            !isset($data->entityType)
+        ) {
+            throw new Error("Import: Bad job data.");
+        }
+
+        $entityType = $data->entityType;
+        $params = json_decode(json_encode($data->params), true);
+        $attachmentId = $data->attachmentId;
+        $importId = $data->importId;
+        $importAttributeList = $data->importAttributeList;
+        $userId = $data->userId;
+
+        $user = $this->getEntityManager()->getEntity('User', $userId);
+
+        if (!$user) {
+            throw new Error("Import: User not found.");
+        }
+        if (!$user->get('isActive')) {
+            throw new Error("Import: User is not active.");
+        }
+
+        $this->import($entityType, $importAttributeList, $attachmentId, $params, $importId, $user);
+    }
+
+    public function import($scope, array $importAttributeList, $attachmentId, array $params = [], $importId = null, $user = null)
     {
         $delimiter = ',';
-        if (!empty($params['fieldDelimiter'])) {
-            $delimiter = $params['fieldDelimiter'];
+        if (!empty($params['delimiter'])) {
+            $delimiter = $params['delimiter'];
         }
         $enclosure = '"';
         if (!empty($params['textQualifier'])) {
             $enclosure = $params['textQualifier'];
         }
 
-        $contents = $this->getFileManager()->getContents('data/upload/' . $attachmentId);
+        if (!$user) {
+            $user = $this->getUser();
+        }
+
+        if (!$user->isAdmin()) {
+            $forbiddenAttrbuteList = $this->getAclManager()->getScopeForbiddenAttributeList($user, $scope, 'edit');
+            foreach ($importAttributeList as $i => $attribute) {
+                if (in_array($attribute, $forbiddenAttrbuteList)) {
+                    unset($importAttributeList[$i]);
+                }
+            }
+
+            if (!$this->getAclManager()->checkScope($user, $scope, 'create')) {
+                throw new Error('Import: Create is forbidden.');
+            }
+        }
+
+        $attachment = $this->getEntityManager()->getEntity('Attachment', $attachmentId);
+        if (!$attachment) {
+            throw new Error('Import error');
+        }
+
+        $contents = $this->getFileStorageManager()->getContents($attachment);
         if (empty($contents)) {
             throw new Error('Import error');
         }
 
-        $import = $this->getEntityManager()->getEntity('Import');
-        $import->set(array(
-            'entityType' => $scope,
-            'fileId' => $attachmentId
-        ));
+        if ($importId) {
+            $import = $this->getEntityManager()->getEntity('Import', $importId);
+            if (!$import) {
+                throw new Error('Import: Could not find import record.');
+            }
+        } else {
+            $import = $this->getEntityManager()->getEntity('Import');
+            $import->set([
+                'entityType' => $scope,
+                'fileId' => $attachmentId
+            ]);
+            $import->set('status', 'In Process');
+        }
+
         $this->getEntityManager()->saveEntity($import);
 
-        $pdo = $this->getEntityManager()->getPDO();
+        $this->processActionHistoryRecord('create', $import);
 
+        if (!empty($params['idleMode'])) {
+            $params['idleMode'] = false;
 
-        $result = array(
-            'importedIds' => array(),
-            'updatedIds' => array(),
-            'duplicateIds' => array(),
-        );
-        $i = -1;
+            $job = $this->getEntityManager()->getEntity('Job');
+            $job->set([
+                'serviceName' => 'Import',
+                'methodName' => 'jobRunIdleImport',
+                'data' => [
+                    'entityType' => $scope,
+                    'params' => $params,
+                    'attachmentId' => $attachmentId,
+                    'importAttributeList' => $importAttributeList,
+                    'importId' => $import->id,
+                    'userId' => $this->getUser()->id
+                ]
+            ]);
+            $this->getEntityManager()->saveEntity($job);
 
-        $contents = str_replace("\r\n", "\n", $contents);
-
-        while ($arr = $this->readCsvString($contents, $delimiter, $enclosure)) {
-            $i++;
-            if ($i == 0 && !empty($params['headerRow'])) {
-                continue;
-            }
-            if (count($arr) == 1 && empty($arr[0])) {
-                continue;
-            }
-            $r = $this->importRow($scope, $importFieldList, $arr, $params);
-            if (empty($r)) {
-                continue;
-            }
-            if (!empty($r['isImported'])) {
-                $result['importedIds'][] = $r['id'];
-            }
-            if (!empty($r['isUpdated'])) {
-                $result['updatedIds'][] = $r['id'];
-            }
-            if (!empty($r['isDuplicate'])) {
-                $result['duplicateIds'][] = $r['id'];
-            }
-            $sql = "
-                INSERT INTO import_entity
-                (entity_type, entity_id, import_id, is_imported, is_updated, is_duplicate)
-                VALUES
-                (:entityType, :entityId, :importId, :isImported, :isUpdated, :isDuplicate)
-            ";
-            $sth = $pdo->prepare($sql);
-            $sth->bindValue(':entityType', $scope);
-            $sth->bindValue(':entityId', $r['id']);
-            $sth->bindValue(':importId', $import->id);
-            $sth->bindValue(':isImported', !empty($r['isImported']), \PDO::PARAM_BOOL);
-            $sth->bindValue(':isUpdated', !empty($r['isUpdated']), \PDO::PARAM_BOOL);
-            $sth->bindValue(':isDuplicate', !empty($r['isDuplicate']), \PDO::PARAM_BOOL);
-
-            $sth->execute();
-
+            return [
+                'id' => $import->id,
+                'countCreated' => 0,
+                'countUpdated' => 0
+            ];
         }
-        return array(
+
+        try {
+            $pdo = $this->getEntityManager()->getPDO();
+
+            $result = [
+                'importedIds' => [],
+                'updatedIds' => [],
+                'duplicateIds' => []
+            ];
+            $i = -1;
+
+            $contents = str_replace("\r\n", "\n", $contents);
+
+            while ($arr = $this->readCsvString($contents, $delimiter, $enclosure)) {
+                $i++;
+                if ($i == 0 && !empty($params['headerRow'])) {
+                    continue;
+                }
+                if (count($arr) == 1 && empty($arr[0])) {
+                    continue;
+                }
+                $r = $this->importRow($scope, $importAttributeList, $arr, $params, $user);
+                if (empty($r)) {
+                    continue;
+                }
+                if (!empty($r['isImported'])) {
+                    $result['importedIds'][] = $r['id'];
+                }
+                if (!empty($r['isUpdated'])) {
+                    $result['updatedIds'][] = $r['id'];
+                }
+                if (!empty($r['isDuplicate'])) {
+                    $result['duplicateIds'][] = $r['id'];
+                }
+                $sql = "
+                    INSERT INTO import_entity
+                    (entity_type, entity_id, import_id, is_imported, is_updated, is_duplicate)
+                    VALUES
+                    (:entityType, :entityId, :importId, :isImported, :isUpdated, :isDuplicate)
+                ";
+                $sth = $pdo->prepare($sql);
+                $sth->bindValue(':entityType', $scope);
+                $sth->bindValue(':entityId', $r['id']);
+                $sth->bindValue(':importId', $import->id);
+                $sth->bindValue(':isImported', !empty($r['isImported']), \PDO::PARAM_BOOL);
+                $sth->bindValue(':isUpdated', !empty($r['isUpdated']), \PDO::PARAM_BOOL);
+                $sth->bindValue(':isDuplicate', !empty($r['isDuplicate']), \PDO::PARAM_BOOL);
+
+                $sth->execute();
+            }
+        } catch (\Exception $e) {
+            $GLOBALS['log']->error('Import Error: '. $e->getMessage());
+            $import->set('status', 'Failed');
+        }
+
+        $import->set('status', 'Complete');
+
+        $this->getEntityManager()->saveEntity($import);
+
+        return [
             'id' => $import->id,
             'countCreated' => count($result['importedIds']),
             'countUpdated' => count($result['updatedIds']),
-        );
+        ];
     }
 
-    public function importRow($scope, array $importFieldList, array $row, array $params = array())
+    public function importRow($scope, array $importAttributeList, array $row, array $params = [], $user)
     {
         $id = null;
         $action = 'create';
@@ -356,19 +487,18 @@ class Import extends \Espo\Services\Record
             $action = $params['action'];
         }
 
-        if (empty($importFieldList)) {
+        if (empty($importAttributeList)) {
             return;
         }
 
-
         if (in_array($action, ['createAndUpdate', 'update'])) {
+            $updateByAttributeList = [];
+            $whereClause = [];
             if (!empty($params['updateBy']) && is_array($params['updateBy'])) {
-                $updateByFieldList = [];
-                $whereClause = array();
                 foreach ($params['updateBy'] as $i) {
-                    if (array_key_exists($i, $importFieldList)) {
-                        $updateByFieldList[] = $importFieldList[$i];
-                        $whereClause[$importFieldList[$i]] = $row[$i];
+                    if (array_key_exists($i, $importAttributeList)) {
+                        $updateByAttributeList[] = $importAttributeList[$i];
+                        $whereClause[$importAttributeList[$i]] = $row[$i];
                     }
                 }
             }
@@ -377,10 +507,18 @@ class Import extends \Espo\Services\Record
         $recordService = $this->getRecordService($scope);
 
         if (in_array($action, ['createAndUpdate', 'update'])) {
-            if (!count($updateByFieldList)) {
+            if (!count($updateByAttributeList)) {
                 return;
             }
             $entity = $this->getEntityManager()->getRepository($scope)->where($whereClause)->findOne();
+
+            if ($entity) {
+                if (!$user->isAdmin()) {
+                    if (!$this->getAclManager()->checkEntity($user, $entity, 'edit')) {
+                        return;
+                    }
+                }
+            }
             if (!$entity) {
                 if ($action == 'createAndUpdate') {
                     $entity = $this->getEntityManager()->getEntity($scope);
@@ -397,17 +535,24 @@ class Import extends \Espo\Services\Record
 
         $isNew = $entity->isNew();
 
-
         if (!empty($params['defaultValues'])) {
-            $v = get_object_vars($params['defaultValues']);
+            if (is_object($params['defaultValues'])) {
+                $v = get_object_vars($params['defaultValues']);
+            } else {
+                $v = $params['defaultValues'];
+            }
             $entity->set($v);
         }
 
-        $fieldsDefs = $entity->getFields();
+        $attributeDefs = $entity->getAttributes();
         $relDefs = $entity->getRelations();
 
         $phoneFieldList = [];
-        if (!empty($fieldsDefs['phoneNumber']) && !empty($fieldsDefs['phoneNumber']['type']) && $fieldsDefs['phoneNumber']['type'] == 'phone') {
+        if (
+            $entity->hasAttribute('phoneNumber')
+            &&
+            $entity->getAttributeParam('phoneNumber', 'fieldType') === 'phone'
+        ) {
             $typeList = $this->getMetadata()->get('entityDefs.' . $scope . '.fields.phoneNumber.typeList', []);
             foreach ($typeList as $type) {
                 $attr = str_replace(' ', '_', ucfirst($type));
@@ -415,101 +560,173 @@ class Import extends \Espo\Services\Record
             }
         }
 
-        foreach ($importFieldList as $i => $field) {
-            if (!empty($field)) {
+        $valueMap = (object) [];
+        foreach ($importAttributeList as $i => $attribute) {
+            if (!empty($attribute)) {
+                if (!array_key_exists($i, $row)) {
+                    continue;
+                }
                 $value = $row[$i];
-                if ($field == 'id') {
+                $valueMap->$attribute = $value;
+            }
+        }
+
+        foreach ($importAttributeList as $i => $attribute) {
+            if (!empty($attribute)) {
+                if (!array_key_exists($i, $row)) {
+                    continue;
+                }
+                $value = $row[$i];
+                if ($attribute == 'id') {
                     if ($params['action'] == 'create') {
                         $entity->id = $value;
                     }
                     continue;
                 }
-                if (array_key_exists($field, $fieldsDefs)) {
+                if (array_key_exists($attribute, $attributeDefs)) {
                     if ($value !== '') {
-                        $type = $this->getMetadata()->get("entityDefs.{$scope}.fields.{$field}.type");
+                        $type = $this->getMetadata()->get(['entityDefs', $scope, 'fields', $attribute, 'type']);
+
+                        if ($attribute === 'emailAddress' && $type === 'email') {
+                            $emailAddressData = $entity->get('emailAddressData');
+                            $emailAddressData = $emailAddressData ?? [];
+                            $o = (object) [
+                                'emailAddress' => $value,
+                                'primary' => true,
+                            ];
+                            $emailAddressData[] = $o;
+                            $entity->set('emailAddressData', $emailAddressData);
+                            continue;
+                        }
+
+                        if ($attribute === 'phoneNumber' && $type === 'phone') {
+                            $phoneNumberData = $entity->get('phoneNumberData');
+                            $phoneNumberData = $phoneNumberData ?? [];
+                            $o = (object) [
+                                'phoneNumber' => $value,
+                                'primary' => true,
+                            ];
+                            $phoneNumberData[] = $o;
+                            $entity->set('phoneNumberData', $phoneNumberData);
+                            continue;
+                        }
+
                         if ($type == 'personName') {
-                            $lastNameField = 'last' . ucfirst($field);
-                            $firstNameField = 'first' . ucfirst($field);
+                            $firstNameAttribute = 'first' . ucfirst($attribute);
+                            $lastNameAttribute = 'last' . ucfirst($attribute);
 
-                            $firstName = '';
-                            $lastName = $value;
-                            switch ($params['personNameFormat']) {
-                                case 'f l':
-                                    $pos = strpos($value, ' ');
-                                    if ($pos) {
-                                        $firstName = trim(substr($value, 0, $pos));
-                                        $lastName = trim(substr($value, $pos + 1));
-                                    }
-                                    break;
-                                case 'l f':
-                                    $pos = strpos($value, ' ');
-                                    if ($pos) {
-                                        $lastName = trim(substr($value, 0, $pos));
-                                        $firstName = trim(substr($value, $pos + 1));
-                                    }
-                                    break;
-                                case 'l, f':
-                                    $pos = strpos($value, ',');
-                                    if ($pos) {
-                                        $lastName = trim(substr($value, 0, $pos));
-                                        $firstName = trim(substr($value, $pos + 1));
-                                    }
-                                    break;
-                            }
+                            $personName = $this->parsePersonName($value, $params['personNameFormat']);
 
-                            if (!$entity->get($firstNameField)) {
-                                $entity->set($firstNameField, $firstName);
+                            if (!$entity->get($firstNameAttribute)) {
+                                $personName['firstName'] = $this->prepareAttributeValue($entity, $firstNameAttribute, $personName['firstName']);
+                                $entity->set($firstNameAttribute, $personName['firstName']);
                             }
-                            if (!$entity->get($lastNameField)) {
-                                $entity->set($lastNameField, $lastName);
+                            if (!$entity->get($lastNameAttribute)) {
+                                $personName['lastName'] = $this->prepareAttributeValue($entity, $lastNameAttribute, $personName['lastName']);
+                                $entity->set($lastNameAttribute, $personName['lastName']);
                             }
                             continue;
                         }
-                        $entity->set($field, $this->parseValue($entity, $field, $value, $params));
+
+                        $entity->set($attribute, $this->parseValue($entity, $attribute, $value, $params));
                     }
                 } else {
-                    if (in_array($field, $phoneFieldList) && !empty($value)) {
+                    if (in_array($attribute, $phoneFieldList) && !empty($value)) {
                         $phoneNumberData = $entity->get('phoneNumberData');
                         $isPrimary = false;
                         if (empty($phoneNumberData)) {
                             $phoneNumberData = [];
-                            if (!in_array('phoneNumber', $importFieldList)) {
-                                $isPrimary = true;
-                            }
+                            if (empty($valueMap->phoneNumber)) $isPrimary = true;
                         }
-                        $type = str_replace('phoneNumber', '', $field);
+                        $type = str_replace('phoneNumber', '', $attribute);
                         $type = str_replace('_', ' ', $type);
-                        $o = new \StdClass();
-                        $o->phoneNumber = $value;
-                        $o->type = $type;
-                        $o->primary = $isPrimary;
+                        $o = (object) [
+                            'phoneNumber' => $value,
+                            'type' => $type,
+                            'primary' => $isPrimary,
+                        ];
                         $phoneNumberData[] = $o;
-
                         $entity->set('phoneNumberData', $phoneNumberData);
+                    }
+
+                    if (
+                        strpos($attribute, 'emailAddress') === 0 && $attribute !== 'emailAddress'
+                        &&
+                        $entity->hasAttribute('emailAddress')
+                        &&
+                        $entity->hasAttribute('emailAddressData')
+                        &&
+                        is_numeric(substr($attribute, 12))
+                        &&
+                        intval(substr($attribute, 12)) >= 2
+                        &&
+                        intval(substr($attribute, 12)) <= 4
+                        &&
+                        !empty($value)
+                    ) {
+                        $emailAddressData = $entity->get('emailAddressData');
+                        $isPrimary = false;
+                        if (empty($emailAddressData)) {
+                            $emailAddressData = [];
+                            if (empty($valueMap->emailAddress)) $isPrimary = true;
+                        }
+                        $o = (object) [
+                            'emailAddress' => $value,
+                            'primary' => $isPrimary,
+                        ];
+                        $emailAddressData[] = $o;
+                        $entity->set('emailAddressData', $emailAddressData);
                     }
                 }
             }
         }
 
-        foreach ($importFieldList as $i => $field) {
-            if (!array_key_exists($field, $fieldsDefs)) continue;;
-            $defs = $fieldsDefs[$field];
-            $type = $fieldsDefs[$field]['type'];
+        $defaultCurrency = $this->getConfig('defaultCurrency');
+        if (!empty($params['currency'])) {
+            $defaultCurrency = $params['currency'];
+        }
 
-            if (in_array($type, [Entity::FOREIGN, Entity::VARCHAR]) && !empty($defs['foreign']) && $defs['foreign'] === 'name') {
-                if ($entity->has($field)) {
-                    $relation = $defs['relation'];
-                    if ($field == $relation . 'Name' && !$entity->has($relation . 'Id') && array_key_exists($relation, $relDefs)) {
-                        if ($relDefs[$relation]['type'] == Entity::BELONGS_TO) {
-                            $name = $entity->get($field);
-                            $scope = $relDefs[$relation]['entity'];
-                            $found = $this->getEntityManager()->getRepository($scope)->where(array('name' => $name))->findOne();
+        $mFieldsDefs = $this->getMetadata()->get(['entityDefs', $entity->getEntityType(), 'fields'], []);
 
-                            if ($found) {
-                                $entity->set($relation . 'Id', $found->id);
-                            } else {
-                                if (!in_array($scope, 'User', 'Team')) {
-                                    // TODO create related record with name $name and relate
+        foreach ($mFieldsDefs as $field => $defs) {
+            if (!empty($defs['type']) && $defs['type'] === 'currency') {
+                if ($entity->has($field) && !$entity->get($field . 'Currency')) {
+                    $entity->set($field . 'Currency', $defaultCurrency);
+                }
+            }
+        }
+
+        foreach ($importAttributeList as $i => $attribute) {
+            if (!array_key_exists($attribute, $attributeDefs)) continue;;
+            $defs = $attributeDefs[$attribute];
+            $type = $attributeDefs[$attribute]['type'];
+
+            if (in_array($type, [Entity::FOREIGN, Entity::VARCHAR]) && !empty($defs['foreign'])) {
+                $relatedEntityIsPerson = is_array($defs['foreign']) && in_array('firstName', $defs['foreign']) && in_array('lastName', $defs['foreign']);
+
+                if ($defs['foreign'] === 'name' || $relatedEntityIsPerson) {
+                    if ($entity->has($attribute)) {
+                        $relation = $defs['relation'];
+                        if ($attribute == $relation . 'Name' && !$entity->has($relation . 'Id') && array_key_exists($relation, $relDefs)) {
+                            if ($relDefs[$relation]['type'] == Entity::BELONGS_TO) {
+                                $value = $entity->get($attribute);
+                                $scope = $relDefs[$relation]['entity'];
+
+                                if ($relatedEntityIsPerson) {
+                                    $where = $this->parsePersonName($value, $params['personNameFormat']);
+                                } else {
+                                    $where['name'] = $value;
+                                }
+
+                                $found = $this->getEntityManager()->getRepository($scope)->where($where)->findOne();
+
+                                if ($found) {
+                                    $entity->set($relation . 'Id', $found->id);
+                                    $entity->set($relation . 'Name', $found->get('name'));
+                                } else {
+                                    if (!in_array($scope, ['User', 'Team'])) {
+                                        // TODO create related record with name $name and relate
+                                    }
                                 }
                             }
                         }
@@ -518,19 +735,24 @@ class Import extends \Espo\Services\Record
             }
         }
 
-        $result = array();
-
-        $a = $entity->toArray();
+        $result = [];
 
         try {
             if ($isNew) {
-                $isDuplicate = $recordService->checkEntityForDuplicate($entity);
+                $isDuplicate = false;
+                if (empty($params['skipDuplicateChecking'])) {
+                    $isDuplicate = $recordService->checkIsDuplicate($entity);
+                }
             }
-            $saveResult = $this->getEntityManager()->saveEntity($entity, array(
+            if ($entity->id) {
+                $sql = $this->getEntityManager()->getRepository($entity->getEntityType())->deleteFromDb($entity->id, true);
+            }
+            $saveResult = $this->getEntityManager()->saveEntity($entity, [
                 'noStream' => true,
                 'noNotifications' => true,
-                'import' => true
-            ));
+                'import' => true,
+                'silent' => !empty($params['silentMode']),
+            ]);
             if ($saveResult) {
                 $result['id'] = $entity->id;
                 if ($isNew) {
@@ -549,16 +771,54 @@ class Import extends \Espo\Services\Record
         return $result;
     }
 
-    protected function parseValue(Entity $entity, $field, $value, $params = array())
+    protected function prepareAttributeValue($entity, $attribute, $value)
+    {
+        if ($entity->getAttributeType($attribute) === $entity::VARCHAR) {
+            $maxLength = $entity->getAttributeParam($attribute, 'len');
+            if ($maxLength) {
+                if (mb_strlen($value) > $maxLength) {
+                    $value = substr($value, 0, $maxLength);
+                }
+            }
+        }
+        return $value;
+    }
+
+    protected function parsePersonName($value, $format)
+    {
+        $firstName = '';
+        $lastName = $value;
+        switch ($format) {
+            case 'f l':
+                $pos = strpos($value, ' ');
+                if ($pos) {
+                    $firstName = trim(substr($value, 0, $pos));
+                    $lastName = trim(substr($value, $pos + 1));
+                }
+                break;
+            case 'l f':
+                $pos = strpos($value, ' ');
+                if ($pos) {
+                    $lastName = trim(substr($value, 0, $pos));
+                    $firstName = trim(substr($value, $pos + 1));
+                }
+                break;
+            case 'l, f':
+                $pos = strpos($value, ',');
+                if ($pos) {
+                    $lastName = trim(substr($value, 0, $pos));
+                    $firstName = trim(substr($value, $pos + 1));
+                }
+                break;
+        }
+        return ['firstName' => $firstName, 'lastName' => $lastName];
+    }
+
+    protected function parseValue(Entity $entity, $attribute, $value, $params = [])
     {
         $decimalMark = '.';
         if (!empty($params['decimalMark'])) {
             $decimalMark = $params['decimalMark'];
-        }
-
-        $defaultCurrency = 'USD';
-        if (!empty($params['defaultCurrency'])) {
-            $defaultCurrency = $params['defaultCurrency'];
         }
 
         $dateFormat = 'Y-m-d';
@@ -575,43 +835,53 @@ class Import extends \Espo\Services\Record
             }
         }
 
-        $fieldDefs = $entity->getFields();
+        $type = $entity->getAttributeType($attribute);
 
-        if (!empty($fieldDefs[$field])) {
-            $type = $fieldDefs[$field]['type'];
+        switch ($type) {
+            case Entity::DATE:
+                $dt = \DateTime::createFromFormat($dateFormat, $value);
+                if ($dt) {
+                    return $dt->format('Y-m-d');
+                }
+                return null;
+                break;
+            case Entity::DATETIME:
+                $timezone = new \DateTimeZone(isset($params['timezone']) ? $params['timezone'] : 'UTC');
+                $dt = \DateTime::createFromFormat($dateFormat . ' ' . $timeFormat, $value, $timezone);
+                if ($dt) {
+                    $dt->setTimezone(new \DateTimeZone('UTC'));
+                    return $dt->format('Y-m-d H:i:s');
+                }
+                return null;
+                break;
+            case Entity::FLOAT:
+                $a = explode($decimalMark, $value);
+                $a[0] = preg_replace('/[^A-Za-z0-9\-]/', '', $a[0]);
 
-            switch ($type) {
-                case Entity::DATE:
-                    $dt = \DateTime::createFromFormat($dateFormat, $value);
-                    if ($dt) {
-                        return $dt->format('Y-m-d');
-                    }
-                    break;
-                case Entity::DATETIME:
-                    $dt = \DateTime::createFromFormat($dateFormat . ' ' . $timeFormat, $value);
-                    if ($dt) {
-                        return $dt->format('Y-m-d H:i');
-                    }
-                    break;
-                case Entity::FLOAT:
-                    $currencyField = $field . 'Currency';
-                    if ($entity->hasField($currencyField)) {
-                        if (!$entity->has($currencyField)) {
-                            $entity->set($currencyField, $defaultCurrency);
-                        }
-                    }
-
-                    $a = explode($decimalMark, $value);
-                    $a[0] = preg_replace('/[^A-Za-z0-9\-]/', '', $a[0]);
-
-                    if (count($a) > 1) {
-                        return $a[0] . '.' . $a[1];
-                    } else {
-                        return $a[0];
-                    }
-                    break;
-            }
+                if (count($a) > 1) {
+                    return floatval($a[0] . '.' . $a[1]);
+                } else {
+                    return floatval($a[0]);
+                }
+            case Entity::INT:
+                return intval($value);
+            case Entity::JSON_OBJECT:
+                $value = \Espo\Core\Utils\Json::decode($value);
+                return $value;
+            case Entity::JSON_ARRAY:
+                if (!is_string($value)) return;
+                if (!strlen($value)) return;
+                if ($value[0] === '[') {
+                    $value = \Espo\Core\Utils\Json::decode($value);
+                    return $value;
+                } else {
+                    $value = explode(',', $value);
+                    return $value;
+                }
         }
+
+        $value = $this->prepareAttributeValue($entity, $attribute, $value);
+
         return $value;
     }
 
@@ -647,4 +917,3 @@ class Import extends \Espo\Services\Record
         }
     }
 }
-

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,16 +33,18 @@ class EntityCollection implements \Iterator, \Countable, \ArrayAccess, \Seekable
 {
     private $entityFactory = null;
 
-    private $entityName;
+    private $entityType;
 
     private $position = 0;
 
-    protected $container = array();
+    protected $isFetched = false;
 
-    public function __construct($data = array(), $entityName = null, EntityFactory $entityFactory = null)
+    protected $dataList = [];
+
+    public function __construct(array $dataList = [], ?string $entityType = null, ?EntityFactory $entityFactory = null)
     {
-        $this->container = $data;
-        $this->entityName = $entityName;
+        $this->dataList = $dataList;
+        $this->entityType = $entityType;
         $this->entityFactory = $entityFactory;
     }
 
@@ -50,7 +52,7 @@ class EntityCollection implements \Iterator, \Countable, \ArrayAccess, \Seekable
     {
         $this->position = 0;
 
-        while (!$this->valid() && $this->position < count($this->container)) {
+        while (!$this->valid() && $this->position <= $this->getLastValidKey()) {
             $this->position ++;
         }
     }
@@ -70,25 +72,38 @@ class EntityCollection implements \Iterator, \Countable, \ArrayAccess, \Seekable
         do {
             $this->position ++;
             $next = false;
-            if (!$this->valid() && $this->position < count($this->container)) {
+            if (!$this->valid() && $this->position <= $this->getLastValidKey()) {
                 $next = true;
             }
         } while ($next);
     }
 
+    private function getLastValidKey()
+    {
+        $keys = array_keys($this->dataList);
+        $i = end($keys);
+        while ($i > 0) {
+            if (isset($this->dataList[$i])) {
+                break;
+            }
+            $i--;
+        }
+        return $i;
+    }
+
     public function valid()
     {
-        return isset($this->container[$this->position]);
+        return isset($this->dataList[$this->position]);
     }
 
     public function offsetExists($offset)
     {
-        return isset($this->container[$offset]);
+        return isset($this->dataList[$offset]);
     }
 
     public function offsetGet($offset)
     {
-        if (!isset($this->container[$offset])) {
+        if (!isset($this->dataList[$offset])) {
             return null;
         }
         return $this->getEntityByOffset($offset);
@@ -101,20 +116,20 @@ class EntityCollection implements \Iterator, \Countable, \ArrayAccess, \Seekable
         }
 
         if (is_null($offset)) {
-            $this->container[] = $value;
+            $this->dataList[] = $value;
         } else {
-            $this->container[$offset] = $value;
+            $this->dataList[$offset] = $value;
         }
     }
 
     public function offsetUnset($offset)
     {
-        unset($this->container[$offset]);
+        unset($this->dataList[$offset]);
     }
 
     public function count()
     {
-        return count($this->container);
+        return count($this->dataList);
     }
 
     public function seek($offset)
@@ -127,52 +142,59 @@ class EntityCollection implements \Iterator, \Countable, \ArrayAccess, \Seekable
 
     public function append(Entity $entity)
     {
-        $this->container[] = $entity;
+        $this->dataList[] = $entity;
     }
 
     private function getEntityByOffset($offset)
     {
-        $value = $this->container[$offset];
+        $value = $this->dataList[$offset];
 
         if ($value instanceof Entity) {
             return $value;
         } else if (is_array($value)) {
-            $this->container[$offset] = $this->buildEntityFromArray($value);
+            $this->dataList[$offset] = $this->buildEntityFromArray($value);
         } else {
             return null;
         }
 
-        return $this->container[$offset];
+        return $this->dataList[$offset];
     }
 
     protected function buildEntityFromArray(array $dataArray)
     {
-        $entity = $this->entityFactory->create($this->entityName);
+        $entity = $this->entityFactory->create($this->entityType);
         if ($entity) {
             $entity->set($dataArray);
-            $entity->setAsFetched();
+            if ($this->isFetched) {
+                $entity->setAsFetched();
+            }
             return $entity;
         }
     }
 
-    public function getEntityName()
+    public function getEntityType()
     {
-        return $this->entityName;
+        return $this->entityType;
     }
 
-    public function getInnerContainer()
+    public function getEntityName()
     {
-        return $this->container;
+        return $this->entityType;
+    }
+
+    public function getDataList()
+    {
+        return $this->dataList;
     }
 
     public function merge(EntityCollection $collection)
     {
-        $newData = $this->container;
-        $incomingData = $collection->getInnerContainer();
+        $newData = $this->dataList;
+        $incomingDataList = $collection->getDataList();
 
-        foreach ($incomingData as $v) {
+        foreach ($incomingDataList as $v) {
             if (!$this->contains($v)) {
-                $this->container[] = $v;
+                $this->dataList[] = $v;
             }
         }
     }
@@ -189,7 +211,7 @@ class EntityCollection implements \Iterator, \Countable, \ArrayAccess, \Seekable
     {
         $index = 0;
         if (is_array($value)) {
-            foreach ($this->container as $v) {
+            foreach ($this->dataList as $v) {
                 if (is_array($v)) {
                     if ($value['id'] == $v['id']) {
                         return $index;
@@ -202,7 +224,7 @@ class EntityCollection implements \Iterator, \Countable, \ArrayAccess, \Seekable
                 $index ++;
             }
         } else if ($value instanceof Entity) {
-            foreach ($this->container as $v) {
+            foreach ($this->dataList as $v) {
                 if (is_array($v)) {
                     if ($value->id == $v['id']) {
                         return $index;
@@ -218,14 +240,37 @@ class EntityCollection implements \Iterator, \Countable, \ArrayAccess, \Seekable
         return false;
     }
 
-    public function toArray()
+    public function toArray($itemsAsObjects = false)
     {
-        $arr = array();
+        $arr = [];
         foreach ($this as $entity) {
-            $arr[] = $entity->toArray();
+            if ($itemsAsObjects) {
+                $item = $entity->getValueMap();
+            } else {
+                $item = $entity->toArray();
+            }
+            $arr[] = $item;
         }
         return $arr;
     }
 
-}
+    public function getValueMapList()
+    {
+        return $this->toArray(true);
+    }
 
+    public function setAsFetched()
+    {
+        $this->isFetched = true;
+    }
+
+    public function setAsNotFetched()
+    {
+        $this->isFetched = false;
+    }
+
+    public function isFetched()
+    {
+        return $this->isFetched;
+    }
+}

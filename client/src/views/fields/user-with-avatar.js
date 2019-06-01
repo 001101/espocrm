@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ Espo.define('views/fields/user-with-avatar', 'views/fields/user', function (Dep)
 
     return Dep.extend({
 
-        listTemplate: 'fields/user-with-avatar/detail',
+        listTemplate: 'fields/user-with-avatar/list',
 
         detailTemplate: 'fields/user-with-avatar/detail',
 
@@ -43,19 +43,8 @@ Espo.define('views/fields/user-with-avatar', 'views/fields/user', function (Dep)
         },
 
         getAvatarHtml: function () {
-            if (this.getConfig().get('avatarsDisabled')) {
-                return '';
-            }
-            var t;
-            var cache = this.getCache();
-            if (cache) {
-                t = cache.get('app', 'timestamp');
-            } else {
-                t = Date.now();
-            }
-            return '<img class="avatar avatar-link" width="14" src="'+this.getBasePath()+'?entryPoint=avatar&size=small&id=' + this.model.get(this.idName) + '&t='+t+'">';
+            return this.getHelper().getAvatarHtml(this.model.get(this.idName), 'small', 14, 'avatar-link');
         }
 
     });
 });
-

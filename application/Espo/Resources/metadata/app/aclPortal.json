@@ -36,6 +36,7 @@
             "EmailFolder": false,
             "EmailAccount": false,
             "EmailTemplate": false,
+            "ActionHistoryRecord": false,
             "Preferences": {
                 "read": "own",
                 "edit": "own",
@@ -59,7 +60,14 @@
                 "autoFollowEntityTypeList": false,
                 "emailReplyForceHtml": false,
                 "emailReplyToAllByDefault": false,
-                "signature": false
+                "signature": false,
+                "followCreatedEntities": false,
+                "followEntityOnStreamPost": false,
+                "doNotFillAssignedUserIfNotRequired": false,
+                "useCustomTabList": false,
+                "tabList": false,
+                "emailUseExternalClient": false,
+                "dashboardLayout": false
             },
             "Call": {
                 "reminders": false
@@ -74,12 +82,27 @@
                 "isInternal": false,
                 "isGlobal": false
             },
+            "Email": {
+                "inboundEmails": false,
+                "emailAccounts": false
+            },
             "User": {
-                "gender": false
+                "password": false,
+                "authMethod": false,
+                "apiKey": false,
+                "secretKey": false,
+                "token": false,
+                "isAdmin": false,
+                "type": false,
+                "contact": false,
+                "accounts": false,
+                "portalRoles": false,
+                "portals": false,
+                "isActive": false
             }
         }
     },
-    "default": {
+    "strictDefault": {
         "scopeLevel": {
         },
         "fieldLevel": {
@@ -107,10 +130,24 @@
                     "edit": "no"
                 },
                 "leads": false
+            },
+            "KnowledgeBaseArticle": {
+                "assignedUser": false
+            },
+            "User": {
+                "gender": false
             }
         }
     },
-    "scopeLevelTypesDefaults": {
+    "valuePermissionList": [
+        "exportPermission",
+        "massUpdatePermission"
+    ],
+    "permissionsStrictDefaults": {
+        "exportPermission": "no",
+        "massUpdatePermission": "no"
+    },
+    "scopeLevelTypesStrictDefaults": {
         "boolean": false,
         "record": false
     }

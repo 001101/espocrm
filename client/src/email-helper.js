@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,12 +26,15 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('email-helper', [], function () {
+define('email-helper', [], function () {
 
-    var EmailHelper = function (language, user, dateTime) {
+    var EmailHelper = function (language, user, dateTime, acl) {
         this.language = language;
         this.user = user;
         this.dateTime = dateTime;
+        this.acl = acl;
+
+        this.erasedPlaceholder = 'ERASED:';
     }
 
     _.extend(EmailHelper.prototype, {
@@ -67,25 +70,32 @@ Espo.define('email-helper', [], function () {
 
             var isReplyOnSent = false;
 
-            if (model.get('replyToString')) {
-                var str = model.get('replyToString');
+            var replyToAddressString = model.get('replyTo') || null;
 
-                var a = [];
-                str.split(';').forEach(function (item) {
-                    var part = item.trim();
-                    var address = this.parseAddressFromStringAddress(item);
+            if (replyToAddressString) {
+                var replyToAddressList = replyToAddressString.split(';');
+                to = replyToAddressList.join(';');
+            } else {
+                if (model.get('replyToString')) {
+                    var str = model.get('replyToString');
 
-                    if (address) {
-                        a.push(address);
-                        var name = this.parseNameFromStringAddress(part);
-                        if (name && name !== address) {
-                            nameHash[address] = name;
+                    var a = [];
+                    str.split(';').forEach(function (item) {
+                        var part = item.trim();
+                        var address = this.parseAddressFromStringAddress(item);
+
+                        if (address) {
+                            a.push(address);
+                            var name = this.parseNameFromStringAddress(part);
+                            if (name && name !== address) {
+                                nameHash[address] = name;
+                            }
                         }
-
-                    }
-                }, this);
-                to = a.join('; ');
+                    }, this);
+                    to = a.join(';');
+                }
             }
+
             if (!to || !~to.indexOf('@')) {
                 if (model.get('from')) {
                     if (model.get('from') != this.getUser().get('emailAddress')) {
@@ -113,13 +123,37 @@ Espo.define('email-helper', [], function () {
                     item = item.trim();
                     if (item != this.getUser().get('emailAddress')) {
                         if (isReplyOnSent) {
-                            attributes.to += '; ' + item;
+                            if (attributes.to) {
+                                attributes.to += ';'
+                            }
+                            attributes.to += item;
                         } else {
-                            attributes.cc += '; ' + item;
+                            if (attributes.cc) {
+                                attributes.cc += ';'
+                            }
+                            attributes.cc += item;
                         }
                     }
                 }, this);
                 attributes.cc = attributes.cc.replace(/^(\; )/,"");
+            }
+
+            if (attributes.to) {
+                var toList = attributes.to.split(';');
+                toList = toList.filter(function (item) {
+                    if (item.indexOf(this.erasedPlaceholder) === 0) return false;
+                    return true;
+                }, this);
+                attributes.to = toList.join(';');
+            }
+
+            if (attributes.cc) {
+                var ccList = attributes.cc.split(';');
+                ccList = ccList.filter(function (item) {
+                    if (item.indexOf(this.erasedPlaceholder) === 0) return false;
+                    return true;
+                }, this);
+                attributes.cc = ccList.join(';');
             }
 
             if (model.get('parentId')) {
@@ -128,9 +162,25 @@ Espo.define('email-helper', [], function () {
                 attributes['parentType'] = model.get('parentType');
             }
 
+            if (model.get('teamsIds') && model.get('teamsIds').length) {
+                attributes.teamsIds = Espo.Utils.clone(model.get('teamsIds'));
+                attributes.teamsNames = Espo.Utils.clone(model.get('teamsNames') || {});
+
+                var defaultTeamId = this.user.get('defaultTeamId');
+                if (defaultTeamId && !~attributes.teamsIds.indexOf(defaultTeamId)) {
+                    attributes.teamsIds.push(this.user.get('defaultTeamId'));
+                    attributes.teamsNames[this.user.get('defaultTeamId')] = this.user.get('defaultTeamName');
+                }
+                attributes.teamsIds = attributes.teamsIds.filter(function (teamId) {
+                    return this.acl.checkTeamAssignmentPermission(teamId);
+                }, this);
+            }
+
             attributes.nameHash = nameHash;
 
             attributes.repliedId = model.id;
+
+            attributes.inReplyTo = model.get('messageId');
 
             this.addReplyBodyAttrbutes(model, attributes);
 
@@ -217,7 +267,7 @@ Espo.define('email-helper', [], function () {
                     partList.push(line);
 
                 }, this);
-                line += partList.join('; ');
+                line += partList.join(';');
                 list.push(line);
             }
 
@@ -261,16 +311,40 @@ Espo.define('email-helper', [], function () {
         },
 
         addReplyBodyAttrbutes: function (model, attributes) {
+            var format = this.getDateTime().getReadableShortDateTimeFormat();
+            var dateSent = model.get('dateSent');
+
+            var dateSentSting = null;
+            if (dateSent) {
+                var dateSentMoment = this.getDateTime().toMoment(dateSent);
+                dateSentSting =dateSentMoment.format(format);
+            }
+
+            var replyHeadString =
+                (dateSentSting || this.getLanguage().translate('Original message', 'labels', 'Email'));
+
+            var fromName = model.get('fromName');
+
+            if (!fromName && model.get('from')) {
+                fromName = (model.get('nameHash') || {})[model.get('from')];
+                if (fromName) {
+                    replyHeadString += ', ' + fromName;
+                }
+            }
+
+            replyHeadString += ':'
+
+
             if (model.get('isHtml')) {
                 var body = model.get('body');
-                body = '<br><blockquote>' + '------' + this.getLanguage().translate('Original message', 'labels', 'Email') + '------<br>' + body + '</blockquote>';
+                body = '<br>' +  replyHeadString + '<br><blockquote>' +  body + '</blockquote>';
 
                 attributes['body'] = body;
             } else {
                 var bodyPlain = model.get('body') || model.get('bodyPlain') || '';
 
                 var b = '\n\n';
-                b += '------' + this.getLanguage().translate('Original message', 'labels', 'Email') + '------' + '\n';
+                b += replyHeadString + '\n';
 
                 bodyPlain.split('\n').forEach(function (line) {
                     b += '> ' + line + '\n';
@@ -282,8 +356,76 @@ Espo.define('email-helper', [], function () {
             }
         },
 
+        composeMailToLink: function (attributes, bcc) {
+            var link = 'mailto:';
+
+            link += (attributes.to || '').split(';').join(',');
+
+            var o = {};
+
+            if (attributes.cc) {
+                o.cc = attributes.cc.split(';').join(',');
+            }
+
+            if (attributes.bcc) {
+                 if (!bcc) {
+                    bcc = '';
+                } else {
+                    bcc += ';'
+                }
+                bcc += attributes.bcc;
+            }
+
+            if (bcc) {
+                o.bcc = bcc.split(';').join(',');
+            }
+
+            if (attributes.name) {
+                o.subject = attributes.name;
+            }
+
+            if (attributes.body) {
+                o.body = attributes.body;
+                if (attributes.isHtml) {
+                    o.body = this.htmlToPlain(o.body);
+                }
+            }
+
+            if (attributes.inReplyTo) {
+                o['In-Reply-To'] = attributes.inReplyTo;
+            }
+
+            var part = '';
+            for (var key in o) {
+                if (part !== '') {
+                    part += '&';
+                } else {
+                    part += '?';
+                }
+                part += key + '=' + encodeURIComponent(o[key]);
+            }
+
+            link += part;
+
+            return link;
+        },
+
+        htmlToPlain: function (text) {
+            text = text || '';
+            var value = text.replace(/<br\s*\/?>/mg, '\n');
+
+            value = value.replace(/<\/p\s*\/?>/mg, '\n\n');
+
+            var $div = $('<div>').html(value);
+            $div.find('style').remove();
+            $div.find('link[ref="stylesheet"]').remove();
+
+            value =  $div.text();
+
+            return value;
+        }
+
     });
 
     return EmailHelper;
-
 });

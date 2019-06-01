@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ namespace tests\unit\Espo\Core\Utils;
 
 use tests\unit\ReflectionHelper;
 
-class FieldManagerTest extends \PHPUnit_Framework_TestCase
+class FieldManagerTest extends \PHPUnit\Framework\TestCase
 {
     protected $object;
 
@@ -39,15 +39,30 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
 
     protected $reflection;
 
-
     protected function setUp()
     {
-        $this->objects['metadata'] = $this->getMockBuilder('\Espo\Core\Utils\Metadata')->disableOriginalConstructor()->getMock();
-        $this->objects['language'] = $this->getMockBuilder('\Espo\Core\Utils\Language')->disableOriginalConstructor()->getMock();
+        $this->objects['container'] = $this->getMockBuilder('\\Espo\\Core\\Container')->disableOriginalConstructor()->getMock();
 
-        $this->object = new \Espo\Core\Utils\FieldManager($this->objects['metadata'], $this->objects['language']);
+        $this->objects['metadata'] = $this->getMockBuilder('\\Espo\\Core\\Utils\\Metadata')->disableOriginalConstructor()->getMock();
+        $this->objects['language'] = $this->getMockBuilder('\\Espo\\Core\\Utils\\Language')->disableOriginalConstructor()->getMock();
+        $this->objects['baseLanguage'] = $this->getMockBuilder('\\Espo\\Core\\Utils\\Language')->disableOriginalConstructor()->getMock();
+        $this->objects['metadataHelper'] = $this->getMockBuilder('\\Espo\\Core\\Utils\\Metadata\\Helper')->disableOriginalConstructor()->getMock();
+
+        $map = array(
+            array('baseLanguage', $this->objects['baseLanguage']),
+            array('language', $this->objects['language']),
+            array('metadata', $this->objects['metadata'])
+        );
+
+        $this->objects['container']
+            ->expects($this->any())
+            ->method('get')
+            ->will($this->returnValueMap($map));
+
+        $this->object = new \Espo\Core\Utils\FieldManager($this->objects['container']);
 
         $this->reflection = new ReflectionHelper($this->object);
+        $this->reflection->setProperty('metadataHelper', $this->objects['metadataHelper']);
     }
 
     protected function tearDown()
@@ -57,7 +72,7 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
 
     public function testCreateExistingField()
     {
-        $this->setExpectedException('\Espo\Core\Exceptions\Conflict');
+        $this->expectException('\Espo\Core\Exceptions\Conflict');
 
         $data = array(
             "type" => "varchar",
@@ -69,44 +84,169 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
             ->method('get')
             ->will($this->returnValue($data));
 
-        $this->object->create('varName', $data, 'CustomEntity');
+        $this->object->create('CustomEntity', 'varName', $data);
     }
 
     public function testUpdateCoreField()
     {
-        //$this->setExpectedException('\Espo\Core\Exceptions\Error');
-        $this->objects['metadata']
-            ->expects($this->once())
-            ->method('set')
-            ->will($this->returnValue(true));
+        $data = array(
+            "type" => "varchar",
+            "maxLength" => 100,
+            "label" => "Modified Name",
+        );
+
+        $existingData = array(
+            "type" => "varchar",
+            "maxLength" => 50,
+            "label" => "Name",
+        );
+
+        $map = array(
+            ['entityDefs.Account.fields.name', [], $existingData],
+            [['entityDefs', 'Account', 'fields', 'name', 'type'], null, $existingData['type']],
+            ['fields.varchar', null, null],
+            [['fields', 'varchar', 'hookClassName'], null, null],
+        );
 
         $this->objects['language']
             ->expects($this->once())
             ->method('save')
             ->will($this->returnValue(true));
 
+        $this->objects['metadata']
+            ->expects($this->any())
+            ->method('get')
+            ->will($this->returnValueMap($map));
+
+        $this->objects['metadataHelper']
+            ->expects($this->once())
+            ->method('getFieldDefsByType')
+            ->will($this->returnValue(json_decode('{
+               "params":[
+                  {
+                     "name":"required",
+                     "type":"bool",
+                     "default":false
+                  },
+                  {
+                     "name":"default",
+                     "type":"varchar"
+                  },
+                  {
+                     "name":"maxLength",
+                     "type":"int"
+                  },
+                  {
+                     "name":"trim",
+                     "type":"bool",
+                     "default": true
+                  },
+                  {
+                     "name": "options",
+                     "type": "multiEnum"
+                  },
+                  {
+                     "name":"audited",
+                     "type":"bool"
+                  },
+                  {
+                     "name":"readOnly",
+                     "type":"bool"
+                  }
+               ],
+               "filter": true,
+               "personalData": true,
+               "textFilter": true,
+               "fullTextSearch": true
+            }', true)));
+
+        $this->objects['metadata']
+            ->expects($this->exactly(2))
+            ->method('getCustom')
+            ->will($this->returnValue((object) []));
+
+        $this->object->update('Account', 'name', $data);
+    }
+
+    public function testUpdateCoreFieldWithNoChanges()
+    {
         $data = array(
             "type" => "varchar",
-            "maxLength" => "50",
+            "maxLength" => 50,
             "label" => "Name",
         );
 
         $map = array(
-            ['entityDefs.Account.fields.name', null, $data],
+            ['entityDefs.Account.fields.name', [], $data],
             [['entityDefs', 'Account', 'fields', 'name', 'type'], null, $data['type']],
             ['fields.varchar', null, null],
             [['fields', 'varchar', 'hookClassName'], null, null],
         );
 
         $this->objects['metadata']
+            ->expects($this->never())
+            ->method('set');
+
+        $this->objects['language']
+            ->expects($this->once())
+            ->method('save');
+
+        $this->objects['metadataHelper']
+            ->expects($this->once())
+            ->method('getFieldDefsByType')
+            ->will($this->returnValue(json_decode('{
+               "params":[
+                  {
+                     "name":"required",
+                     "type":"bool",
+                     "default":false
+                  },
+                  {
+                     "name":"default",
+                     "type":"varchar"
+                  },
+                  {
+                     "name":"maxLength",
+                     "type":"int"
+                  },
+                  {
+                     "name":"trim",
+                     "type":"bool",
+                     "default": true
+                  },
+                  {
+                     "name": "options",
+                     "type": "multiEnum"
+                  },
+                  {
+                     "name":"audited",
+                     "type":"bool"
+                  },
+                  {
+                     "name":"readOnly",
+                     "type":"bool"
+                  }
+               ],
+               "filter": true,
+               "personalData": true,
+               "textFilter": true,
+               "fullTextSearch": true
+            }', true)));
+
+        $this->objects['metadata']
             ->expects($this->any())
             ->method('get')
             ->will($this->returnValueMap($map));
 
-        $this->object->update('name', $data, 'Account');
+        $this->objects['metadata']
+            ->expects($this->exactly(2))
+            ->method('getCustom')
+            ->will($this->returnValue((object) []));
+
+        $this->object->update('Account', 'name', $data);
     }
 
-    public function testUpdateCustomFieldIsNotChanged()
+    public function dddtestUpdateCustomFieldIsNotChanged()
     {
         $data = array(
             "type" => "varchar",
@@ -115,7 +255,7 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
         );
 
         $map = array(
-            ['entityDefs.CustomEntity.fields.varName', null, $data],
+            ['entityDefs.CustomEntity.fields.varName', [], $data],
             ['entityDefs.CustomEntity.fields.varName.type', null, $data['type']],
             [['entityDefs', 'CustomEntity', 'fields', 'varName'], null, $data],
             ['fields.varchar', null, null],
@@ -132,7 +272,12 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
             ->method('set')
             ->will($this->returnValue(true));
 
-        $this->assertTrue($this->object->update('varName', $data, 'CustomEntity'));
+        $this->objects['metadata']
+            ->expects($this->exactly(1))
+            ->method('getCustom')
+            ->will($this->returnValue((object) []));
+
+        $this->assertTrue($this->object->update('CustomEntity', 'varName', $data));
     }
 
     public function testUpdateCustomField()
@@ -144,7 +289,7 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
         );
 
         $map = array(
-            ['entityDefs.CustomEntity.fields.varName', null, $data],
+            ['entityDefs.CustomEntity.fields.varName', [], $data],
             ['entityDefs.CustomEntity.fields.varName.type', null, $data['type']],
             [['entityDefs', 'CustomEntity', 'fields', 'varName'], null, $data],
             ['fields.varchar', null, null],
@@ -158,8 +303,50 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
 
         $this->objects['metadata']
             ->expects($this->once())
-            ->method('set')
+            ->method('saveCustom')
             ->will($this->returnValue(true));
+
+        $this->objects['metadataHelper']
+            ->expects($this->once())
+            ->method('getFieldDefsByType')
+            ->will($this->returnValue(json_decode('{
+               "params":[
+                  {
+                     "name":"required",
+                     "type":"bool",
+                     "default":false
+                  },
+                  {
+                     "name":"default",
+                     "type":"varchar"
+                  },
+                  {
+                     "name":"maxLength",
+                     "type":"int"
+                  },
+                  {
+                     "name":"trim",
+                     "type":"bool",
+                     "default": true
+                  },
+                  {
+                     "name": "options",
+                     "type": "multiEnum"
+                  },
+                  {
+                     "name":"audited",
+                     "type":"bool"
+                  },
+                  {
+                     "name":"readOnly",
+                     "type":"bool"
+                  }
+               ],
+               "filter": true,
+               "personalData": true,
+               "textFilter": true,
+               "fullTextSearch": true
+            }', true)));
 
         $data = array(
             "type" => "varchar",
@@ -168,7 +355,12 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
             "isCustom" => true,
         );
 
-        $this->object->update('varName', $data, 'CustomEntity');
+        $this->objects['metadata']
+            ->expects($this->exactly(2))
+            ->method('getCustom')
+            ->will($this->returnValue((object) []));
+
+        $this->object->update('CustomEntity', 'varName', $data);
     }
 
     public function testRead()
@@ -190,7 +382,7 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
             ->method('translate')
             ->will($this->returnValue('Var Name'));
 
-        $this->assertEquals($data, $this->object->read('varName', 'Account'));
+        $this->assertEquals($data, $this->object->read('Account', 'varName'));
     }
 
     public function testNormalizeDefs()
@@ -200,29 +392,15 @@ class FieldManagerTest extends \PHPUnit_Framework_TestCase
             "type" => "varchar",
             "maxLength" => "50",
         );
-        $result = array(
-            'fields' => array(
-                'fielName' => array(
+
+        $result = (object) array(
+            'fields' => (object) array(
+                'fielName' => (object) array(
                     "type" => "varchar",
                     "maxLength" => "50",
                 ),
             ),
         );
-        $this->assertEquals($result, $this->reflection->invokeMethod('normalizeDefs', array($input1, $input2, 'CustomEntity')));
+        $this->assertEquals($result, $this->reflection->invokeMethod('normalizeDefs', array('CustomEntity', $input1, $input2)));
     }
-
-    public function testDeleteTestFile()
-    {
-        $file = 'custom/Espo/Custom/Resources/metadata/entityDefs/CustomEntity.json';
-        if (file_exists($file)) {
-            @unlink($file);
-        }
-    }
-
-
-
-
-
 }
-
-?>

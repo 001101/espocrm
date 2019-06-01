@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,9 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-
-
-Espo.define('acl-portal-manager', ['acl-manager', 'acl-portal'], function (Dep, AclPortal) {
+define('acl-portal-manager', ['acl-manager', 'acl-portal'], function (Dep, AclPortal) {
 
     return Dep.extend({
 
@@ -46,7 +44,7 @@ Espo.define('acl-portal-manager', ['acl-manager', 'acl-portal'], function (Dep, 
                 if (scope in this.implementationClassMap) {
                     implementationClass = this.implementationClassMap[scope];
                 }
-                var obj = new implementationClass(this.getUser(), scope);
+                var obj = new implementationClass(this.getUser(), scope, this.aclAllowDeleteCreated);
                 this.implementationHash[scope] = obj;
             }
             return this.implementationHash[scope];

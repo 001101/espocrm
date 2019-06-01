@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,26 +26,35 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('view-helper', [], function () {
+define('view-helper', [], function () {
 
     var ViewHelper = function (options) {
         this.urlRegex = /(^|[^\(])(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
         this._registerHandlebarsHelpers();
 
-        this.mdSearch = [
-            /\["?(.*?)"?\]\((.*?)\)/g,
-            /\&\#x60;(([\s\S]*?)\&\#x60;)/g,
-            /(\*\*)(.*?)\1/g,
-            /(\*)(.*?)\1/g,
-            /\~\~(.*?)\~\~/g
+        this.mdBeforeList = [
+            {
+                regex: /\["?(.*?)"?\]\((.*?)\)/g,
+                value: '<a href="$2">$1</a>'
+            },
+            {
+                regex: /\&\#x60;\&\#x60;\&\#x60;\n?([\s\S]*?)\&\#x60;\&\#x60;\&\#x60;/g,
+                value: function (s, string) {
+                    return '<pre><code>' + string.replace(/\*/g, '&#42;').replace(/\~/g, '&#126;') + '</code></pre>';
+                }
+            },
+            {
+                regex: /\&\#x60;([\s\S]*?)\&\#x60;/g,
+                value: function (s, string) {
+                    return '<code>' + string.replace(/\*/g, '&#42;').replace(/\~/g, '&#126;') + '</code>';
+                }
+            }
         ];
-        this.mdReplace = [
-            '<a href="$2">$1</a>',
-            '<code>$2</code>',
-            '<strong>$2</strong>',
-            '<em>$2</em>',
-            '<del>$1</del>',
-        ];
+
+        marked.setOptions({
+            breaks: true,
+            tables: false
+        });
     }
 
     _.extend(ViewHelper.prototype, {
@@ -60,45 +69,46 @@ Espo.define('view-helper', [], function () {
 
         language: null,
 
-        tranformTextMarkdown: function (text) {
-            var newline = text.indexOf('\r\n') != -1 ? '\r\n' : text.indexOf('\n') != -1 ? '\n' : '';
+        getAppParam: function (name) {
+            return (this.appParams || {})[name];
+        },
 
-            if (newline != '') {
-                var d = [];
-                var r = [];
+        stripTags: function (text) {
+            text = text || '';
+            if (typeof text === 'string' || text instanceof String) {
+                return text.replace(/<\/?[^>]+(>|$)/g, '');
+            }
+            return text;
+        },
 
-                var p = text.split(newline);
-                p.push('');
+        escapeString: function (text) {
+            return Handlebars.Utils.escapeExpression(text);
+        },
 
-                var isBlockLevel = false;
-                p.forEach(function (item, i) {
-                    if (item.length >= 5 && item.indexOf('&gt; ') === 0) {
-                        if (!isBlockLevel) {
-                            d = [];
-                            isBlockLevel = true;
-                        }
-                        d.push(item.replace(/&gt; /gm, ''));
-
-                    } else {
-                        if (isBlockLevel) {
-                            r.push('<blockquote>' + d.join(newline) + '</blockquote>' + item)
-                        } else {
-                            r.push(item);
-                        }
-                        isBlockLevel = false;
-                    }
-                }, this);
-
-                if (r.slice(-1)[0] == '') {
-                    r.pop();
-                }
-
-                var t = r.join(newline);
-
-                return t;
+        getAvatarHtml: function (id, size, width, additionalClassName) {
+            if (this.config.get('avatarsDisabled')) {
+                return '';
             }
 
-            return text;
+            var t;
+            var cache = this.cache;
+            if (cache) {
+                t = cache.get('app', 'timestamp');
+            } else {
+                t = Date.now();
+            }
+
+            var basePath = this.basePath || '';
+            var size = size || 'small';
+
+            var width = (width || 16).toString();
+
+            var className = 'avatar';
+            if (additionalClassName) {
+                className += ' ' + additionalClassName;
+            }
+
+            return '<img class="'+className+'" width="'+width+'" src="'+basePath+'?entryPoint=avatar&size='+size+'&id=' + id + '&t='+t+'">';
         },
 
         _registerHandlebarsHelpers: function () {
@@ -179,7 +189,9 @@ Espo.define('view-helper', [], function () {
                 var style = options.hash.style || 'default';
                 var scope = options.hash.scope || null;
                 var label = options.hash.label || name;
-                return new Handlebars.SafeString('<button class="btn btn-'+style+' action'+ (options.hash.hidden ? ' hidden' : '')+'" data-action="'+name+'" type="button">'+self.language.translate(label, 'labels', scope)+'</button>');
+
+                var html = options.hash.html || options.hash.text || self.language.translate(label, 'labels', scope);
+                return new Handlebars.SafeString('<button class="btn btn-'+style+' action'+ (options.hash.hidden ? ' hidden' : '')+'" data-action="'+name+'" type="button">'+html+'</button>');
             });
 
             Handlebars.registerHelper('hyphen', function (string) {
@@ -197,21 +209,22 @@ Espo.define('view-helper', [], function () {
             });
 
             Handlebars.registerHelper('complexText', function (text) {
-                text = Handlebars.Utils.escapeExpression(text || '');
+                text = text || ''
 
-                text = text.replace(self.urlRegex, '$1[$2]($2)');
+                text = text.replace(this.urlRegex, '$1[$2]($2)');
 
-                self.mdSearch.forEach(function (re, i) {
-                    text = text.replace(re, self.mdReplace[i]);
+                text = Handlebars.Utils.escapeExpression(text).replace(/&gt;+/g, '>');
+
+                this.mdBeforeList.forEach(function (item) {
+                    text = text.replace(item.regex, item.value);
                 });
 
-                text = self.tranformTextMarkdown(text);
+                text = marked(text);
 
-                text = text.replace(/(\r\n|\n|\r)/gm, '<br>');
+                text = text.replace(/<a href="mailto:(.*)"/gm, '<a href="javascript:" data-email-address="$1" data-action="mailTo"');
 
-                text = text.replace('[#see-more-text]', ' <a href="javascript:" data-action="seeMoreText">' + self.language.translate('See more')) + '</a>';
                 return new Handlebars.SafeString(text);
-            });
+            }.bind(this));
 
             Handlebars.registerHelper('translateOption', function (name, options) {
                 var scope = options.hash.scope || null;
@@ -281,9 +294,32 @@ Espo.define('view-helper', [], function () {
             Handlebars.registerHelper('basePath', function () {
                 return self.basePath || '';
             });
+        },
+
+        getScopeColorIconHtml: function (scope, noWhiteSpace, additionalClassName) {
+            if (this.config.get('scopeColorsDisabled') || this.preferences.get('scopeColorsDisabled')) {
+                return '';
+            }
+
+            var color = this.metadata.get(['clientDefs', scope, 'color']);
+            var html = '';
+
+            if (color) {
+                var $span = $('<span class="color-icon fas fa-square-full">');
+                $span.css('color', color);
+                if (additionalClassName) {
+                    $span.addClass(additionalClassName);
+                }
+                html = $span.get(0).outerHTML;
+            }
+
+            if (!noWhiteSpace) {
+                if (html) html += '&nbsp;';
+            }
+
+            return html;
         }
     });
 
     return ViewHelper;
-
 });

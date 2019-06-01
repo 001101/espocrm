@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ Espo.define('views/admin/field-manager/fields/dynamic-logic-conditions', 'views/
 
     return Dep.extend({
 
+        detailTemplate: 'admin/field-manager/fields/dynamic-logic-conditions/detail',
+
         editTemplate: 'admin/field-manager/fields/dynamic-logic-conditions/edit',
 
         events: {
@@ -43,7 +45,7 @@ Espo.define('views/admin/field-manager/fields/dynamic-logic-conditions', 'views/
 
         setup: function () {
             this.conditionGroup = Espo.Utils.cloneDeep((this.model.get(this.name) || {}).conditionGroup || []);
-            this.scope = this.options.scope;
+            this.scope = this.params.scope || this.options.scope;
             this.createStringView();
         },
 
@@ -65,7 +67,7 @@ Espo.define('views/admin/field-manager/fields/dynamic-logic-conditions', 'views/
         edit: function () {
             this.createView('modal', 'views/admin/dynamic-logic/modals/edit', {
                 conditionGroup: this.conditionGroup,
-                scope: this.options.scope
+                scope: this.scope
             }, function (view) {
                 view.render();
 
@@ -79,9 +81,11 @@ Espo.define('views/admin/field-manager/fields/dynamic-logic-conditions', 'views/
 
         fetch: function () {
             var data = {};
-            data[this.name] = this.conditionGroup;
+            data[this.name] = {
+                conditionGroup: this.conditionGroup
+            };
 
-            if (data[this.name].length === 0) {
+            if (this.conditionGroup.length === 0) {
                 data[this.name] = null;
             }
 

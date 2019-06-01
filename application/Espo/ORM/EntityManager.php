@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +29,11 @@
 
 namespace Espo\ORM;
 
+use \Espo\Core\Exceptions\Error;
+
 class EntityManager
 {
+    const STH_COLLECTION = 'sthCollection';
 
     protected $pdo;
 
@@ -38,20 +41,20 @@ class EntityManager
 
     protected $repositoryFactory;
 
-    protected $mappers = array();
+    protected $mappers = [];
 
     protected $metadata;
 
-    protected $repositoryHash = array();
+    protected $repositoryHash = [];
 
-    protected $params = array();
+    protected $params = [];
 
     protected $query;
 
-    protected $driverPlatformMap = array(
+    protected $driverPlatformMap = [
         'pdo_mysql' => 'Mysql',
         'mysqli' => 'Mysql',
-    );
+    ];
 
     public function __construct($params)
     {
@@ -94,7 +97,7 @@ class EntityManager
         if (empty($this->query)) {
             $platform = $this->params['platform'];
             $className = '\\Espo\\ORM\\DB\\Query\\' . ucfirst($platform);
-            $this->query = new $className($this->getPDO(), $this->entityFactory);
+            $this->query = new $className($this->getPDO(), $this->entityFactory, $this->metadata);
         }
         return $this->query;
     }
@@ -122,7 +125,7 @@ class EntityManager
         }
 
         if (empty($this->mappers[$className])) {
-            $this->mappers[$className] = new $className($this->getPDO(), $this->entityFactory, $this->getQuery());
+            $this->mappers[$className] = new $className($this->getPDO(), $this->entityFactory, $this->getQuery(), $this->metadata);
         }
         return $this->mappers[$className];
     }
@@ -135,33 +138,66 @@ class EntityManager
 
         $platform = strtolower($params['platform']);
 
-        $this->pdo = new \PDO($platform . ':host='.$params['host'].';'.$port.'dbname=' . $params['dbname'] . ';charset=' . $params['charset'], $params['user'], $params['password']);
+        $options = [];
+        if (isset($params['sslCA'])) {
+            $options[\PDO::MYSQL_ATTR_SSL_CA] = $params['sslCA'];
+        }
+        if (isset($params['sslCert'])) {
+            $options[\PDO::MYSQL_ATTR_SSL_CERT] = $params['sslCert'];
+        }
+        if (isset($params['sslKey'])) {
+            $options[\PDO::MYSQL_ATTR_SSL_KEY] = $params['sslKey'];
+        }
+        if (isset($params['sslCAPath'])) {
+            $options[\PDO::MYSQL_ATTR_SSL_CAPATH] = $params['sslCAPath'];
+        }
+        if (isset($params['sslCipher'])) {
+            $options[\PDO::MYSQL_ATTR_SSL_CIPHER] = $params['sslCipher'];
+        }
+
+        $this->pdo = new \PDO($platform . ':host='.$params['host'].';'.$port.'dbname=' . $params['dbname'] . ';charset=' . $params['charset'], $params['user'], $params['password'], $options);
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
     }
 
-    public function getEntity($name, $id = null)
+    public function getEntity($entityType, $id = null)
     {
-        return $this->getRepository($name)->get($id);
-    }
-
-    public function saveEntity(Entity $entity, array $options = array())
-    {
-        $entityName = $entity->getEntityName();
-        return $this->getRepository($entityName)->save($entity, $options);
-    }
-
-    public function removeEntity(Entity $entity, array $options = array())
-    {
-        $entityName = $entity->getEntityName();
-        return $this->getRepository($entityName)->remove($entity, $options);
-    }
-
-    public function getRepository($name)
-    {
-        if (empty($this->repositoryHash[$name])) {
-            $this->repositoryHash[$name] = $this->repositoryFactory->create($name);
+        if (!$this->hasRepository($entityType)) {
+            throw new Error("ORM: Repository '{$entityType}' does not exist.");
         }
-        return $this->repositoryHash[$name];
+
+        return $this->getRepository($entityType)->get($id);
+    }
+
+    public function saveEntity(Entity $entity, array $options = [])
+    {
+        $entityType = $entity->getEntityType();
+        return $this->getRepository($entityType)->save($entity, $options);
+    }
+
+    public function removeEntity(Entity $entity, array $options = [])
+    {
+        $entityType = $entity->getEntityType();
+        return $this->getRepository($entityType)->remove($entity, $options);
+    }
+
+    public function createEntity($entityType, $data, array $options = [])
+    {
+        $entity = $this->getEntity($entityType);
+        $entity->set($data);
+        $this->saveEntity($entity, $options);
+        return $entity;
+    }
+
+    public function getRepository($entityType)
+    {
+        if (!$this->hasRepository($entityType)) {
+            // TODO Throw error
+        }
+
+        if (empty($this->repositoryHash[$entityType])) {
+            $this->repositoryHash[$entityType] = $this->repositoryFactory->create($entityType);
+        }
+        return $this->repositoryHash[$entityType];
     }
 
     public function setMetadata(array $data)
@@ -169,9 +205,19 @@ class EntityManager
         $this->metadata->setData($data);
     }
 
+    public function hasRepository($entityType)
+    {
+        return $this->getMetadata()->has($entityType);
+    }
+
     public function getMetadata()
     {
         return $this->metadata;
+    }
+
+    public function getOrmMetadata()
+    {
+        return $this->getMetadata();
     }
 
     public function getPDO()
@@ -192,15 +238,38 @@ class EntityManager
         return $name;
     }
 
-    public function createCollection($entityName, $data = array())
+    public function createCollection($entityType, $data = [])
     {
-        $seed = $this->getEntity($entityName);
-        $collection = new EntityCollection($data, $seed, $this->entityFactory);
+        $collection = new EntityCollection($data, $entityType, $this->entityFactory);
         return $collection;
+    }
+
+    public function createSthCollection(string $entityType, array $selectParams = [])
+    {
+        return new SthCollection($entityType, $this, $selectParams);
+    }
+
+    public function getEntityFactory()
+    {
+        return $this->entityFactory;
+    }
+
+    public function runQuery($query, $rerunIfDeadlock = false)
+    {
+        try {
+            return $this->getPDO()->query($query);
+        } catch (\Exception $e) {
+            if ($rerunIfDeadlock) {
+                if ($e->errorInfo[0] == 40001 && $e->errorInfo[1] == 1213) {
+                    return $this->getPDO()->query($query);
+                } else {
+                    throw $e;
+                }
+            }
+        }
     }
 
     protected function init()
     {
     }
 }
-

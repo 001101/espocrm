@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,36 +25,43 @@
  *
  * In accordance with Section 7(b) of the GNU General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
- ************************************************************************/ 
+ ************************************************************************/
+
+$config = $installer->getConfig();
 
 $fields = array(
-	'dateFormat' =>array (
-		'default' => (isset($settingsDefaults['dateFormat']['default'])) ? $settingsDefaults['dateFormat']['default'] : '',
-		),
-	'timeFormat' => array(
-		'default'=> (isset($settingsDefaults['timeFormat']['default'])) ? $settingsDefaults['timeFormat']['default'] : ''),
-	'timeZone' => array(),
-	'weekStart' => array((isset($settingsDefaults['weekStart']['default'])) ? $settingsDefaults['weekStart']['default'] : ''),
-	'defaultCurrency' => array(
-		'default' => (isset($settingsDefaults['defaultCurrency']['default'])) ? $settingsDefaults['defaultCurrency']['default'] : ''),
-	'thousandSeparator' => array(
-		'default' => ',',
-	),
-	'decimalMark' =>array(
-		'default' => '.',
-	),
-	'language' => array(
-		'default'=> (!empty($_SESSION['install']['user-lang'])) ? $_SESSION['install']['user-lang'] : 'en_US'
-	),
+    'dateFormat' =>array (
+        'default' => $config->get('dateFormat', ''),
+    ),
+    'timeFormat' => array(
+        'default'=> $config->get('timeFormat', ''),
+    ),
+    'timeZone' => array(
+        'default'=> $config->get('timeZone', 'UTC'),
+    ),
+    'weekStart' => array(
+        'default'=> $config->get('weekStart', 0),
+    ),
+    'defaultCurrency' => array(
+        'default' => $config->get('defaultCurrency', 'USD'),
+    ),
+    'thousandSeparator' => array(
+        'default' => $config->get('thousandSeparator', ','),
+    ),
+    'decimalMark' =>array(
+        'default' => $config->get('decimalMark', '.'),
+    ),
+    'language' => array(
+        'default'=> (!empty($_SESSION['install']['user-lang'])) ? $_SESSION['install']['user-lang'] : $config->get('language', 'en_US'),
+    ),
 );
 
 foreach ($fields as $fieldName => $field) {
-	if (isset($_SESSION['install'][$fieldName])) {
-		$fields[$fieldName]['value'] = $_SESSION['install'][$fieldName];
-	}
-	else {
-		$fields[$fieldName]['value'] = (isset($fields[$fieldName]['default']))? $fields[$fieldName]['default'] : '';
-	}
+    if (isset($_SESSION['install'][$fieldName])) {
+        $fields[$fieldName]['value'] = $_SESSION['install'][$fieldName];
+    } else {
+        $fields[$fieldName]['value'] = isset($field['default']) ? $field['default'] : '';
+    }
 }
 
 $smarty->assign('fields', $fields);

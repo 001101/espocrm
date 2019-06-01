@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 
 namespace Espo\Modules\Crm\Jobs;
 
+use Espo\Core\CronManager;
+
 use \Espo\Core\Exceptions\Error;
 
 class CheckEmailAccounts extends \Espo\Core\Jobs\Base
@@ -43,11 +45,11 @@ class CheckEmailAccounts extends \Espo\Core\Jobs\Base
         $entity = $this->getEntityManager()->getEntity('EmailAccount', $targetId);
 
         if (!$entity) {
-            throw new Error("Job CheckEmailAccounts '".$targetId."': EmailAccount does not exist.");
-        };
+            throw new Error("Job CheckEmailAccounts '".$targetId."': EmailAccount does not exist.", -1);
+        }
 
         if ($entity->get('status') !== 'Active') {
-            throw new Error("Job CheckEmailAccounts '".$targetId."': EmailAccount is not active.");
+            throw new Error("Job CheckEmailAccounts '".$targetId."': EmailAccount is not active.", -1);
         }
 
         try {
@@ -58,35 +60,42 @@ class CheckEmailAccounts extends \Espo\Core\Jobs\Base
         return true;
     }
 
-    public function prepare($data, $executeTime)
+    public function prepare($scheduledJob, $executeTime)
     {
-        $collection = $this->getEntityManager()->getRepository('EmailAccount')->where(array(
-            'status' => 'Active'
-        ))->find();
+        $collection = $this->getEntityManager()->getRepository('EmailAccount')->join([['assignedUser', 'assignedUserAdditional']])->where([
+            'status' => 'Active',
+            'useImap' => true,
+            'assignedUserAdditional.isActive' => true
+        ])->find();
+
         foreach ($collection as $entity) {
-            $running = $this->getEntityManager()->getRepository('Job')->where(array(
-                'scheduledJobId' => $data['id'],
-                'status' => ['Running', 'Pending'],
+            $running = $this->getEntityManager()->getRepository('Job')->where([
+                'scheduledJobId' => $scheduledJob->id,
+                'status' => [CronManager::RUNNING, CronManager::READY],
                 'targetType' => 'EmailAccount',
                 'targetId' => $entity->id
-            ))->findOne();
+            ])->findOne();
             if ($running) continue;
 
-            $job = $this->getEntityManager()->getEntity('Job');
-
-            $jobEntity = $this->getEntityManager()->getEntity('Job');
-            $jobEntity->set(array(
-                'name' => $data['name'],
-                'scheduledJobId' => $data['id'],
-                'executeTime' => $executeTime,
-                'method' => 'CheckEmailAccounts',
+            $countPending = $this->getEntityManager()->getRepository('Job')->where([
+                'scheduledJobId' => $scheduledJob->id,
+                'status' => CronManager::PENDING,
                 'targetType' => 'EmailAccount',
                 'targetId' => $entity->id
-            ));
+            ])->count();
+            if ($countPending > 1) continue;
+
+            $jobEntity = $this->getEntityManager()->getEntity('Job');
+            $jobEntity->set([
+                'name' => $scheduledJob->get('name'),
+                'scheduledJobId' => $scheduledJob->id,
+                'executeTime' => $executeTime,
+                'targetType' => 'EmailAccount',
+                'targetId' => $entity->id
+            ]);
             $this->getEntityManager()->saveEntity($jobEntity);
         }
 
         return true;
     }
 }
-

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,18 +31,39 @@ namespace Espo\Modules\Crm\SelectManagers;
 
 class MassEmail extends \Espo\Core\SelectManagers\Base
 {
-    protected function acessOnlyOwn(&$result)
+    protected function filterActual(&$result)
     {
         $result['whereClause'][] = array(
-            'campaign.assignedUserId' => $this->getUser()->id
+            'status' => ['Pending', 'Draft']
+        );
+    }
+
+    protected function filterComplete(&$result)
+    {
+        $result['whereClause'][] = array(
+            'status' => 'Complete'
+        );
+    }
+
+    protected function accessOnlyOwn(&$result)
+    {
+        $this->addLeftJoin(['campaign', 'campaignAccess'], $result);
+
+        $result['whereClause'][] = array(
+            'campaignAccess.assignedUserId' => $this->getUser()->id
         );
     }
 
     protected function accessOnlyTeam(&$result)
     {
-        $teamIdList = $this->user->get('teamsIds');
+        $this->addLeftJoin(['campaign', 'campaignAccess'], $result);
+
+        $teamIdList = $this->user->getLinkMultipleIdList('teams');
+        if (empty($result['customWhere'])) {
+            $result['customWhere'] = '';
+        }
         if (empty($teamIdList)) {
-            $result['customWhere'] .= " AND campaign.assigned_user_id = ".$this->getEntityManager()->getPDO()->quote($this->getUser()->id);
+            $result['customWhere'] .= " AND campaignAccess.assigned_user_id = ".$this->getEntityManager()->getPDO()->quote($this->getUser()->id);
             return;
         }
         $arr = [];
@@ -52,12 +73,12 @@ class MassEmail extends \Espo\Core\SelectManagers\Base
             }
         }
 
-        $result['customJoin'] .= " LEFT JOIN entity_team AS teamsMiddle ON teamsMiddle.entity_type = 'Campaign' AND teamsMiddle.entity_id = campaign.id AND teamsMiddle.deleted = 0";
+        $result['customJoin'] .= " LEFT JOIN entity_team AS teamsMiddle ON teamsMiddle.entity_type = 'Campaign' AND teamsMiddle.entity_id = campaignAccess.id AND teamsMiddle.deleted = 0";
         $result['customWhere'] .= "
             AND (
                 teamsMiddle.team_id IN (" . implode(', ', $arr) . ")
                  OR
-                campaign.assigned_user_id = ".$this->getEntityManager()->getPDO()->quote($this->getUser()->id)."
+                campaignAccess.assigned_user_id = ".$this->getEntityManager()->getPDO()->quote($this->getUser()->id)."
             )
         ";
         $result['whereClause'][] = array(
@@ -65,4 +86,3 @@ class MassEmail extends \Espo\Core\SelectManagers\Base
         );
     }
 }
-

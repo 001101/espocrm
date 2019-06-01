@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,24 +27,23 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-return array (    'defaultPermissions' =>
-    array (
+return [
+    'defaultPermissions' => [
         'dir' => '0775',
         'file' => '0664',
         'user' => '',
-        'group' => '',
-    ),
-
-    'permissionMap' => array(
-
+        'group' => ''
+    ],
+    'permissionMap' => [
         /** array('0664', '0775') */
-        'writable' => array(
+        'writable' => [
             'data',
             'custom',
-        ),
-
+            'application/Espo/Modules',
+            'client/modules'
+        ],
         /** array('0644', '0755') */
-        'readable' => array(
+        'readable' => [
             'api',
             'application',
             'client',
@@ -52,33 +51,38 @@ return array (    'defaultPermissions' =>
             'index.php',
             'cron.php',
             'rebuild.php',
-            'main.html',
-            'reset.html',
-        ),
-    ),
-    'cron' => array(
-        'maxJobNumber' => 15, /** Max number of jobs per one execution */
-        'jobPeriod' => 7800, /** Period for jobs, ex. if cron executed at 15:35, it will execute all pending jobs for times from 14:05 to 15:35 */
-        'minExecutionTime' => 50, /** to avoid too frequency execution */
-        'attempts' => 3, /** attempts to run jobs */
-    ),
-    'crud' => array(
+            'clear_cache.php'
+        ],
+    ],
+    'jobMaxPortion' => 15, /** Max number of jobs per one execution. */
+    'jobPeriod' => 7800, /** Max execution time (in seconds) allocated for a sinle job. If exceeded then set to Failed.*/
+    'jobPeriodForActiveProcess' => 36000, /** Max execution time (in seconds) allocated for a sinle job with active process. If exceeded then set to Failed.*/
+    'jobRerunAttemptNumber' => 1, /** Number of attempts to re-run failed jobs. */
+    'jobRunInParallel' => false, /** Jobs will be executed in parallel processes. */
+    'jobPoolConcurrencyNumber' => 8, /** Max number of processes run simultaneously. */
+    'cronMinInterval' => 2, /** Min interval (in seconds) between two cron runs. */
+    'daemonMaxProcessNumber' => 5, /** Max number of cron processes run simultaneously. */
+    'daemonInterval' => 10, /** Interval between process runs in seconds. */
+    'daemonProcessTimeout' => 36000,
+    'crud' => [
         'get' => 'read',
         'post' => 'create',
         'put' => 'update',
         'patch' => 'patch',
         'delete' => 'delete',
-    ),
-    'systemUser' => array(
+    ],
+    'systemUserAttributes' => [
         'id' => 'system',
         'userName' => 'system',
         'firstName' => '',
         'lastName' => 'System',
-    ),
-    'systemItems' =>
-    array (
+        'type' => 'system',
+    ],
+    'systemItems' => [
         'systemItems',
         'adminItems',
+        'superAdminItems',
+        'superAdminSystemItems',
         'configPath',
         'cachePath',
         'database',
@@ -91,13 +95,37 @@ return array (    'defaultPermissions' =>
         'permissionRules',
         'passwordSalt',
         'cryptKey',
+        'apiSecretKeys',
         'restrictedMode',
         'userLimit',
         'portalUserLimit',
-        'stylesheet'
-    ),
-    'adminItems' =>
-    array (
+        'stylesheet',
+        'userItems',
+        'internalSmtpServer',
+        'internalSmtpPort',
+        'internalSmtpAuth',
+        'internalSmtpUsername',
+        'internalSmtpPassword',
+        'internalSmtpSecurity',
+        'internalOutboundEmailFromAddress',
+        'requiredPhpVersion',
+        'requiredMysqlVersion',
+        'recommendedMysqlParams',
+        'requiredPhpLibs',
+        'recommendedPhpLibs',
+        'recommendedPhpParams',
+        'requiredMariadbVersion',
+        'recommendedMariadbParams',
+        'phpExecutablePath',
+        'webSocketDebugMode',
+        'webSocketSslCertificateFile',
+        'webSocketSslCertificateLocalPrivateKey',
+        'webSocketSslCertificatePassphrase',
+        'webSocketSslAllowSelfSigned',
+        'webSocketUseSecureServer',
+        'webSocketPort',
+    ],
+    'adminItems' => [
         'devMode',
         'smtpServer',
         'smtpPort',
@@ -105,8 +133,18 @@ return array (    'defaultPermissions' =>
         'smtpSecurity',
         'smtpUsername',
         'smtpPassword',
-        'cron',
+        'jobMaxPortion',
+        'jobPeriod',
+        'jobRerunAttemptNumber',
+        'jobRunInParallel',
+        'jobPoolConcurrencyNumber',
+        'jobPeriodForActiveProcess',
+        'cronMinInterval',
+        'daemonInterval',
+        'daemonProcessTimeout',
+        'daemonMaxProcessNumber',
         'authenticationMethod',
+        'adminPanelIframeUrl',
         'ldapHost',
         'ldapPort',
         'ldapSecurity',
@@ -122,6 +160,7 @@ return array (    'defaultPermissions' =>
         'ldapAccountFilterFormat',
         'ldapTryUsernameSplit',
         'ldapOptReferrals',
+        'ldapPortalUserLdapAuth',
         'ldapCreateEspoUser',
         'ldapAccountDomainName',
         'ldapAccountDomainNameShort',
@@ -137,8 +176,50 @@ return array (    'defaultPermissions' =>
         'personalEmailMaxPortionSize',
         'inboundEmailMaxPortionSize',
         'authTokenLifetime',
-        'authTokenMaxIdleTime'
-    ),
+        'authTokenMaxIdleTime',
+        'ldapUserDefaultTeamId',
+        'ldapUserDefaultTeamName',
+        'ldapUserTeamsIds',
+        'ldapUserTeamsNames',
+        'ldapPortalUserPortalsIds',
+        'ldapPortalUserPortalsNames',
+        'ldapPortalUserRolesIds',
+        'ldapPortalUserRolesNames',
+        'cleanupJobPeriod',
+        'cleanupActionHistoryPeriod',
+        'adminNotifications',
+        'adminNotificationsNewVersion',
+        'adminNotificationsCronIsNotConfigured',
+        'adminNotificationsNewExtensionVersion',
+        'leadCaptureAllowOrigin',
+        'cronDisabled',
+    ],
+    'superAdminItems' => [
+        'jobMaxPortion',
+        'jobPeriod',
+        'jobRerunAttemptNumber',
+        'jobRunInParallel',
+        'jobPoolConcurrencyNumber',
+        'jobPeriodForActiveProcess',
+        'cronMinInterval',
+        'daemonInterval',
+        'daemonProcessTimeout',
+        'daemonMaxProcessNumber',
+        'adminPanelIframeUrl',
+        'cronDisabled',
+        'maintenanceMode',
+        'siteUrl',
+        'useWebSocket',
+        'webSocketUrl',
+    ],
+    'superAdminSystemItems' => [
+    ],
+    'userItems' => [
+        'outboundEmailFromAddress',
+        'outboundEmailFromName',
+        'outboundEmailBccAddress',
+        'integrations',
+    ],
     'isInstalled' => false,
     'ldapUserNameAttribute' => 'sAMAccountName',
     'ldapUserFirstNameAttribute' => 'givenName',
@@ -147,5 +228,32 @@ return array (    'defaultPermissions' =>
     'ldapUserEmailAddressAttribute' => 'mail',
     'ldapUserPhoneNumberAttribute' => 'telephoneNumber',
     'ldapUserObjectClass' => 'person',
-);
-
+    'requiredPhpVersion' => '7.1.0',
+    'requiredPhpLibs' => [
+        'json',
+        'openssl',
+        'pdo_mysql',
+        'mbstring',
+        'zip',
+        'gd',
+        'iconv'
+    ],
+    'recommendedPhpLibs' => [
+        'curl',
+        'xml',
+        'xmlwriter',
+        'exif',
+    ],
+    'recommendedPhpParams' => [
+        'max_execution_time' => 180,
+        'max_input_time' => 180,
+        'memory_limit' => '256M',
+        'post_max_size' => '20M',
+        'upload_max_filesize' => '20M',
+    ],
+    'requiredMysqlVersion' => '5.5.3',
+    'recommendedMysqlParams' => [],
+    'requiredMariadbVersion' => '5.5.3',
+    'recommendedMariadbParams' => [],
+    'ldapPortalUserLdapAuth' => false,
+];

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,12 +35,15 @@ Espo.define('views/admin/dynamic-logic/fields/field', 'views/fields/multi-enum',
 
             var filterList = Object.keys(fields).filter(function (field) {
                 var fieldType = fields[field].type || null;
+                if (fields[field].disabled) return;
                 if (!fieldType) return;
 
                 if (!this.getMetadata().get(['clientDefs', 'DynamicLogic', 'fieldTypes', fieldType])) return;
 
                 return true;
             }, this);
+
+            filterList.push('id');
 
             filterList.sort(function (v1, v2) {
                 return this.translate(v1, 'fields', this.options.scope).localeCompare(this.translate(v2, 'fields', this.options.scope));
@@ -62,6 +65,13 @@ Espo.define('views/admin/dynamic-logic/fields/field', 'views/fields/multi-enum',
 
             this.params.options = this.getFieldList();
             this.setupTranslatedOptions();
+        },
+
+        afterRender: function () {
+            Dep.prototype.afterRender.call(this);
+            if (this.$element && this.$element[0] && this.$element[0].selectize) {
+                this.$element[0].selectize.focus();
+            }
         }
 
     });

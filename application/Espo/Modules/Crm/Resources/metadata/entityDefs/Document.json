@@ -14,16 +14,10 @@
         "status": {
             "type": "enum",
             "options": ["Active", "Draft", "Expired", "Canceled"],
-            "view": "views/fields/enum-styled",
             "style": {
                 "Canceled": "danger",
                 "Expired": "danger"
             }
-        },
-        "source": {
-            "type": "enum",
-            "options": ["Espo"],
-            "default": "Espo"
         },
         "type": {
             "type": "enum",
@@ -96,6 +90,11 @@
             "entity": "Lead",
             "foreign": "documents"
         },
+        "contacts": {
+            "type": "hasMany",
+            "entity": "Contact",
+            "foreign": "documents"
+        },
         "createdBy": {
             "type": "belongsTo",
             "entity": "User"
@@ -121,7 +120,7 @@
         }
     },
     "collection": {
-        "sortBy": "createdAt",
-        "asc": false
+        "orderBy": "createdAt",
+        "order": "desc"
     }
 }

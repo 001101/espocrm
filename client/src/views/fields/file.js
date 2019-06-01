@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
 
         type: 'file',
 
-        listTemplate: 'fields/file/detail',
+        listTemplate: 'fields/file/list',
 
         detailTemplate: 'fields/file/detail',
 
@@ -46,11 +46,16 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
             'image/jpeg',
             'image/png',
             'image/gif',
+            'image/webp',
         ],
 
         defaultType: false,
 
         previewSize: 'small',
+
+        validations: ['ready', 'required'],
+
+        searchTypeList: ['isNotEmpty', 'isEmpty'],
 
         events: {
             'click a.remove-attachment': function (e) {
@@ -67,16 +72,6 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
                 }
             },
             'click a[data-action="showImagePreview"]': function (e) {
-                var id = $(e.currentTarget).data('id');
-                this.createView('preview', 'views/modals/image-preview', {
-                    id: id,
-                    model: this.model,
-                    name: this.nameHash[id]
-                }, function (view) {
-                    view.render();
-                });
-            },
-            'click a[data-action="showImagePreview"]': function (e) {
                 e.preventDefault();
 
                 var id = this.model.get(this.idName);
@@ -88,22 +83,58 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
                     view.render();
                 });
             },
+            'click a.action[data-action="insertFromSource"]': function (e) {
+                var name = $(e.currentTarget).data('name');
+                this.insertFromSource(name);
+            }
         },
 
         data: function () {
-            return _.extend({
+            var data =_.extend({
                 id: this.model.get(this.idName),
                 acceptAttribue: this.acceptAttribue
             }, Dep.prototype.data.call(this));
+
+            if (this.mode == 'edit') {
+                data.sourceList = this.sourceList;
+            }
+
+            data.valueIsSet = this.model.has(this.idName);
+
+            return data;
+        },
+
+        showValidationMessage: function (msg, selector) {
+            var $label = this.$el.find('label');
+            var title = $label.attr('title');
+            $label.attr('title', '');
+            Dep.prototype.showValidationMessage.call(this, msg, selector);
+            $label.attr('title', title);
         },
 
         validateRequired: function () {
             if (this.isRequired()) {
                 if (this.model.get(this.idName) == null) {
-                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
-                    this.showValidationMessage(msg, '.attachment-button label');
+                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.getLabelText());
+                    var $target;
+                    if (this.isUploading) {
+                        $target = this.$el.find('.gray-box');
+                    } else {
+                        $target = this.$el.find('.attachment-button label');
+                    }
+
+                    this.showValidationMessage(msg, $target);
                     return true;
                 }
+            }
+        },
+
+        validateReady: function () {
+            if (this.isUploading) {
+                var $target = this.$el.find('.gray-box');
+                var msg = this.translate('fieldIsUploading', 'messages').replace('{field}', this.getLabelText());
+                this.showValidationMessage(msg, $target);
+                return true;
             }
         },
 
@@ -112,6 +143,24 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
             this.idName = this.name + 'Id';
             this.typeName = this.name + 'Type';
             this.foreignScope = 'Attachment';
+
+            this.previewSize = this.options.previewSize || this.params.previewSize || this.previewSize;
+
+            var sourceDefs = this.getMetadata().get(['clientDefs', 'Attachment', 'sourceDefs']) || {};
+
+            this.sourceList = Espo.Utils.clone(this.params.sourceList || []).filter(function (item) {
+                if (!(item in sourceDefs)) return true;
+                var defs = sourceDefs[item];
+                if (defs.configCheck) {
+                    var configCheck = defs.configCheck;
+                    if (configCheck) {
+                        var arr = configCheck.split('.');
+                        if (this.getConfig().getByPath(arr)) {
+                            return true;
+                        }
+                    }
+                }
+            }, this);
 
             if ('showPreview' in this.params) {
                 this.showPreview = this.params.showPreview;
@@ -125,6 +174,11 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
                 this.acceptAttribue = this.accept.join('|');
             }
 
+            this.once('remove', function () {
+                if (this.resizeIsBeingListened) {
+                    $(window).off('resize.' + this.cid);
+                }
+            }.bind(this));
         },
 
         afterRender: function () {
@@ -158,28 +212,44 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
                     e.preventDefault();
                 }.bind(this));
             }
+
+            if (this.mode == 'search') {
+                var type = this.$el.find('select.search-type').val();
+                this.handleSearchType(type);
+            }
+
+            if (this.mode === 'detail') {
+                if (this.previewSize === 'large') {
+                    this.handleResize();
+                    this.resizeIsBeingListened = true;
+                    $(window).on('resize.' + this.cid, function () {
+                        this.handleResize();
+                    }.bind(this));
+                }
+            }
+        },
+
+        handleResize: function () {
+            var width = this.$el.width();
+            this.$el.find('img.image-preview').css('maxWidth', width + 'px');
         },
 
         getDetailPreview: function (name, type, id) {
+            name = Handlebars.Utils.escapeExpression(name);
             var preview = name;
 
-            switch (type) {
-                case 'image/png':
-                case 'image/jpeg':
-                case 'image/gif':
-                    preview = '<a data-action="showImagePreview" data-id="' + id + '" href="' + this.getImageUrl(id) + '"><img src="'+this.getBasePath()+'?entryPoint=image&size='+this.previewSize+'&id=' + id + '"></a>'; 
+            if (~this.previewTypeList.indexOf(type)) {
+                preview = '<a data-action="showImagePreview" data-id="' + id + '" href="' + this.getImageUrl(id) + '"><img src="'+this.getBasePath()+'?entryPoint=image&size='+this.previewSize+'&id=' + id + '" class="image-preview"></a>';
             }
             return preview;
         },
 
         getEditPreview: function (name, type, id) {
+            name = Handlebars.Utils.escapeExpression(name);
             var preview = name;
 
-            switch (type) {
-                case 'image/png':
-                case 'image/jpeg':
-                case 'image/gif':
-                    preview = '<img src="' + this.getImageUrl(id, 'small') + '" title="' + name + '">';
+            if (~this.previewTypeList.indexOf(type)) {
+                preview = '<img src="' + this.getImageUrl(id, 'small') + '" title="' + name + '">';
             }
 
             return preview;
@@ -200,7 +270,7 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
                 if (this.showPreview && ~this.previewTypeList.indexOf(type)) {
                     string = '<div class="attachment-preview">' + this.getDetailPreview(name, type, id) + '</div>';
                 } else {
-                    string = '<span class="glyphicon glyphicon-paperclip small"></span> <a href="'+ this.getDownloadUrl(id) +'" target="_BLANK">' + name + '</a>';
+                    string = '<span class="fas fa-paperclip text-soft small"></span> <a href="'+ this.getDownloadUrl(id) +'" target="_BLANK">' + Handlebars.Utils.escapeExpression(name) + '</a>';
                 }
                 return string;
             }
@@ -255,39 +325,62 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
         uploadFile: function (file) {
             var isCanceled = false;
 
+            var exceedsMaxFileSize = false;
+
+            var maxFileSize = this.params.maxFileSize || 0;
+            var appMaxUploadSize = this.getHelper().getAppParam('maxUploadSize') || 0;
+            if (!maxFileSize || maxFileSize > appMaxUploadSize) {
+                maxFileSize = appMaxUploadSize;
+            }
+
+            if (maxFileSize) {
+                if (file.size > maxFileSize * 1024 * 1024) {
+                    exceedsMaxFileSize = true;
+                }
+            }
+            if (exceedsMaxFileSize) {
+                var msg = this.translate('fieldMaxFileSizeError', 'messages')
+                          .replace('{field}', this.getLabelText())
+                          .replace('{max}', maxFileSize);
+                this.showValidationMessage(msg, '.attachment-button label');
+                return;
+            }
+
+            this.isUploading = true;
+
             this.getModelFactory().create('Attachment', function (attachment) {
-                var $att = this.addAttachmentBox(file.name, file.type);
+                var $attachmentBox = this.addAttachmentBox(file.name, file.type);
 
                 this.$el.find('.attachment-button').addClass('hidden');
 
-                $att.find('.remove-attachment').on('click.uploading', function () {
+                $attachmentBox.find('.remove-attachment').on('click.uploading', function () {
                     isCanceled = true;
                     this.$el.find('.attachment-button').removeClass('hidden');
+                    this.isUploading = false;
                 }.bind(this));
 
                 var fileReader = new FileReader();
                 fileReader.onload = function (e) {
                     this.handleFileUpload(file, e.target.result, function (result, fileParams) {
-                        $.ajax({
-                            type: 'POST',
-                            url: 'Attachment/action/upload',
-                            data: result,
-                            contentType: 'multipart/encrypted',
-                            timeout: 0,
-                        }).done(function (data) {
-                            attachment.id = data.attachmentId;
-                            attachment.set('name', fileParams.name);
-                            attachment.set('type', fileParams.type || 'text/plain');
-                            attachment.set('size', fileParams.size);
-                            attachment.set('role', 'Attachment');
+                        attachment.set('name', fileParams.name);
+                        attachment.set('type', fileParams.type || 'text/plain');
+                        attachment.set('size', fileParams.size);
+                        attachment.set('role', 'Attachment');
+                        attachment.set('relatedType', this.model.name);
+                        attachment.set('file', result);
+                        attachment.set('field', this.name);
 
-                            attachment.once('sync', function () {
-                                if (!isCanceled) {
-                                    $att.trigger('ready');
-                                    this.setAttachment(attachment);
-                                }
-                            }, this);
-                            attachment.save();
+                        attachment.save({}, {timeout: 0}).then(function () {
+                            this.isUploading = false;
+                            if (!isCanceled) {
+                                $attachmentBox.trigger('ready');
+                                this.setAttachment(attachment);
+                            }
+                        }.bind(this)).fail(function () {
+                            $attachmentBox.remove();
+                            this.$el.find('.uploading-message').remove();
+                            this.$el.find('.attachment-button').removeClass('hidden');
+                            this.isUploading = false;
                         }.bind(this));
                     }.bind(this));
                 }.bind(this);
@@ -307,27 +400,26 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
         addAttachmentBox: function (name, type, id) {
             this.$attachment.empty();
 
+            name = Handlebars.Utils.escapeExpression(name);
+
             var self = this;
 
-            var removeLink = '<a href="javascript:" class="remove-attachment pull-right"><span class="glyphicon glyphicon-remove"></span></a>';
+            var removeLink = '<a href="javascript:" class="remove-attachment pull-right"><span class="fas fa-times"></span></a>';
 
             var preview = name;
             if (this.showPreview && id) {
                 preview = this.getEditPreview(name, type, id);
             }
 
-            var $att = $('<div>').css('display', 'inline-block')
-                                 .css('width', '100%')
-                                 .css('max-width', '300px')
-                                 .addClass('gray-box')
+            var $att = $('<div>').append(removeLink)
                                  .append($('<span class="preview">' + preview + '</span>').css('width', 'cacl(100% - 30px)'))
-                                 .append(removeLink);
+                                 .addClass('gray-box');
 
             var $container = $('<div>').append($att);
             this.$attachment.append($container);
 
             if (!id) {
-                var $loading = $('<span class="small">' + this.translate('Uploading...') + '</span>');
+                var $loading = $('<span class="small uploading-message">' + this.translate('Uploading...') + '</span>');
                 $container.append($loading);
                 $att.on('ready', function () {
                     $loading.html(self.translate('Ready'));
@@ -337,10 +429,81 @@ Espo.define('views/fields/file', 'views/fields/link', function (Dep) {
             return $att;
         },
 
+        insertFromSource: function (source) {
+            var viewName =
+                this.getMetadata().get(['clientDefs', 'Attachment', 'sourceDefs', source, 'insertModalView']) ||
+                this.getMetadata().get(['clientDefs', source, 'modalViews', 'select']) ||
+                'views/modals/select-records';
+
+            if (viewName) {
+                this.notify('Loading...');
+
+                var filters = null;
+                if (('getSelectFilters' + source) in this) {
+                    filters = this['getSelectFilters' + source]();
+
+                    if (this.model.get('parentId') && this.model.get('parentType') === 'Account') {
+                        if (this.getMetadata().get(['entityDefs', source, 'fields', 'account', 'type']) === 'link') {
+                            filters = {
+                                account: {
+                                    type: 'equals',
+                                    field: 'accountId',
+                                    value: this.model.get('parentId'),
+                                    valueName: this.model.get('parentName')
+                                }
+                            };
+                        }
+                    }
+                }
+                var boolFilterList = this.getMetadata().get(['clientDefs', 'Attachment', 'sourceDefs', source, 'boolFilterList']);
+                if (('getSelectBoolFilterList' + source) in this) {
+                    boolFilterList = this['getSelectBoolFilterList' + source]();
+                }
+                var primaryFilterName = this.getMetadata().get(['clientDefs', 'Attachment', 'sourceDefs', source, 'primaryFilter']);
+                if (('getSelectPrimaryFilterName' + source) in this) {
+                    primaryFilterName = this['getSelectPrimaryFilterName' + source]();
+                }
+                this.createView('insertFromSource', viewName, {
+                    scope: source,
+                    createButton: false,
+                    filters: filters,
+                    boolFilterList: boolFilterList,
+                    primaryFilterName: primaryFilterName,
+                    multiple: false
+                }, function (view) {
+                    view.render();
+                    this.notify(false);
+                    this.listenToOnce(view, 'select', function (modelList) {
+                        if (Object.prototype.toString.call(modelList) !== '[object Array]') {
+                            modelList = [modelList];
+                        }
+                        modelList.forEach(function (model) {
+                            if (model.name === 'Attachment') {
+                                this.setAttachment(model);
+                            } else {
+                                this.ajaxPostRequest(source + '/action/getAttachmentList', {
+                                    id: model.id
+                                }).done(function (attachmentList) {
+                                    attachmentList.forEach(function (item) {
+                                        this.getModelFactory().create('Attachment', function (attachment) {
+                                            attachment.set(item);
+                                            this.setAttachment(attachment, true);
+                                        }, this);
+                                    }, this);
+                                }.bind(this));
+                            }
+                        }, this);
+                    });
+                }, this);
+                return;
+            }
+        },
+
         fetch: function () {
-            return {};
+            var data = {};
+            data[this.idName] = this.model.get(this.idName);
+            return data;
         }
 
     });
 });
-

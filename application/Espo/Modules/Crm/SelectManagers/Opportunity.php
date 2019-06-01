@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,23 +34,47 @@ class Opportunity extends \Espo\Core\SelectManagers\Base
     protected function filterOpen(&$result)
     {
         $result['whereClause'][] = array(
-            'stage!=' => ['Closed Won', 'Closed Lost']
+            'stage!=' => array_merge($this->getWonStageList(), $this->getLostStageList())
         );
     }
 
     protected function filterWon(&$result)
     {
         $result['whereClause'][] = array(
-            'stage=' => 'Closed Won'
+            'stage=' => $this->getWonStageList()
         );
     }
 
     protected function filterLost(&$result)
     {
         $result['whereClause'][] = array(
-            'stage=' => 'Closed Lost'
+            'stage=' => $this->getLostStageList()
         );
     }
 
- }
+    protected function getLostStageList()
+    {
+        $lostStageList = [];
+        $probabilityMap =  $this->getMetadata()->get(['entityDefs', 'Opportunity', 'fields', 'stage', 'probabilityMap'], []);
+        $stageList = $this->getMetadata()->get('entityDefs.Opportunity.fields.stage.options', []);
+        foreach ($stageList as $stage) {
+            if (empty($probabilityMap[$stage])) {
+                $lostStageList[] = $stage;
+            }
+        }
+        return $lostStageList;
+    }
 
+    protected function getWonStageList()
+    {
+        $wonStageList = [];
+        $probabilityMap =  $this->getMetadata()->get(['entityDefs', 'Opportunity', 'fields', 'stage', 'probabilityMap'], []);
+        $stageList = $this->getMetadata()->get('entityDefs.Opportunity.fields.stage.options', []);
+        foreach ($stageList as $stage) {
+            if (!empty($probabilityMap[$stage]) && $probabilityMap[$stage] == 100) {
+                $wonStageList[] = $stage;
+            }
+        }
+        return $wonStageList;
+    }
+ }

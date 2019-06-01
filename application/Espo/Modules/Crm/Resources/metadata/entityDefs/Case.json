@@ -13,7 +13,6 @@
             "type": "enum",
             "options": ["New", "Assigned", "Pending", "Closed", "Rejected", "Duplicate"],
             "default": "New",
-            "view": "views/fields/enum-styled",
             "style": {
                 "Closed": "success",
                 "Duplicate": "danger",
@@ -30,6 +29,7 @@
         "type": {
             "type": "enum",
             "options": ["", "Question", "Incident", "Problem"],
+            "default": "",
             "audited": true
         },
         "description": {
@@ -47,7 +47,8 @@
         },
         "contacts": {
             "type": "linkMultiple",
-            "view": "crm:views/case/fields/contacts"
+            "view": "crm:views/case/fields/contacts",
+            "orderBy": "name"
         },
         "inboundEmail": {
             "type": "link",
@@ -78,6 +79,9 @@
         "teams": {
             "type": "linkMultiple",
             "view": "views/fields/teams"
+        },
+        "attachments": {
+            "type": "attachmentMultiple"
         }
     },
     "links": {
@@ -128,19 +132,22 @@
             "type": "hasChildren",
             "entity": "Meeting",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "calls": {
             "type": "hasChildren",
             "entity": "Call",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "tasks": {
             "type": "hasChildren",
             "entity": "Task",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "emails": {
             "type": "hasChildren",
@@ -151,12 +158,14 @@
         "articles": {
             "type": "hasMany",
             "entity": "KnowledgeBaseArticle",
-            "foreign": "cases"
+            "foreign": "cases",
+            "audited": true
         }
     },
     "collection": {
-        "sortBy": "number",
-        "asc": false
+        "orderBy": "number",
+        "order": "desc",
+        "textFilterFields": ["name", "number"]
     },
     "indexes": {
         "status": {

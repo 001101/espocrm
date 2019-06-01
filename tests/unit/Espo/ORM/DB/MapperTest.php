@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,12 +35,13 @@ use Espo\Entities\Post;
 use Espo\Entities\Comment;
 use Espo\Entities\Tag;
 use Espo\Entities\Note;
+use Espo\Entities\Job;
 
 require_once 'tests/unit/testData/DB/Entities.php';
 require_once 'tests/unit/testData/DB/MockPDO.php';
 require_once 'tests/unit/testData/DB/MockDBResult.php';
 
-class DBMapperTest extends PHPUnit_Framework_TestCase
+class DBMapperTest extends \PHPUnit\Framework\TestCase
 {
     protected $db;
     protected $pdo;
@@ -51,7 +52,7 @@ class DBMapperTest extends PHPUnit_Framework_TestCase
 
     protected function setUp()
     {
-        $this->pdo = $this->getMock('MockPDO');
+        $this->pdo = $this->createMock('MockPDO');
         $this->pdo
                 ->expects($this->any())
                 ->method('quote')
@@ -60,28 +61,40 @@ class DBMapperTest extends PHPUnit_Framework_TestCase
                     return "'" . $args[0] . "'";
                 }));
 
+        $metadata = $this->getMockBuilder('\\Espo\\ORM\\Metadata')->disableOriginalConstructor()->getMock();
+        $metadata
+            ->method('get')
+            ->will($this->returnValue(false));
+
+        $entityManager = $this->getMockBuilder('\\Espo\\ORM\\EntityManager')->disableOriginalConstructor()->getMock();
+        $entityManager
+            ->method('getMetadata')
+            ->will($this->returnValue($metadata));
 
         $this->entityFactory = $this->getMockBuilder('\\Espo\\ORM\\EntityFactory')->disableOriginalConstructor()->getMock();
-        $this->entityFactory->expects($this->any())
-                            ->method('create')
-                            ->will($this->returnCallback(function() {
-                                $args = func_get_args();
-                                $className = "\\Espo\\Entities\\" . $args[0];
-                                  return new $className();
-                            }));
+        $this->entityFactory
+            ->expects($this->any())
+            ->method('create')
+            ->will($this->returnCallback(function () use ($entityManager) {
+                $args = func_get_args();
+                $className = "\\Espo\\Entities\\" . $args[0];
+                return new $className([], $entityManager);
+            }));
 
-        $this->query = new Query($this->pdo, $this->entityFactory);
+        $this->metadata = $this->getMockBuilder('\\Espo\\ORM\\Metadata')->disableOriginalConstructor()->getMock();
 
-        $this->db = new MysqlMapper($this->pdo, $this->entityFactory, $this->query);
+        $this->query = new Query($this->pdo, $this->entityFactory, $this->metadata);
+
+        $this->db = new MysqlMapper($this->pdo, $this->entityFactory, $this->query, $this->metadata);
         $this->db->setReturnCollection(true);
 
-        $this->post = new \Espo\Entities\Post();
-        $this->comment = new \Espo\Entities\Comment();
-        $this->tag = new \Espo\Entities\Tag();
-        $this->note = new \Espo\Entities\Note();
+        $this->post = new \Espo\Entities\Post([], $entityManager);
+        $this->comment = new \Espo\Entities\Comment([], $entityManager);
+        $this->tag = new \Espo\Entities\Tag([], $entityManager);
+        $this->note = new \Espo\Entities\Note([], $entityManager);
 
-        $this->contact = new \Espo\Entities\Contact();
-        $this->account = new \Espo\Entities\Account();
+        $this->contact = new \Espo\Entities\Contact([], $entityManager);
+        $this->account = new \Espo\Entities\Account([], $entityManager);
 
     }
 
@@ -348,6 +361,34 @@ class DBMapperTest extends PHPUnit_Framework_TestCase
         $this->db->update($this->post);
     }
 
+    public function testUpdateArray1()
+    {
+        $query = "UPDATE `job` SET `array` = '[\"2\",\"1\"]' WHERE job.id = '1' AND job.deleted = '0'";
+
+        $this->mockQuery($query, true);
+
+        $job = new \Espo\Entities\Job();
+        $job->id = '1';
+        $job->setFetched('array', ['1', '2']);
+        $job->set('array', ['2', '1']);
+
+        $this->db->update($job);
+    }
+
+    public function testUpdateArray2()
+    {
+        $query = "UPDATE `job` SET `array` = NULL WHERE job.id = '1' AND job.deleted = '0'";
+
+        $this->mockQuery($query, true);
+
+        $job = new \Espo\Entities\Job();
+        $job->id = '1';
+        $job->setFetched('array', ['1', '2']);
+        $job->set('array', null);
+
+        $this->db->update($job);
+    }
+
     public function testRemoveRelationHasMany()
     {
         $query = "UPDATE `comment` SET post_id = NULL WHERE comment.deleted = '0' AND comment.id = '100'";
@@ -419,15 +460,9 @@ class DBMapperTest extends PHPUnit_Framework_TestCase
         $this->db->unrelate($this->post, 'tags', $this->tag);
     }
 
-
-    public function testAddRelation()
-    {
-        // @todo
-    }
-
     public function testMax()
     {
-        $query = "SELECT MAX(post.id) AS AggregateValue FROM `post` LEFT JOIN `user` AS `createdBy` ON post.created_by_id = createdBy.id";
+        $query = "SELECT MAX(post.id) AS AggregateValue FROM `post` WHERE post.deleted = '0'";
         $return = new MockDBResult(array(
             array (
                 'AggregateValue' => 10,
@@ -454,6 +489,5 @@ class DBMapperTest extends PHPUnit_Framework_TestCase
             )
         ));
     }
+
 }
-
-

@@ -6,23 +6,23 @@
             "trim": true
         },
         "body": {
-            "type": "text",
-            "view": "Fields.Wysiwyg"
+            "type": "wysiwyg",
+            "view": "views/fields/wysiwyg"
         },
         "header": {
-            "type": "text",
-            "view": "Fields.Wysiwyg"
+            "type": "wysiwyg",
+            "view": "views/fields/wysiwyg"
         },
         "footer": {
-            "type": "text",
-            "view": "Fields.Wysiwyg",
+            "type": "wysiwyg",
+            "view": "views/fields/wysiwyg",
             "tooltip": true
         },
         "entityType": {
             "type": "enum",
             "required": true,
             "translation": "Global.scopeNames",
-            "view": "Fields.EntityType"
+            "view": "views/fields/entity-type"
         },
         "leftMargin": {
             "type": "float",
@@ -65,6 +65,64 @@
         "modifiedBy": {
             "type": "link",
             "readOnly": true
+        },
+        "variables": {
+            "type": "base",
+            "notStorable": true,
+            "tooltip": true
+        },
+        "pageOrientation": {
+            "type": "enum",
+            "options": ["Portrait", "Landscape"],
+            "default": "Portrait"
+        },
+        "pageFormat": {
+            "type": "enum",
+            "options": ["A3", "A4", "A5", "A6", "A7", "Custom"],
+            "default": "A4"
+        },
+        "pageWidth": {
+            "type": "float",
+            "min": 1
+        },
+        "pageHeight": {
+            "type": "float",
+            "min": 1
+        },
+        "fontFace": {
+            "type": "enum",
+            "options": [
+                "",
+                "aealarabiya",
+                "aefurat",
+                "cid0cs",
+                "cid0ct",
+                "cid0jp",
+                "cid0kr",
+                "courier",
+                "dejavusans",
+                "dejavusanscondensed",
+                "dejavusansextralight",
+                "dejavusansmono",
+                "dejavuserif",
+                "dejavuserifcondensed",
+                "freemono",
+                "freesans",
+                "freeserif",
+                "helvetica",
+                "hysmyeongjostdmedium",
+                "kozgopromedium",
+                "kozminproregular",
+                "msungstdlight",
+                "pdfacourier",
+                "pdfahelvetica",
+                "pdfasymbol",
+                "pdfatimes",
+                "stsongstdlight",
+                "symbol",
+                "times"
+            ],
+            "default": ""
         }
     },
     "links": {
@@ -83,7 +141,7 @@
         }
     },
     "collection": {
-        "sortBy": "name",
-        "asc": true
+        "orderBy": "name",
+        "order": "asc"
     }
 }

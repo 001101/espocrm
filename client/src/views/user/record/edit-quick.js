@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,14 +26,21 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/user/record/edit-quick', 'views/record/edit-small', function (Dep) {
+Espo.define('views/user/record/edit-quick', ['views/record/edit-small', 'views/user/record/detail'], function (Dep, Detail) {
 
     return Dep.extend({
 
         sideView: 'views/user/record/edit-side',
 
+        setup: function () {
+            Dep.prototype.setup.call(this);
+            Detail.prototype.setupNonAdminFieldsAccess.call(this);
+            Detail.prototype.setupFieldAppearance.call(this);
+        },
+
+        controlFieldAppearance: function () {
+            Detail.prototype.controlFieldAppearance.call(this);
+        }
 
     });
-
 });
-

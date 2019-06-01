@@ -2,7 +2,8 @@
     "fields": {
         "isAdmin": {
             "type": "bool",
-            "tooltip": true
+            "tooltip": true,
+            "disabled": true
         },
         "userName": {
             "type": "varchar",
@@ -14,6 +15,14 @@
         "name": {
             "type": "personName",
             "view": "views/user/fields/name"
+        },
+        "type": {
+            "type": "enum",
+            "options": ["regular", "admin", "portal", "system", "super-admin", "api"],
+            "default": "regular",
+            "maxLength": 24,
+            "index": true,
+            "layoutMassUpdateDisabled": true
         },
         "password": {
             "type": "password",
@@ -28,20 +37,50 @@
             "disabled": true,
             "notStorable": true
         },
+        "authMethod": {
+            "type": "enum",
+            "options": ["ApiKey", "Hmac"],
+            "maxLength": 24,
+            "layoutMassUpdateDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutFiltersDisabled": true,
+            "layoutListDisabled": true
+        },
+        "apiKey": {
+            "type": "varchar",
+            "maxLength": 100,
+            "readOnly": true,
+            "layoutMassUpdateDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutFiltersDisabled": true,
+            "layoutListDisabled": true
+        },
+        "secretKey": {
+            "type": "varchar",
+            "maxLength": 100,
+            "readOnly": true,
+            "notStorable": true,
+            "layoutMassUpdateDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutFiltersDisabled": true,
+            "layoutListDisabled": true
+        },
         "salutationName": {
             "type": "enum",
-            "options": ["", "Mr.", "Mrs.", "Ms.", "Dr."]
+            "options": ["", "Mr.", "Ms.", "Mrs.", "Dr."]
         },
         "firstName": {
             "type": "varchar",
             "maxLength": 100,
-            "default":""
+            "default":"",
+            "trim": true
         },
         "lastName": {
             "type": "varchar",
             "maxLength": 100,
             "required": true,
-            "default":""
+            "default":"",
+            "trim": true
         },
         "isActive": {
             "type": "bool",
@@ -49,7 +88,8 @@
             "default": true
         },
         "isPortalUser": {
-            "type": "bool"
+            "type": "bool",
+            "disabled": true
         },
         "isSuperAdmin": {
             "type": "bool",
@@ -94,7 +134,8 @@
             },
             "trim": true,
             "layoutDetailDisabled": true,
-            "layoutListDisabled": true
+            "layoutListDisabled": true,
+            "textFilterDisabled": true
         },
         "emailAddress": {
             "type": "email",
@@ -110,6 +151,21 @@
             "notStorable": true,
             "disabled": true
         },
+        "authTokenId": {
+            "type": "varchar",
+            "notStorable": true,
+            "disabled": true
+        },
+        "authLogRecordId": {
+            "type": "varchar",
+            "notStorable": true,
+            "disabled": true
+        },
+        "ipAddress": {
+            "type": "varchar",
+            "notStorable": true,
+            "disabled": true
+        },
         "defaultTeam": {
             "type": "link",
             "tooltip": true
@@ -117,7 +173,32 @@
         "acceptanceStatus": {
             "type": "varchar",
             "notStorable": true,
+            "exportDisabled": true,
             "disabled": true
+        },
+        "acceptanceStatusMeetings": {
+            "type": "enum",
+            "notStorable": true,
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "importDisabled": true,
+            "exportDisabled": true,
+            "view": "crm:views/lead/fields/acceptance-status",
+            "link": "meetings",
+            "column": "status"
+        },
+        "acceptanceStatusCalls": {
+            "type": "enum",
+            "notStorable": true,
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "importDisabled": true,
+            "exportDisabled": true,
+            "view": "crm:views/lead/fields/acceptance-status",
+            "link": "calls",
+            "column": "status"
         },
         "teamRole": {
             "type": "varchar",
@@ -130,6 +211,7 @@
             "columns": {
                 "role": "userRole"
             },
+            "additionalAttributeList": ["columns"],
             "view": "views/user/fields/teams",
             "default": "javascript: return {teamsIds: []}"
         },
@@ -155,6 +237,7 @@
         "account": {
             "type": "link",
             "notStorable": true,
+            "foreignAccessDisabled": true,
             "readOnly": true
         },
         "portal": {
@@ -181,6 +264,25 @@
         "createdAt": {
             "type": "datetime",
             "readOnly": true
+        },
+        "modifiedAt": {
+            "type": "datetime",
+            "readOnly": true
+        },
+        "createdBy": {
+            "type": "link",
+            "readOnly": true,
+            "view": "views/fields/user"
+        },
+        "lastAccess": {
+            "type": "datetime",
+            "notStorable": true,
+            "readOnly": true,
+            "layoutListDisabled": true,
+            "layoutFiltersDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "layoutDetailDisabled": true,
+            "directAccessDisabled": true
         }
     },
     "links": {
@@ -199,6 +301,10 @@
                 }
             },
             "layoutRelationshipsDisabled": true
+        },
+        "createdBy": {
+            "type": "belongsTo",
+            "entity": "User"
         },
         "roles": {
             "type": "hasMany",
@@ -253,11 +359,16 @@
             "entity": "Account",
             "foreign": "portalUsers",
             "relationName": "AccountPortalUser"
+        },
+        "tasks": {
+            "type": "hasMany",
+            "entity": "Task",
+            "foreign": "assignedUser"
         }
     },
     "collection": {
-        "sortBy": "userName",
-        "asc": true,
+        "orderBy": "userName",
+        "order": "asc",
         "textFilterFields": ["name", "userName"]
     }
 }

@@ -9,7 +9,6 @@
             "type": "enum",
             "options": ["Planned", "Held", "Not Held"],
             "default": "Planned",
-            "view": "views/fields/enum-styled",
             "style": {
                 "Held": "success"
             },
@@ -32,12 +31,15 @@
             "end": "dateEnd",
             "options": [300, 600, 900, 1800, 2700, 3600, 7200],
             "default": 300,
-            "notStorable": true
+            "notStorable": true,
+            "select": "TIMESTAMPDIFF(SECOND, call.date_start, call.date_end)",
+            "orderBy": "duration {direction}"
         },
         "reminders": {
             "type": "jsonArray",
             "notStorable": true,
-            "view": "crm:views/meeting/fields/reminders"
+            "view": "crm:views/meeting/fields/reminders",
+            "layoutListDisabled": true
         },
         "direction": {
             "type": "enum",
@@ -49,7 +51,7 @@
         },
         "parent": {
             "type": "linkParent",
-            "entityList": ["Account", "Lead", "Opportunity", "Case"]
+            "entityList": ["Account", "Lead", "Contact", "Opportunity", "Case"]
         },
         "account": {
             "type": "link",
@@ -58,8 +60,37 @@
         "acceptanceStatus": {
             "type": "enum",
             "notStorable": true,
-            "disabled": true,
-            "options": ["None", "Accepted", "Tentative", "Declined"]
+            "options": ["None", "Accepted", "Tentative", "Declined"],
+            "style": {
+                "Accepted": "success",
+                "Declined": "danger",
+                "Tentative": "warning"
+            },
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "importDisabled": true,
+            "exportDisabled": true,
+            "where": {
+                "=": {
+                    "leftJoins": ["users", "contacts", "leads"],
+                    "sql": "contactsMiddle.status = {value} OR leadsMiddle.status = {value} OR usersMiddle.status = {value}",
+                    "distinct": true
+                },
+                "<>": "call.id NOT IN (SELECT call_id FROM call_contact WHERE deleted = 0 AND status = {value}) AND call.id NOT IN (SELECT call_id FROM call_user WHERE deleted = 0 AND status = {value}) AND call.id NOT IN (SELECT call_id FROM call_lead WHERE deleted = 0 AND status = {value})",
+                "IN": {
+                    "leftJoins": ["users", "leads", "contacts"],
+                    "sql": "contactsMiddle.status IN {value} OR leadsMiddle.status IN {value} OR usersMiddle.status IN {value}",
+                    "distinct": true
+                },
+                "NOT IN": "call.id NOT IN (SELECT call_id FROM call_contact WHERE deleted = 0 AND status IN {value}) AND call.id NOT IN (SELECT call_id FROM call_user WHERE deleted = 0 AND status IN {value}) AND call.id NOT IN (SELECT call_id FROM call_lead WHERE deleted = 0 AND status IN {value})",
+                "IS NULL": {
+                    "leftJoins": ["users", "contacts", "leads"],
+                    "sql": "contactsMiddle.status IS NULL AND leadsMiddle.status IS NULL AND usersMiddle.status IS NULL",
+                    "distinct": true
+                },
+                "IS NOT NULL": "call.id NOT IN (SELECT call_id FROM call_contact WHERE deleted = 0 AND status IS NULL) OR call.id NOT IN (SELECT call_id FROM call_user WHERE deleted = 0 AND status IS NULL) OR call.id NOT IN (SELECT call_id FROM call_lead WHERE deleted = 0 AND status IS NULL)"
+            },
+            "view": "crm:views/meeting/fields/acceptance-status"
         },
         "users": {
             "type": "linkMultiple",
@@ -68,25 +99,31 @@
             "view": "crm:views/meeting/fields/users",
             "columns": {
                 "status": "acceptanceStatus"
-            }
+            },
+            "additionalAttributeList": ["columns"],
+            "orderBy": "name"
         },
         "contacts": {
             "type": "linkMultiple",
             "layoutDetailDisabled": true,
             "layoutListDisabled": true,
-            "view": "crm:views/meeting/fields/contacts",
+            "view": "crm:views/call/fields/contacts",
             "columns": {
                 "status": "acceptanceStatus"
-            }
+            },
+            "additionalAttributeList": ["columns"],
+            "orderBy": "name"
         },
         "leads": {
             "type": "linkMultiple",
             "layoutDetailDisabled": true,
             "layoutListDisabled": true,
-            "view": "crm:views/meeting/fields/attendees",
+            "view": "crm:views/call/fields/leads",
             "columns": {
                 "status": "acceptanceStatus"
-            }
+            },
+            "additionalAttributeList": ["columns"],
+            "orderBy": "name"
         },
         "createdAt": {
             "type": "datetime",
@@ -105,6 +142,11 @@
             "type": "link",
             "readOnly": true,
             "view": "views/fields/user"
+        },
+        "phoneNumbersMap": {
+            "type": "jsonObject",
+            "notStorable": true,
+            "disabled": true
         },
         "assignedUser": {
             "type": "link",
@@ -181,8 +223,8 @@
         }
     },
     "collection": {
-        "sortBy": "dateStart",
-        "asc": false
+        "orderBy": "dateStart",
+        "order": "desc"
     },
     "indexes": {
         "dateStartStatus": {

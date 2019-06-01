@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ use tests\unit\ReflectionHelper,
     Espo\Core\ExtensionManager,
     Espo\Core\UpgradeManager;
 
-class ActionManagerTest extends \PHPUnit_Framework_TestCase
+class ActionManagerTest extends \PHPUnit\Framework\TestCase
 {
     protected $object;
 
@@ -102,7 +102,7 @@ class ActionManagerTest extends \PHPUnit_Framework_TestCase
 
     public function testGetObjectExtensionNotExists()
     {
-        $this->setExpectedException('\Espo\Core\Exceptions\Error');
+        $this->expectException('\Espo\Core\Exceptions\Error');
 
         $this->object->setAction('CustomClass');
         $class = $this->reflection->invokeMethod('getObject');
@@ -128,24 +128,28 @@ class ActionManagerTest extends \PHPUnit_Framework_TestCase
 
     public function testGetObjectUpgradeUninstall()
     {
-        $this->setExpectedException('\Espo\Core\Exceptions\Error');
+        $this->expectException('\Espo\Core\Exceptions\Error');
 
         $this->reflection->setProperty('managerName', 'Upgrade');
         $this->object->setAction(UpgradeManager::UNINSTALL);
 
         $class = $this->reflection->invokeMethod('getObject');
         $this->assertInstanceOf('\Espo\Core\Upgrades\Actions\Upgrade\Uninstall', $class);
+
+        $class->run(array());
     }
 
     public function testGetObjectUpgradeDelete()
     {
-        $this->setExpectedException('\Espo\Core\Exceptions\Error');
+        $this->expectException('\Espo\Core\Exceptions\Error');
 
         $this->reflection->setProperty('managerName', 'Upgrade');
         $this->object->setAction(UpgradeManager::DELETE);
 
         $class = $this->reflection->invokeMethod('getObject');
         $this->assertInstanceOf('\Espo\Core\Upgrades\Actions\Upgrade\Delete', $class);
+
+        $class->run(array());
     }
 
 }

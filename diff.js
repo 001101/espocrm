@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,11 +31,24 @@ if (process.argv.length < 3) {
     throw new Error("No 'version from' passed");
 }
 
-var acceptedVersionName = process.argv[3] || versionFrom;
+var acceptedVersionName = versionFrom;
+
+var isDev = false;
+
+if (process.argv.length > 2) {
+    for (var i in process.argv) {
+        if (process.argv[i] === '--dev') {
+            isDev = true;
+        }
+        if (~process.argv[i].indexOf('--acceptedVersion=')) {
+            acceptedVersionName = process.argv[i].substr(('--acceptedVersion=').length);
+        }
+    }
+}
 
 var path = require('path');
 var fs = require('fs');
-var sys = require('sys')
+var sys = require('util')
 
 var version = (require('./package.json') || {}).version;
 
@@ -44,9 +57,7 @@ var currentPath = path.dirname(fs.realpathSync(__filename));
 var buildRelPath = 'build/EspoCRM-' + version;
 var buildPath = currentPath + '/' + buildRelPath;
 var diffFilePath = currentPath + '/build/diff';
-
 var upgradePath = currentPath + '/build/EspoCRM-upgrade-' + acceptedVersionName + '-to-' + version;
-
 
 var exec = require('child_process').exec;
 
@@ -56,7 +67,31 @@ function execute(command, callback) {
     });
 };
 
+var deleteDirRecursively = function (path) {
+    if (fs.existsSync(path)) {
+        fs.readdirSync(path).forEach(function(file, index) {
+            var curPath = path + "/" + file;
+            if (fs.lstatSync(curPath).isDirectory()) {
+                deleteDirRecursively(curPath);
+            } else {
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+};
+
+deleteDirRecursively(diffFilePath);
+deleteDirRecursively(upgradePath);
+
+execute('git rev-parse --abbrev-ref HEAD', function (branch) {
+    if (branch !== 'master' && branch !== 'stable' && branch.indexOf('hotfix/') !== 0) {
+        console.log('\x1b[33m%s\x1b[0m', "Warning! You are on " + branch + " branch.");
+    }
+});
+
 execute('git diff --name-only ' + versionFrom, function (stdout) {
+
     if (!fs.existsSync(upgradePath)) {
         fs.mkdirSync(upgradePath);
     }
@@ -75,13 +110,11 @@ execute('git diff --name-only ' + versionFrom, function (stdout) {
     });
 
     fileList.push('client/espo.min.js');
+    fileList.push('client/espo.min.js.map');
 
-    fileList.push('client/css/espo.css');
-    fileList.push('client/css/espo-vertical.css');
-    fileList.push('client/css/sakura.css');
-    fileList.push('client/css/sakura-vertical.css');
-    fileList.push('client/css/violet.css');
-    fileList.push('client/css/violet-vertical.css');
+    fs.readdirSync('client/css/espo/').forEach(function (file) {
+        fileList.push('client/css/espo/' + file);
+    });
 
     fs.writeFileSync(diffFilePath, fileList.join('\n'));
 
@@ -94,7 +127,6 @@ execute('git diff --name-only ' + versionFrom, function (stdout) {
             }
             deletedFileList.push(file);
         });
-
 
         execute('xargs -a ' + diffFilePath + ' cp --parents -t ' + upgradePath + '/files ' , function (stdout) {
             var d = new Date();
@@ -109,18 +141,18 @@ execute('git diff --name-only ' + versionFrom, function (stdout) {
 
             execute('git tag', function (stdout) {
                 var versionList = [];
-                var occured = false;
                 tagList = stdout.split('\n').forEach(function (tag) {
                     if (tag == versionFrom) {
-                        occured = true;
+                        versionList.push(tag);
                     }
                     if (!tag || tag == version) {
                         return;
                     }
-                    if (occured) {
-                        versionList.push(tag);
-                    }
                 });
+
+                if (isDev) {
+                    versionList = [];
+                }
 
                 var manifest = {
                     "name": "EspoCRM Upgrade "+acceptedVersionName+" to "+version,
@@ -135,14 +167,10 @@ execute('git diff --name-only ' + versionFrom, function (stdout) {
 
                 fs.writeFileSync(upgradePath + '/manifest.json', JSON.stringify(manifest, null, '  '));
 
+                console.log("Upgrade package is built.");
             });
 
             fs.unlinkSync(diffFilePath);
         });
-
-
-
     });
-
 });
-

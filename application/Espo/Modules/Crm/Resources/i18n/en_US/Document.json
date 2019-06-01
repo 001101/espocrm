@@ -8,7 +8,6 @@
         "status": "Status",
         "file": "File",
         "type": "Type",
-        "source": "Source",
         "publishDate": "Publish Date",
         "expirationDate": "Expiration Date",
         "description": "Description",
@@ -19,7 +18,8 @@
         "accounts": "Accounts",
         "opportunities": "Opportunities",
         "folder": "Folder",
-        "leads": "Leads"
+        "leads": "Leads",
+        "contacts": "Contacts"
     },
     "options": {
         "status": {

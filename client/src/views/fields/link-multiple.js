@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
 
         type: 'linkMultiple',
 
-        listTemplate: 'fields/link-multiple/detail',
+        listTemplate: 'fields/link-multiple/list',
 
         detailTemplate: 'fields/link-multiple/detail',
 
@@ -48,8 +48,6 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
 
         foreignScope: null,
 
-        AUTOCOMPLETE_RESULT_MAX_COUNT: 7,
-
         autocompleteDisabled: false,
 
         selectRecordsView: 'views/modals/select-records',
@@ -57,6 +55,8 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
         createDisabled: false,
 
         sortable: false,
+
+        searchTypeList: ['anyOf', 'isEmpty', 'isNotEmpty', 'noneOf'],
 
         data: function () {
             var ids = this.model.get(this.idsName);
@@ -66,6 +66,7 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
                 idValuesString: ids ? ids.join(',') : '',
                 nameHash: this.model.get(this.nameHashName),
                 foreignScope: this.foreignScope,
+                valueIsSet: this.model.has(this.idsName)
             }, Dep.prototype.data.call(this));
         },
 
@@ -93,12 +94,14 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
 
             var self = this;
 
-            this.ids = Espo.Utils.clone(this.model.get(this.idsName) || []);
-            this.nameHash = Espo.Utils.clone(this.model.get(this.nameHashName) || {});
-
             if (this.mode == 'search') {
-                this.nameHash = Espo.Utils.clone(this.searchParams.nameHash) || {};
-                this.ids = Espo.Utils.clone(this.searchParams.value) || [];
+                var nameHash = this.getSearchParamsData().nameHash || this.searchParams.nameHash || {};
+                var idList = this.getSearchParamsData().idList || this.searchParams.value || [];
+                this.nameHash = Espo.Utils.clone(nameHash);
+                this.ids = Espo.Utils.clone(idList);
+            } else {
+                this.ids = Espo.Utils.clone(this.model.get(this.idsName) || []);
+                this.nameHash = Espo.Utils.clone(this.model.get(this.nameHashName) || {});
             }
 
             this.listenTo(this.model, 'change:' + this.idsName, function () {
@@ -107,6 +110,8 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
             }, this);
 
             this.sortable = this.sortable || this.params.sortable;
+
+            this.iconHtml = this.getHelper().getScopeColorIconHtml(this.foreignScope);
 
             if (this.mode != 'list') {
                 this.addActionHandler('selectLink', function () {
@@ -121,11 +126,14 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
                         boolFilterList: this.getSelectBoolFilterList(),
                         primaryFilterName: this.getSelectPrimaryFilterName(),
                         multiple: true,
-                        createAttributes: (this.mode === 'edit') ? this.getCreateAttributes() : null
+                        createAttributes: (this.mode === 'edit') ? this.getCreateAttributes() : null,
+                        mandatorySelectAttributeList: this.mandatorySelectAttributeList,
+                        forceSelectAllAttributes: this.forceSelectAllAttributes
                     }, function (dialog) {
                         dialog.render();
                         self.notify(false);
                         this.listenToOnce(dialog, 'select', function (models) {
+                            this.clearView('dialog');
                             if (Object.prototype.toString.call(models) !== '[object Array]') {
                                 models = [models];
                             }
@@ -143,8 +151,39 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
             }
         },
 
+        handleSearchType: function (type) {
+            if (~['anyOf', 'noneOf'].indexOf(type)) {
+                this.$el.find('div.link-group-container').removeClass('hidden');
+            } else {
+                this.$el.find('div.link-group-container').addClass('hidden');
+            }
+        },
+
+        setupSearch: function () {
+            this.events = _.extend({
+                'change select.search-type': function (e) {
+                    var type = $(e.currentTarget).val();
+                    this.handleSearchType(type);
+                },
+            }, this.events || {});
+        },
+
+        getAutocompleteMaxCount: function () {
+            if (this.autocompleteMaxCount) {
+                return this.autocompleteMaxCount;
+            }
+            return this.getConfig().get('recordsPerPage');
+        },
+
         getAutocompleteUrl: function () {
-            var url = this.foreignScope + '?sortBy=name&maxCount=' + this.AUTOCOMPLETE_RESULT_MAX_COUNT;
+            var url = this.foreignScope + '?orderBy=name&maxSize=' + this.getAutocompleteMaxCount();
+            if (!this.forceSelectAllAttributes) {
+                var select = ['id', 'name'];
+                if (this.mandatorySelectAttributeList) {
+                    select = select.concat(this.mandatorySelectAttributeList);
+                }
+                url += '&select=' + select.join(',')
+            }
             var boolList = this.getSelectBoolFilterList();
             var where = [];
             if (boolList) {
@@ -170,9 +209,11 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
                         }.bind(this),
                         minChars: 1,
                         paramName: 'q',
+                        noCache: true,
+                        triggerSelectOnValidInput: false,
                         formatResult: function (suggestion) {
-                            return suggestion.name;
-                        },
+                            return this.getHelper().escapeString(suggestion.name);
+                        }.bind(this),
                         transformResult: function (response) {
                             var response = JSON.parse(response);
                             var list = [];
@@ -193,7 +234,7 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
                             this.$element.val('');
                         }.bind(this)
                     });
-
+                    this.$element.attr('autocomplete', 'espo-' + this.name);
 
                     this.once('render', function () {
                         $element.autocomplete('dispose');
@@ -220,6 +261,11 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
                         });
                     }
                 }
+
+                if (this.mode == 'search') {
+                    var type = this.$el.find('select.search-type').val();
+                    this.handleSearchType(type);
+                }
             }
         },
 
@@ -238,6 +284,7 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
                 this.ids.splice(index, 1);
             }
             delete this.nameHash[id];
+            this.afterDeleteLink(id);
             this.trigger('change');
         },
 
@@ -246,9 +293,14 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
                 this.ids.push(id);
                 this.nameHash[id] = name;
                 this.addLinkHtml(id, name);
+                this.afterAddLink(id);
             }
             this.trigger('change');
         },
+
+        afterDeleteLink: function (id) {},
+
+        afterAddLink: function (id) {},
 
         deleteLinkHtml: function (id) {
             this.$el.find('.link-' + id).remove();
@@ -257,15 +309,27 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
         addLinkHtml: function (id, name) {
             var $container = this.$el.find('.link-container');
             var $el = $('<div />').addClass('link-' + id).addClass('list-group-item').attr('data-id', id);
-            $el.html(name + '&nbsp');
-            $el.prepend('<a href="javascript:" class="pull-right" data-id="' + id + '" data-action="clearLink"><span class="glyphicon glyphicon-remove"></a>');
+            $el.html(this.getHelper().escapeString(name || id) + '&nbsp');
+            $el.prepend('<a href="javascript:" class="pull-right" data-id="' + id + '" data-action="clearLink"><span class="fas fa-times"></a>');
             $container.append($el);
 
             return $el;
         },
 
+        getIconHtml: function (id) {
+            return this.iconHtml;
+        },
+
         getDetailLinkHtml: function (id) {
-            return '<a href="#' + this.foreignScope + '/view/' + id + '">' + this.nameHash[id] + '</a>';
+            var name = this.nameHash[id] || id;
+            if (!name && id) {
+                name = this.translate(this.foreignScope, 'scopeNames');
+            }
+            var iconHtml = '';
+            if (this.mode == 'detail') {
+                iconHtml = this.getIconHtml(id);
+            }
+            return '<a href="#' + this.foreignScope + '/view/' + id + '">' + iconHtml + this.getHelper().escapeString(name) + '</a>';
         },
 
         getValueForDisplay: function () {
@@ -283,8 +347,9 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
 
         validateRequired: function () {
             if (this.isRequired()) {
-                if (this.model.get(this.idsName).length == 0) {
-                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
+                var idList = this.model.get(this.idsName) || [];
+                if (idList.length == 0) {
+                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.getLabelText());
                     this.showValidationMessage(msg);
                     return true;
                 }
@@ -309,15 +374,57 @@ Espo.define('views/fields/link-multiple', 'views/fields/base', function (Dep) {
         },
 
         fetchSearch: function () {
-            var values = this.ids || [];
+            var type = this.$el.find('select.search-type').val();
 
-            var data = {
-                type: 'linkedWith',
-                value: values,
-                nameHash: this.nameHash
-            };
-            return data;
+            if (type === 'anyOf') {
+                var idList = this.ids || [];
+
+                var data = {
+                    type: 'linkedWith',
+                    value: idList,
+                    nameHash: this.nameHash,
+                    data: {
+                        type: type
+                    }
+                };
+                if (!idList.length) {
+                    data.value = null;
+                }
+                return data;
+            } else if (type === 'noneOf') {
+                var values = this.ids || [];
+
+                var data = {
+                    type: 'notLinkedWith',
+                    value: this.ids || [],
+                    nameHash: this.nameHash,
+                    data: {
+                        type: type
+                    }
+                };
+                return data;
+            } else if (type === 'isEmpty') {
+                var data = {
+                    type: 'isNotLinked',
+                    data: {
+                        type: type
+                    }
+                };
+                return data;
+            } else if (type === 'isNotEmpty') {
+                var data = {
+                    type: 'isLinked',
+                    data: {
+                        type: type
+                    }
+                };
+                return data;
+            }
         },
+
+        getSearchType: function () {
+            return this.getSearchParamsData().type || this.searchParams.typeFront || this.searchParams.type || 'anyOf';
+        }
 
     });
 });

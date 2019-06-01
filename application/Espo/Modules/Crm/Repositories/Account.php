@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ class Account extends \Espo\Core\ORM\Repositories\RDB
         }
     }
 
-    protected function afterRelateContacts(Entity $entity, $foreign, $data)
+    protected function afterRelateContacts(Entity $entity, $foreign, $data, array $options = array())
     {
         if (!($foreign instanceof Entity)) return;
 
@@ -52,7 +52,7 @@ class Account extends \Espo\Core\ORM\Repositories\RDB
         }
     }
 
-    protected function afterUnrelateContacts(Entity $entity, $foreign, $data)
+    protected function afterUnrelateContacts(Entity $entity, $foreign, array $options = array())
     {
         if (!($foreign instanceof Entity)) return;
 

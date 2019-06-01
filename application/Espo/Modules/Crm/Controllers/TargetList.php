@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,43 +41,48 @@ class TargetList extends \Espo\Core\Controllers\Record
 			throw new BadRequest();
 		}
 
-		if (empty($data['id'])) {
+		if (empty($data->id)) {
 			throw new BadRequest();
 		}
 
-		if (empty($data['link'])) {
+		if (empty($data->link)) {
 			throw new BadRequest();
 		}
 
-		return $this->getRecordService()->unlinkAll($data['id'], $data['link']);
+		return $this->getRecordService()->unlinkAll($data->id, $data->link);
 	}
 
 	public function postActionOptOut($params, $data)
 	{
-		if (empty($data['id'])) {
+		if (empty($data->id)) {
 			throw new BadRequest();
 		}
-		if (empty($data['targetType'])) {
+		if (empty($data->targetType)) {
 			throw new BadRequest();
 		}
-		if (empty($data['targetId'])) {
+		if (empty($data->targetId)) {
 			throw new BadRequest();
 		}
-		return $this->getRecordService()->optOut($data['id'], $data['targetType'], $data['targetId']);
+		$data->id = strval($data->id);
+		$data->targetId = strval($data->targetId);
+
+		return $this->getRecordService()->optOut($data->id, $data->targetType, $data->targetId);
 	}
 
 	public function postActionCancelOptOut($params, $data)
 	{
-		if (empty($data['id'])) {
+		if (empty($data->id)) {
 			throw new BadRequest();
 		}
-		if (empty($data['targetType'])) {
+		if (empty($data->targetType)) {
 			throw new BadRequest();
 		}
-		if (empty($data['targetId'])) {
+		if (empty($data->targetId)) {
 			throw new BadRequest();
 		}
-		return $this->getRecordService()->cancelOptOut($data['id'], $data['targetType'], $data['targetId']);
-	}
+		$data->id = strval($data->id);
+		$data->targetId = strval($data->targetId);
 
+		return $this->getRecordService()->cancelOptOut($data->id, $data->targetType, $data->targetId);
+	}
 }

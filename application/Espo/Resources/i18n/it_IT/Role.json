@@ -2,18 +2,22 @@
   "fields": {
     "name": "Nome",
     "roles": "Ruoli",
-    "assignmentPermission": "Assegnazione Autorizzazioni",
+    "assignmentPermission": "Assegnazione permessi",
     "userPermission": "Autorizzazioni Utente",
-    "portalPermission": "Autorizzazione Portale"
+    "portalPermission": "Autorizzazione Portale",
+    "groupEmailAccountPermission": "Permesso account email di gruppo",
+    "exportPermission": "Esporta Permessi",
+    "dataPrivacyPermission": "Autorizzazione privacy dati"
   },
   "links": {
-    "users": "Utenti",
-    "teams": "Teams"
+    "users": "Utenti"
   },
   "tooltips": {
-    "assignmentPermission": "Permette di limitare la capacità di assegnare i record e inviare messaggi ad altri utenti \n\ntutte - nessuna restrizione\n\nteam - può assegnare post solo per i compagni di team\n\nnon può - può assegnare post solo per sé",
-    "userPermission": "Permette di limitare la capacità per gli utenti di visualizzare le attività , il calendario e il flusso di altri utenti\n\ntutto - Può visualizzare tutti \n\nteam - è possibile visualizzare solo le attività dei compagni di squadra\n\nno - non può vedere ",
-    "portalPermission": "Definisce l'accesso alle informazioni del portale , la capacità di convertire i contatti con gli utenti del portale e inviare messaggi agli utenti del portale "
+    "assignmentPermission": "Permette di limitare la possibilità di assegnare record ed inviare messaggi ad altri utenti \n\ntutto - nessuna restrizione\n\nteam - può assegnare e postare solo al proprio team\n\nno - può assegnare e postare solo a sé stesso",
+    "userPermission": "Permette di limitare agli utenti la possibilità di visualizzare le attività, il calendario ed il flusso attività, di altri utenti\n\ntutto - tutto visualizzabile\n\nteam - visualizzabili le sole attività del proprio team\n\nno - nulla di visualizzabile",
+    "groupEmailAccountPermission": "Definisce un accesso agli account di posta elettronica di gruppo, una possibilità di inviare e-mail dal gruppo SMTP.",
+    "dataPrivacyPermission": "Consente di visualizzare e cancellare i dati personali.",
+    "exportPermission": "Definisce se gli utenti hanno la possibilità di esportare record."
   },
   "labels": {
     "Access": "Accesso",
@@ -29,11 +33,8 @@
     },
     "levelList": {
       "all": "tutti",
-      "team": "team",
-      "account": "account",
       "contact": "contatto",
-      "own": "se stesso",
-      "no": "no",
+      "own": "proprio",
       "yes": "si",
       "not-set": "non impostato"
     }
@@ -42,7 +43,7 @@
     "read": "Visualizzazione",
     "edit": "Modificare",
     "delete": "Cancellare",
-    "stream": "Stream",
+    "stream": "Flusso attività",
     "create": "Creare"
   },
   "messages": {

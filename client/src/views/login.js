@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,37 +58,49 @@ Espo.define('views/login', 'view', function (Dep) {
         getLogoSrc: function () {
             var companyLogoId = this.getConfig().get('companyLogoId');
             if (!companyLogoId) {
-                return this.getBasePath() + (this.getThemeManager().getParam('logo') || 'client/img/logo.png');
+                return this.getBasePath() + ('client/img/logo.png');
             }
-            return this.getBasePath() + '?entryPoint=LogoImage&id='+companyLogoId+'&t=' + companyLogoId;
+            return this.getBasePath() + '?entryPoint=LogoImage&id='+companyLogoId;
         },
 
         login: function () {
-                var userName = $("#field-userName").val();
-                var password = $("#field-password").val();
+                var userName = $('#field-userName').val();
+                var trimmedUserName = userName.trim();
+                if (trimmedUserName !== userName) {
+                    $('#field-userName').val(trimmedUserName);
+                    userName = trimmedUserName;
+                }
+
+                var password = $('#field-password').val();
 
                 var $submit = this.$el.find('#btn-login');
 
                 if (userName == '') {
+
+                    this.isPopoverDestroyed = false;
                     var $el = $("#field-userName");
 
                     var message = this.getLanguage().translate('userCantBeEmpty', 'messages', 'User');
+
                     $el.popover({
                         placement: 'bottom',
+                        container: 'body',
                         content: message,
                         trigger: 'manual',
                     }).popover('show');
 
                     var $cell = $el.closest('.form-group');
                     $cell.addClass('has-error');
-                    this.$el.one('mousedown click', function () {
+                    $el.one('mousedown click', function () {
                         $cell.removeClass('has-error');
+                        if (this.isPopoverDestroyed) return;
                         $el.popover('destroy');
-                    });
+                        this.isPopoverDestroyed = true;
+                    }.bind(this));
                     return;
                 }
 
-                $submit.addClass('disabled');
+                $submit.addClass('disabled').attr('disabled', 'disabled');
 
                 this.notify('Please wait...');
 
@@ -96,7 +108,8 @@ Espo.define('views/login', 'view', function (Dep) {
                     url: 'App/user',
                     headers: {
                         'Authorization': 'Basic ' + Base64.encode(userName  + ':' + password),
-                        'Espo-Authorization': Base64.encode(userName + ':' + password)
+                        'Espo-Authorization': Base64.encode(userName + ':' + password),
+                        'Espo-Authorization-By-Token': false
                     },
                     success: function (data) {
                         this.notify(false);
@@ -107,11 +120,13 @@ Espo.define('views/login', 'view', function (Dep) {
                             },
                             user: data.user,
                             preferences: data.preferences,
-                            acl: data.acl
+                            acl: data.acl,
+                            settings: data.settings,
+                            appParams: data.appParams
                         });
                     }.bind(this),
                     error: function (xhr) {
-                        $submit.removeClass('disabled');
+                        $submit.removeClass('disabled').removeAttr('disabled');
                         if (xhr.status == 401) {
                             this.onWrong();
                         }

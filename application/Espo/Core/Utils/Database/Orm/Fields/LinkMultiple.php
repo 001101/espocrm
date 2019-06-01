@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,32 +33,46 @@ class LinkMultiple extends Base
 {
     protected function load($fieldName, $entityName)
     {
-        $data = array(
-            $entityName => array (
-                'fields' => array(
-                    $fieldName.'Ids' => array(
-                        'type' => 'varchar',
+        $data = [
+            $entityName => [
+                'fields' => [
+                    $fieldName.'Ids' => [
+                        'type' => 'jsonArray',
                         'notStorable' => true,
-                    ),
-                    $fieldName.'Names' => array(
-                        'type' => 'varchar',
+                        'isLinkMultipleIdList' => true,
+                        'relation' => $fieldName,
+                        'isUnordered' => true
+                    ],
+                    $fieldName.'Names' => [
+                        'type' => 'jsonObject',
                         'notStorable' => true,
-                    ),
-                ),
-            ),
-            'unset' => array(
-                $entityName => array(
-                    'fields.'.$fieldName,
-                ),
-            ),
-        );
+                        'isLinkMultipleNameMap' => true
+                    ]
+                ]
+            ],
+            'unset' => [
+                $entityName => [
+                    'fields.' . $fieldName
+                ]
+            ]
+        ];
+
+        $fieldParams = $this->getFieldParams();
+
+        if (array_key_exists('orderBy', $fieldParams)) {
+            $data[$entityName]['fields'][$fieldName . 'Ids']['orderBy'] = $fieldParams['orderBy'];
+            if (array_key_exists('orderDirection', $fieldParams)) {
+                $data[$entityName]['fields'][$fieldName . 'Ids']['orderDirection'] = $fieldParams['orderDirection'];
+            }
+        }
 
         $columns = $this->getMetadata()->get("entityDefs.{$entityName}.fields.{$fieldName}.columns");
         if (!empty($columns)) {
-            $data[$entityName]['fields'][$fieldName . 'Columns'] = array(
-                'type' => 'varchar',
+            $data[$entityName]['fields'][$fieldName . 'Columns'] = [
+                'type' => 'jsonObject',
                 'notStorable' => true,
-            );
+                'columns' => $columns
+            ];
         }
 
         return $data;

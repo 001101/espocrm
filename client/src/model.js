@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('model', [], function () {
+define('model', [], function () {
 
     var Dep = Backbone.Model;
 
@@ -48,6 +48,11 @@ Espo.define('model', [], function () {
             this.defs.links = this.defs.links || {};
 
             Dep.prototype.initialize.call(this);
+        },
+
+        sync: function (method, model, options) {
+            if (method === 'patch') options.type = 'PUT';
+            return Dep.prototype.sync.call(this, method, model, options);
         },
 
         set: function (key, val, options) {
@@ -101,6 +106,13 @@ Espo.define('model', [], function () {
                         var defaultValue = this.parseDefaultValue(defaultValue);
                         defaultHash[field] = defaultValue;
                     }
+
+                    var defaultAttributes = this.getFieldParam(field, 'defaultAttributes');
+                    if (defaultAttributes) {
+                        for (var attribute in defaultAttributes) {
+                            defaultHash[attribute] = defaultAttributes[attribute];
+                        }
+                    }
                 }
             }
 
@@ -123,7 +135,7 @@ Espo.define('model', [], function () {
         },
 
         getLinkMultipleColumn: function (field, column, id) {
-            return ((this.get(field + 'Columns') || {}).id || {}).column;
+            return ((this.get(field + 'Columns') || {})[id] || {})[column];
         },
 
         setRelate: function (data) {
@@ -235,9 +247,24 @@ Espo.define('model', [], function () {
 
         isRemovable: function () {
             return true;
+        },
+
+        getEntityType: function () {
+            return this.name;
+        },
+
+        fetch: function (options) {
+            this.lastXhr = Dep.prototype.fetch.call(this, options);
+            return this.lastXhr;
+        },
+
+        abortLastFetch: function () {
+            if (this.lastXhr && this.lastXhr.readyState < 4) {
+                this.lastXhr.abort();
+            }
         }
+
     });
 
     return Model;
-
 });

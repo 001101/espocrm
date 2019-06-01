@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,38 +36,130 @@ Espo.define('views/fields/currency', 'views/fields/float', function (Dep) {
 
         detailTemplate: 'fields/currency/detail',
 
-        listTemplate: 'fields/currency/detail',
+        detailTemplate1: 'fields/currency/detail-1',
+
+        detailTemplate2: 'fields/currency/detail-2',
+
+        listTemplate: 'fields/currency/list',
+
+        listTemplate1: 'fields/currency/list-1',
+
+        listTemplate2: 'fields/currency/list-2',
+
+        detailTemplateNoCurrency: 'fields/currency/detail-no-currency',
+
+        maxDecimalPlaces: 3,
 
         data: function () {
+            var currencyValue = this.model.get(this.currencyFieldName) || this.getPreferences().get('defaultCurrency') || this.getConfig().get('defaultCurrency');
             return _.extend({
                 currencyFieldName: this.currencyFieldName,
-                currencyValue: this.model.get(this.currencyFieldName) || this.getPreferences().get('defaultCurrency') || this.getConfig().get('defaultCurrency'),
+                currencyValue: currencyValue,
                 currencyOptions: this.currencyOptions,
-                currencyList: this.currencyList
+                currencyList: this.currencyList,
+                currencySymbol: this.getMetadata().get(['app', 'currency', 'symbolMap', currencyValue]) || ''
             }, Dep.prototype.data.call(this));
         },
 
         setup: function () {
             Dep.prototype.setup.call(this);
             this.currencyFieldName = this.name + 'Currency';
-            this.currencyList = this.getConfig().get('currencyList') || ['USD'];
-            var currencyValue = this.currencyValue = this.model.get(this.currencyFieldName) || this.getConfig().get('defaultCurrency');
+            this.defaultCurrency = this.getConfig().get('defaultCurrency');
+            this.currencyList = this.getConfig().get('currencyList') || [this.defaultCurrency];
+            this.isSingleCurrency = this.currencyList.length <= 1;
+
+            var currencyValue = this.currencyValue = this.model.get(this.currencyFieldName) || this.defaultCurrency;
+
+            if (!~this.currencyList.indexOf(currencyValue)) {
+                this.currencyList = Espo.Utils.clone(this.currencyList);
+                this.currencyList.push(currencyValue);
+            }
+        },
+
+        getCurrencyFormat: function () {
+            return this.getConfig().get('currencyFormat') || 1;
+        },
+
+        _getTemplateName: function () {
+            if (this.mode == 'detail' || this.mode == 'list') {
+                var prop
+                if (this.mode == 'list') {
+                    var prop = 'listTemplate' + this.getCurrencyFormat().toString();
+                } else {
+                    var prop = 'detailTemplate' + this.getCurrencyFormat().toString();
+                }
+                if (this.options.hideCurrency) {
+                    prop = 'detailTemplateNoCurrency';
+                }
+
+                if (prop in this) {
+                    return this[prop];
+                }
+            }
+            return Dep.prototype._getTemplateName.call(this);
         },
 
         formatNumber: function (value) {
+            if (this.mode === 'list' || this.mode === 'detail') {
+                return this.formatNumberDetail(value);
+            }
+            return this.formatNumberEdit(value);
+        },
+
+        formatNumberEdit: function (value) {
+            var currencyDecimalPlaces = this.getConfig().get('currencyDecimalPlaces');
+
             if (value !== null) {
                 var parts = value.toString().split(".");
                 parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, this.thousandSeparator);
+
                 if (parts.length > 1) {
-                    if (parts[1].length == 1) {
-                        parts[1] += '0';
-                    } else if (parts[1].length > 2) {
-                        if (this.mode != 'edit') {
-                            var fixed = value.toFixed(2);
-                            parts[1] = fixed.split(".")[1];
+                    if (currencyDecimalPlaces && parts[1].length < currencyDecimalPlaces) {
+                        var limit = currencyDecimalPlaces - parts[1].length;
+                        for (var i = 0; i < limit; i++) {
+                            parts[1] += '0';
                         }
                     }
                 }
+
+                return parts.join(this.decimalMark);
+            }
+            return '';
+        },
+
+        formatNumberDetail: function (value) {
+            if (value !== null) {
+                var currencyDecimalPlaces = this.getConfig().get('currencyDecimalPlaces');
+
+                if (currencyDecimalPlaces === 0) {
+                    value = Math.round(value);
+                } else if (currencyDecimalPlaces) {
+                     value = Math.round(value * Math.pow(10, currencyDecimalPlaces)) / (Math.pow(10, currencyDecimalPlaces));
+                } else {
+                    value = Math.round(value * Math.pow(10, this.maxDecimalPlaces)) / (Math.pow(10, this.maxDecimalPlaces));
+                }
+
+                var parts = value.toString().split(".");
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, this.thousandSeparator);
+
+                if (currencyDecimalPlaces === 0) {
+                    return parts[0];
+                } else if (currencyDecimalPlaces) {
+                    var decimalPartLength = 0;
+                    if (parts.length > 1) {
+                        decimalPartLength = parts[1].length;
+                    } else {
+                        parts[1] = '';
+                    }
+
+                    if (currencyDecimalPlaces && decimalPartLength < currencyDecimalPlaces) {
+                        var limit = currencyDecimalPlaces - decimalPartLength;
+                        for (var i = 0; i < limit; i++) {
+                            parts[1] += '0';
+                        }
+                    }
+                }
+
                 return parts.join(this.decimalMark);
             }
             return '';
@@ -76,9 +168,9 @@ Espo.define('views/fields/currency', 'views/fields/float', function (Dep) {
         afterRender: function () {
             Dep.prototype.afterRender.call(this);
             if (this.mode == 'edit') {
-                this.$currency = this.$el.find('[name="' + this.currencyFieldName + '"]');
+                this.$currency = this.$el.find('[data-name="' + this.currencyFieldName + '"]');
                 this.$currency.on('change', function () {
-                    this.model.set(this.currencyFieldName, this.$currency.val());
+                    this.model.set(this.currencyFieldName, this.$currency.val(), {ui: true});
                 }.bind(this));
             }
         },
@@ -97,7 +189,7 @@ Espo.define('views/fields/currency', 'views/fields/float', function (Dep) {
             data[this.name] = value;
             data[this.currencyFieldName] = currencyValue
             return data;
-        },
+        }
+
     });
 });
-

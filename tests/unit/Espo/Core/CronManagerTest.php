@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ namespace tests\unit\Espo\Core;
 
 use tests\unit\ReflectionHelper;
 
-class CronManagerTest extends \PHPUnit_Framework_TestCase
+class CronManagerTest extends \PHPUnit\Framework\TestCase
 {
     protected $object;
 
@@ -80,11 +80,11 @@ class CronManagerTest extends \PHPUnit_Framework_TestCase
             ->will($this->returnValue(false));
 
         $this->objects['config']
-            ->expects($this->exactly(2))
+            ->expects($this->any())
             ->method('get')
             ->will($this->returnValue(50));
 
-        $this->assertTrue( $this->reflection->invokeMethod('checkLastRunTime', array()) );
+        $this->assertTrue( $this->reflection->invokeMethod('checkLastRunTime', array()));
     }
 
     public function testCheckLastRunTime()
@@ -97,11 +97,11 @@ class CronManagerTest extends \PHPUnit_Framework_TestCase
             )));
 
         $this->objects['config']
-            ->expects($this->exactly(2))
+            ->expects($this->any())
             ->method('get')
             ->will($this->returnValue(50));
 
-        $this->assertTrue( $this->reflection->invokeMethod('checkLastRunTime', array()) );
+        $this->assertTrue( $this->reflection->invokeMethod('checkLastRunTime', array()));
     }
 
     public function testCheckLastRunTimeTooFrequency()
@@ -114,10 +114,10 @@ class CronManagerTest extends \PHPUnit_Framework_TestCase
             )));
 
         $this->objects['config']
-            ->expects($this->exactly(2))
+            ->expects($this->exactly(1))
             ->method('get')
             ->will($this->returnValue(50));
 
-        $this->assertFalse( $this->reflection->invokeMethod('checkLastRunTime', array()) );
+        $this->assertFalse($this->reflection->invokeMethod('checkLastRunTime', array()));
     }
 }

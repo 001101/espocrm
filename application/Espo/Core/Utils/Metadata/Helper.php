@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,11 +41,16 @@ class Helper
      */
     protected $copiedDefParams = array(
         'readOnly',
+        'disabled',
         'notStorable',
         'layoutListDisabled',
         'layoutDetailDisabled',
         'layoutMassUpdateDisabled',
         'layoutFiltersDisabled',
+        'directAccessDisabled',
+        'customizationDisabled',
+        'importDisabled',
+        'exportDisabled',
     );
 
     public function __construct(\Espo\Core\Utils\Metadata $metadata)
@@ -59,9 +64,9 @@ class Helper
     }
 
     /**
-     * Get field defenition by type in metadata, "fields" key
+     * Get field definition by type in metadata, "fields" key
      *
-     * @param  array | string $fieldDef - It can be a string or field defenition from entityDefs
+     * @param  array | string $fieldDef - It can be a string or field definition from entityDefs
      * @return array | null
      */
     public function getFieldDefsByType($fieldDef)
@@ -70,9 +75,7 @@ class Helper
             $fieldDef = array('type' => $fieldDef);
         }
 
-        if (isset($fieldDef['dbType'])) {
-            return $this->getMetadata()->get('fields.'.$fieldDef['dbType']);
-        } else if (isset($fieldDef['type'])) {
+        if (isset($fieldDef['type'])) {
             return $this->getMetadata()->get('fields.'.$fieldDef['type']);
         }
 
@@ -133,16 +136,16 @@ class Helper
      *
      * @return array
      */
-    public function getAdditionalFieldList($fieldName, array $fieldParams, array $definitionList = null)
+    public function getAdditionalFieldList($fieldName, array $fieldParams, array $definitionList)
     {
-        if (empty($fieldParams['type'])) {
+        if (empty($fieldParams['type']) || empty($definitionList)) {
             return;
         }
 
         $fieldType = $fieldParams['type'];
-        $fieldDefinition = isset($definitionList[$fieldType]) ? $definitionList[$fieldType] : $this->getMetadata()->get('fields.'.$fieldType);
+        $fieldDefinition = isset($definitionList[$fieldType]) ? $definitionList[$fieldType] : null;
 
-        if (!empty($fieldDefinition['fields']) && is_array($fieldDefinition['fields'])) {
+        if (isset($fieldDefinition) && !empty($fieldDefinition['fields']) && is_array($fieldDefinition['fields'])) {
 
             $copiedParams = array_intersect_key($fieldParams, array_flip($this->copiedDefParams));
 

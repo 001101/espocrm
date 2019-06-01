@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,9 @@ Espo.define('views/fields/enum', ['views/fields/base', 'lib!Selectize'], functio
 
         type: 'enum',
 
-        listTemplate: 'fields/enum/detail',
+        listTemplate: 'fields/enum/list',
+
+        listLinkTemplate: 'fields/enum/list-link',
 
         detailTemplate: 'fields/enum/detail',
 
@@ -42,9 +44,34 @@ Espo.define('views/fields/enum', ['views/fields/base', 'lib!Selectize'], functio
 
         translatedOptions: null,
 
+        searchTypeList: ['anyOf', 'noneOf', 'isEmpty', 'isNotEmpty'],
+
         data: function () {
             var data = Dep.prototype.data.call(this);
             data.translatedOptions = this.translatedOptions;
+            var value = this.model.get(this.name);
+
+            if (this.isReadMode() && this.styleMap && (value || value === '')) {
+                data.style = this.styleMap[value] || 'default';
+            }
+
+            if (this.isReadMode()) {
+                if (this.params.displayAsLabel && data.style && data.style !== 'default') {
+                    data.class = 'label label-md label';
+                } else {
+                    data.class = 'text';
+                }
+            }
+
+            if (
+                value !== null
+                &&
+                value !== ''
+                ||
+                value === '' && (value in (this.translatedOptions || {}) && (this.translatedOptions || {})[value] !== '')
+            ) {
+                data.isNotEmpty = true;
+            }
             return data;
         },
 
@@ -56,6 +83,8 @@ Espo.define('views/fields/enum', ['views/fields/base', 'lib!Selectize'], functio
                 }
             }
 
+            this.styleMap = this.model.getFieldParam(this.name, 'style') || {};
+
             this.setupOptions();
 
             if ('translatedOptions' in this.options) {
@@ -66,30 +95,7 @@ Espo.define('views/fields/enum', ['views/fields/base', 'lib!Selectize'], functio
                 this.translatedOptions = this.params.translatedOptions;
             }
 
-            if (this.params.translation) {
-                var data = this.getLanguage().data;
-                var arr = this.params.translation.split('.');
-                var pointer = this.getLanguage().data;
-                arr.forEach(function (key) {
-                    if (key in pointer) {
-                        pointer = pointer[key];
-                        t = pointer;
-                    }
-                }, this);
-
-                this.translatedOptions = null;
-                var translatedOptions = {};
-                if (this.params.options) {
-                    this.params.options.forEach(function (o) {
-                        if (typeof t === 'object' && o in t) {
-                            translatedOptions[o] = t[o];
-                        } else {
-                            translatedOptions[o] = o;
-                        }
-                    }, this);
-                    this.translatedOptions = translatedOptions;
-                }
-            }
+            this.setupTranslation();
 
             if (this.translatedOptions === null) {
                 this.translatedOptions = this.getLanguage().translate(this.name, 'options', this.model.name) || {};
@@ -107,6 +113,40 @@ Espo.define('views/fields/enum', ['views/fields/base', 'lib!Selectize'], functio
 
             if (this.options.customOptionList) {
                 this.setOptionList(this.options.customOptionList);
+            }
+        },
+
+        setupTranslation: function () {
+            if (this.params.translation) {
+                var translationObj;
+                var data = this.getLanguage().data;
+                var arr = this.params.translation.split('.');
+                var pointer = this.getLanguage().data;
+                arr.forEach(function (key) {
+                    if (key in pointer) {
+                        pointer = pointer[key];
+                        translationObj = pointer;
+                    }
+                }, this);
+
+                this.translatedOptions = null;
+                var translatedOptions = {};
+                if (this.params.options) {
+                    this.params.options.forEach(function (item) {
+                        if (typeof translationObj === 'object' && item in translationObj) {
+                            translatedOptions[item] = translationObj[item];
+                        } else {
+                            translatedOptions[item] = item;
+                        }
+                    }, this);
+                    var value = this.model.get(this.name);
+                    if ((value || value === '') && !(value in translatedOptions)) {
+                        if (typeof translationObj === 'object' && value in translationObj) {
+                            translatedOptions[value] = translationObj[value];
+                        }
+                    }
+                    this.translatedOptions = translatedOptions;
+                }
             }
         },
 
@@ -147,13 +187,35 @@ Espo.define('views/fields/enum', ['views/fields/base', 'lib!Selectize'], functio
             }
         },
 
+        setupSearch: function () {
+            this.events = _.extend({
+                'change select.search-type': function (e) {
+                    this.handleSearchType($(e.currentTarget).val());
+                },
+            }, this.events || {});
+        },
+
+        handleSearchType: function (type) {
+            var $inputContainer = this.$el.find('div.input-container');
+
+            if (~['anyOf', 'noneOf'].indexOf(type)) {
+                $inputContainer.removeClass('hidden');
+            } else {
+                $inputContainer.addClass('hidden');
+            }
+        },
+
         afterRender: function () {
             Dep.prototype.afterRender.call(this);
 
             if (this.mode == 'search') {
-                var $element = this.$element = this.$el.find('[name="' + this.name + '"]');
 
-                var valueList = this.searchParams.value || [];
+                var $element = this.$element = this.$el.find('.main-element');
+
+                var type = this.$el.find('select.search-type').val();
+                this.handleSearchType(type);
+
+                var valueList = this.getSearchParamsData().valueList || this.searchParams.value || [];
                 this.$element.val(valueList.join(':,:'));
 
                 var data = [];
@@ -189,13 +251,15 @@ Espo.define('views/fields/enum', ['views/fields/base', 'lib!Selectize'], functio
                         };
                     }
                 });
+
+                this.$el.find('.selectize-dropdown-content').addClass('small');
             }
         },
 
         validateRequired: function () {
             if (this.isRequired()) {
                 if (!this.model.get(this.name)) {
-                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
+                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.getLabelText());
                     this.showValidationMessage(msg);
                     return true;
                 }
@@ -203,28 +267,120 @@ Espo.define('views/fields/enum', ['views/fields/base', 'lib!Selectize'], functio
         },
 
         fetch: function () {
-            var value = this.$el.find('[name="' + this.name + '"]').val();
+            var value = this.$element.val();
+
+            if (this.fetchEmptyValueAsNull && !value) {
+                value = null;
+            }
+
             var data = {};
             data[this.name] = value;
+
             return data;
+        },
+
+        parseItemForSearch: function (item) {
+            return item;
         },
 
         fetchSearch: function () {
+            var type = this.fetchSearchType();
+
             var list = this.$element.val().split(':,:');
-            if (list.length == 1 && list[0] == '') {
+            if (list.length === 1 && list[0] == '') {
                 list = [];
             }
 
-            if (list.length == 0) {
-                return false;
-            }
+            list.forEach(function (item, i) {
+                list[i] = this.parseItemForSearch(item);
+            }, this);
 
-            var data = {
-                type: 'in',
-                value: list
-            };
-            return data;
+            if (type === 'anyOf') {
+                if (list.length === 0) {
+                    return {
+                        data: {
+                            type: 'anyOf',
+                            valueList: list
+                        }
+                    };
+                }
+                return {
+                    type: 'in',
+                    value: list,
+                    data: {
+                        type: 'anyOf',
+                        valueList: list
+                    }
+                };
+            } else if (type === 'noneOf') {
+                if (list.length === 0) {
+                    return {
+                        data: {
+                            type: 'noneOf',
+                            valueList: list
+                        }
+                    };
+                }
+                return {
+                    type: 'or',
+                    value: [
+                        {
+                            type: 'isNull',
+                            attribute: this.name
+                        },
+                        {
+                            type: 'notIn',
+                            value: list,
+                            attribute: this.name
+                        }
+                    ],
+                    data: {
+                        type: 'noneOf',
+                        valueList: list
+                    }
+                };
+            } else if (type === 'isEmpty') {
+                return {
+                    type: 'or',
+                    value: [
+                        {
+                            type: 'isNull',
+                            attribute: this.name
+                        },
+                        {
+                            type: 'equals',
+                            value: '',
+                            attribute: this.name
+                        }
+                    ],
+                    data: {
+                        type: 'isEmpty'
+                    }
+                };
+            } else if (type === 'isNotEmpty') {
+                return {
+                    type: 'and',
+                    value: [
+                        {
+                            type: 'isNotNull',
+                            attribute: this.name
+                        },
+                        {
+                            type: 'notEquals',
+                            value: '',
+                            attribute: this.name
+                        }
+                    ],
+                    data: {
+                        type: 'isNotEmpty'
+                    }
+                };
+            }
         },
+
+        getSearchType: function () {
+            return this.getSearchParamsData().type || 'anyOf';
+        }
+
     });
 });
-

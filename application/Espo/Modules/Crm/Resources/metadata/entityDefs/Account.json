@@ -2,14 +2,17 @@
     "fields": {
         "name": {
             "type": "varchar",
+            "maxLength": 249,
             "required": true,
             "trim": true
         },
         "website": {
-            "type": "url"
+            "type": "url",
+            "strip": true
         },
         "emailAddress": {
-            "type": "email"
+            "type": "email",
+            "isPersonalData": true
         },
         "phoneNumber": {
             "type": "phone",
@@ -26,35 +29,56 @@
             "options": [
                 "",
                 "Advertising",
+                "Aerospace",
                 "Agriculture",
                 "Apparel & Accessories",
+                "Architecture",
                 "Automotive",
                 "Banking",
                 "Biotechnology",
                 "Building Materials & Equipment",
                 "Chemical",
+                "Construction",
+                "Consulting",
                 "Computer",
+                "Culture",
+                "Creative",
+                "Defense",
                 "Education",
                 "Electronics",
+                "Electric Power",
                 "Energy",
                 "Entertainment & Leisure",
                 "Finance",
                 "Food & Beverage",
                 "Grocery",
                 "Healthcare",
+                "Hospitality",
                 "Insurance",
                 "Legal",
                 "Manufacturing",
+                "Mass Media",
+                "Marketing",
+                "Mining",
+                "Music",
                 "Publishing",
+                "Petroleum",
                 "Real Estate",
+                "Retail",
                 "Service",
                 "Sports",
                 "Software",
+                "Support",
+                "Shipping",
+                "Travel",
                 "Technology",
                 "Telecommunications",
                 "Television",
                 "Transportation",
-                "Venture Capital"
+                "Testing, Inspection & Certification",
+                "Venture Capital",
+                "Wholesale",
+                "Water"
             ],
             "default": "",
             "isSorted": true
@@ -67,10 +91,18 @@
         "contactRole": {
             "type": "varchar",
             "notStorable": true,
+            "disabled": true,
+            "maxLength": 100
+        },
+        "contactIsInactive": {
+            "type": "bool",
+            "notStorable": true,
+            "default": false,
             "disabled": true
         },
         "billingAddress": {
-            "type": "address"
+            "type": "address",
+            "trim": true
         },
         "billingAddressStreet": {
             "type": "text",
@@ -78,16 +110,20 @@
             "dbType": "varchar"
         },
         "billingAddressCity": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "billingAddressState": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "billingAddressCountry": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "billingAddressPostalCode": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "shippingAddress": {
             "type": "address",
@@ -96,19 +132,24 @@
         "shippingAddressStreet": {
             "type": "text",
             "maxLength": 255,
-            "dbType": "varchar"
+            "dbType": "varchar",
+            "trim": true
         },
         "shippingAddressCity": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "shippingAddressState": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "shippingAddressCountry": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "shippingAddressPostalCode": {
-            "type": "varchar"
+            "type": "varchar",
+            "trim": true
         },
         "description": {
             "type": "text"
@@ -149,6 +190,7 @@
             "layoutListDisabled": true,
             "layoutMassUpdateDisabled": true,
             "importDisabled": true,
+            "exportDisabled": true,
             "noLoad": true
         },
         "targetList": {
@@ -158,7 +200,8 @@
             "layoutListDisabled": true,
             "layoutMassUpdateDisabled": true,
             "layoutFiltersDisabled": true,
-            "entity": "TargetList"
+            "entity": "TargetList",
+            "directAccessDisabled": true
         },
         "originalLead": {
             "type": "link",
@@ -166,6 +209,12 @@
             "layoutListDisabled": true,
             "readOnly": true,
             "view": "views/fields/link-one"
+        },
+        "targetListIsOptedOut": {
+            "type": "bool",
+            "notStorable": true,
+            "readOnly": true,
+            "disabled": true
         }
     },
     "links": {
@@ -205,7 +254,8 @@
         "documents": {
             "type": "hasMany",
             "entity": "Document",
-            "foreign": "accounts"
+            "foreign": "accounts",
+            "audited": true
         },
         "meetingsPrimary": {
             "type": "hasMany",
@@ -235,13 +285,15 @@
             "type": "hasChildren",
             "entity": "Meeting",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "calls": {
             "type": "hasChildren",
             "entity": "Call",
             "foreign": "parent",
-            "layoutRelationshipsDisabled": true
+            "layoutRelationshipsDisabled": true,
+            "audited": true
         },
         "tasks": {
             "type": "hasChildren",
@@ -283,11 +335,14 @@
         }
     },
     "collection": {
-        "sortBy": "name",
-        "asc": true,
+        "orderBy": "createdAt",
+        "order": "desc",
         "textFilterFields": ["name", "emailAddress"]
     },
     "indexes": {
+        "createdAt": {
+            "columns": ["createdAt", "deleted"]
+        },
         "name": {
             "columns": ["name", "deleted"]
         },

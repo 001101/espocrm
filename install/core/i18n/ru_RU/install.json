@@ -18,12 +18,9 @@
     "twitter": "твиттер",
     "forum": "форум",
     "Installation Guide": "Инструкция по установке",
-    "admin": "admin",
-    "localhost": "localhost",
-    "port": "3306",
+    "admin": "админ",
     "Locale": "Локаль",
     "Outbound Email Configuration": "Настройка исходящей эл. почты",
-    "SMTP": "SMTP",
     "Start": "Начать",
     "Back": "Назад",
     "Next": "Далее",
@@ -33,12 +30,9 @@
     "Test settings": "Проверка соединения",
     "Database Settings Description": "Введите информацию для подключения к базе данных MySQL (имя сервера, имя пользователя и пароль). Вы можете указать порт сервера, например localhost:3306.",
     "Install": "Установить",
-    "SetupConfirmation page title": "Рекомендуемые настройки",
-    "PHP Configuration": "Рекомендуемые настройки PHP",
-    "MySQL Configuration": "Конфигурация MySQL",
     "Configuration Instructions": "Инструкции по конфигурации",
     "phpVersion": "Версия PHP",
-    "mysqlVersion": "Версия MySQL",
+    "requiredMysqlVersion": "Версия MySQL",
     "dbHostName": "Сервер БД",
     "dbName": "Имя БД",
     "dbUserName": "Имя пользователя БД",
@@ -64,7 +58,7 @@
     "Time Format": "Формат времени",
     "Time Zone": "Часовой пояс",
     "First Day of Week": "Первый день недели",
-    "Thousand Separator": "Разделитель групп разрядов",
+    "Thousand Separator": "Тысячный разделитель",
     "Decimal Mark": "Десятичный разделитель",
     "Default Currency": "Валюта по умолчанию",
     "Currency List": "Список валют",
@@ -82,7 +76,7 @@
     "Bad init Permission": "Запрещен доступ к директории \"{*}\". Пожалуйста, установите права 775 для \"{*}\" или просто выполните эту команду в терминале <pre><b>{C}</b></pre>\n\tОперация не разрешена? Попробуйте это: {CSU}",
     "Some errors occurred!": "Произошло несколько ошибок!",
     "phpVersion": "Установленная версия PHP не поддерживается EspoCRM, обновите РНР по крайней мере до версии {MinVersion}",
-    "MySQLVersion": "Установленная версия MySQL не поддерживается EspoCRM, обновите MySQL по крайней мере до версии {minVersion}",
+    "requiredMysqlVersion": "Установленная версия MySQL не поддерживается EspoCRM, обновите MySQL по крайней мере до версии {minVersion}",
     "The PHP extension was not found...": "Ошибка PHP: расширение <b>{extName}</b> не найдено.",
     "All Settings correct": "Все настройки верны",
     "Failed to connect to database": "Не удалось подключиться к базе данных",
@@ -95,7 +89,6 @@
     "buildDatabase error": "ошибка buildDatabase",
     "createUser error": "ошибка createUser",
     "checkAjaxPermission error": "ошибка checkAjaxPermission",
-    "Ajax failed": "Сбой Ajax",
     "Cannot create user": "Не удается создать пользователя",
     "Permission denied": "Доступ запрещен",
     "Permission denied to": "Доступ запрещен",
@@ -103,25 +96,21 @@
     "operationNotPermitted": "Операция не разрешена? Попробуйте это: <br>{CSU}",
     "Can not save settings": "Невозможно сохранить настройки",
     "Cannot save preferences": "Невозможно сохранить настройки",
-    "Thousand Separator and Decimal Mark equal": "Разделитель групп разрядов не может быть таким же как и десятичный разделитель",
+    "Thousand Separator and Decimal Mark equal": "Тысячный разделитель не может быть таким же как и десятичный разделитель",
     "extension": "{0} расширение отсутствует",
     "option": "Рекомендуемое значение {0}",
     "mysqlSettingError": "Для EspoCRM требуется, чтобы значением \"{NAME}\" являлось {VALUE}"
   },
   "options": {
-    "db driver": {
-      "mysqli": "MySQLi",
-      "pdo_mysql": "PDO MySQL"
-    },
     "modRewriteInstruction": {
       "apache": {
-        "linux": "<br><br>1. Подключите модуль \"mod_rewrite\". Для этого выполните в терминале следующие комманды:<pre>{APACHE1}</pre><br>2. Включите поддержку .htaccess. Добавьте/отредактируйте параметры конфигурации сервера (/etc/apache/apache2.conf, /etc/httpd/conf/httpd.conf):<pre>{APACHE2}</pre>\n Потом выполните эту команду в терминале:<pre>{APACHE3}</pre><br>3. Попробуйте добавить путь RewriteBase, откройте файл {API_PATH}.htaccess и замените следующую строку:<pre>{APACHE4}</pre>To<pre>{APACHE5}</pre><br> Для получения более подробной информации, пожалуйста, перейдите <a href=\"http://www.espocrm.com/blog/apache-server-configuration-for-espocrm/\" target=\"_blank\">Apache server configuration for EspoCRM</a>.<br><br>",
-        "windows": "<br> <pre>1. Найдите файл httpd.conf (как правило, вы можете найти его в папке conf, config или в папке с похожим названием)<br>\n2. Внутри файла httpd.conf раскомментируйте строку LoadModule rewrite_module modules/mod_rewrite.so (удалите знак '#' в начале строки)<br>\n3. Также убедитесь что раскомментирована строка ClearModuleList и что строка AddModule mod_rewrite.c не закомментирована.\n</pre>"
+        "windows": "<br> <pre>1. Найдите файл httpd.conf (как правило, вы можете найти его в папке conf, config или в папке с похожим названием)<br>\n2. Внутри файла httpd.conf раскомментируйте строку LoadModule rewrite_module modules/mod_rewrite.so (удалите знак '#' в начале строки)<br>\n3. Также убедитесь что раскомментирована строка ClearModuleList и что строка AddModule mod_rewrite.c не закомментирована.\n</pre>",
+        "linux": "<br><br>1. Подключите модуль \"mod_rewrite\". Для этого выполните в терминале следующие комманды:<pre>{APACHE1}</pre><br>2. Включите поддержку .htaccess. Добавьте/отредактируйте параметры конфигурации сервера (/etc/apache/apache2.conf, /etc/httpd/conf/httpd.conf):<pre>{APACHE2}</pre>\n Потом выполните эту команду в терминале:<pre>{APACHE3}</pre><br>3. Попробуйте добавить путь RewriteBase, откройте файл {API_PATH}.htaccess и замените следующую строку:<pre>{APACHE4}</pre>To<pre>{APACHE5}</pre><br> Для получения более подробной информации, пожалуйста, перейдите <a href=\"https://www.espocrm.com/documentation/administration/apache-server-configuration/\" target=\"_blank\">Apache server configuration for EspoCRM</a>.<br><br>"
       },
       "nginx": {
-            "linux": "<br>\n<pre>\n{NGINX}\n</pre> <br> Для получения более подробной информации, пожалуйста, перейдите <a href=\"http://www.espocrm.com/blog/nginx-server-configuration-for-espocrm/\" target=\"_blank\">Nginx server configuration for EspoCRM</a>.<br><br>",
-            "windows": "<br>\n<pre>\n{NGINX}\n</pre> <br> Для получения более подробной информации, пожалуйста, перейдите <a href=\"http://www.espocrm.com/blog/nginx-server-configuration-for-espocrm/\" target=\"_blank\">Nginx server configuration for EspoCRM</a>.<br><br>"
-        }
+        "linux": "<br>\n<pre>\n{NGINX}\n</pre> <br> Для получения более подробной информации, пожалуйста, перейдите <a href=\"https://www.espocrm.com/documentation/administration/nginx-server-configuration/\" target=\"_blank\">Nginx server configuration for EspoCRM</a>.<br><br>",
+        "windows": "<br>\n<pre>\n{NGINX}\n</pre> <br> Для получения более подробной информации, пожалуйста, перейдите <a href=\"https://www.espocrm.com/documentation/administration/nginx-server-configuration/\" target=\"_blank\">Nginx server configuration for EspoCRM</a>.<br><br>"
+      }
     },
     "modRewriteTitle": {
       "apache": "Ошибка API: EspoCRM API недоступен.<br> Возможные проблемы: не подключен модуль \"mod_rewrite\" к Apache серверу, отключена поддержка .htaccess или проблема с RewriteBase.<br>Совершайте только необходимые шаги. После каждого шага проверяйте решена ли проблема.",

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,8 +32,6 @@ Espo.define('views/modals/edit', 'views/modal', function (Dep) {
 
         cssName: 'edit-modal',
 
-        header: false,
-
         template: 'modals/edit',
 
         saveDisabled: false,
@@ -47,6 +45,12 @@ Espo.define('views/modals/edit', 'views/modal', function (Dep) {
         escapeDisabled: true,
 
         fitHeight: true,
+
+        className: 'dialog dialog-record',
+
+        sideDisabled: false,
+
+        bottomDisabled: false,
 
         setup: function () {
 
@@ -83,28 +87,34 @@ Espo.define('views/modals/edit', 'views/modal', function (Dep) {
             });
 
             this.scope = this.scope || this.options.scope;
+
+            this.entityType = this.options.entityType || this.scope;
+
             this.id = this.options.id;
 
             if (!this.id) {
-                this.header = this.getLanguage().translate('Create ' + this.scope, 'labels', this.scope);
+                this.headerHtml = this.getLanguage().translate('Create ' + this.scope, 'labels', this.scope);
             } else {
-                this.header = this.getLanguage().translate('Edit');
-                this.header += ': ' + this.getLanguage().translate(this.scope, 'scopeNames');
+                this.headerHtml = this.getLanguage().translate('Edit');
+                this.headerHtml += ': ' + this.getLanguage().translate(this.scope, 'scopeNames');
             }
 
             if (!this.fullFormDisabled) {
                 if (!this.id) {
-                    this.header = '<a href="#' + this.scope + '/create" class="action" title="'+this.translate('Full Form')+'" data-action="fullForm">' + this.header + '</a>';
+                    this.headerHtml = '<a href="#' + this.scope + '/create" class="action" title="'+this.translate('Full Form')+'" data-action="fullForm">' + this.headerHtml + '</a>';
                 } else {
-                    this.header = '<a href="#' + this.scope + '/edit/' + this.id+'" class="action" title="'+this.translate('Full Form')+'" data-action="fullForm">' + this.header + '</a>';
+                    this.headerHtml = '<a href="#' + this.scope + '/edit/' + this.id+'" class="action" title="'+this.translate('Full Form')+'" data-action="fullForm">' + this.headerHtml + '</a>';
                 }
             }
+
+            var iconHtml = this.getHelper().getScopeColorIconHtml(this.scope);
+            this.headerHtml = iconHtml + this.headerHtml;
 
             this.sourceModel = this.model;
 
             this.waitForView('edit');
 
-            this.getModelFactory().create(this.scope, function (model) {
+            this.getModelFactory().create(this.entityType, function (model) {
                 if (this.id) {
                     if (this.sourceModel) {
                         model = this.model = this.sourceModel.clone();
@@ -113,34 +123,45 @@ Espo.define('views/modals/edit', 'views/modal', function (Dep) {
                         model.id = this.id;
                     }
                     model.once('sync', function () {
-                        this.createEdit(model);
+                        this.createRecordView(model);
                     }, this);
                     model.fetch();
                 } else {
+                    this.model = model;
                     if (this.options.relate) {
                         model.setRelate(this.options.relate);
                     }
                     if (this.options.attributes) {
                         model.set(this.options.attributes);
                     }
-                    this.createEdit(model);
+                    this.createRecordView(model);
                 }
             }.bind(this));
         },
 
-        createEdit: function (model, callback) {
-            var viewName = this.editViewName || this.editView || this.getMetadata().get('clientDefs.' + model.name + '.recordViews.editQuick') || 'views/record/edit-small';
+        createRecordView: function (model, callback) {
+            var viewName =
+                this.editViewName ||
+                this.editView ||
+                this.getMetadata().get(['clientDefs', model.name, 'recordViews', 'editSmall']) ||
+                this.getMetadata().get(['clientDefs', model.name, 'recordViews', 'editQuick']) ||
+                'views/record/edit-small';
             var options = {
                 model: model,
                 el: this.containerSelector + ' .edit-container',
                 type: 'editSmall',
                 layoutName: this.layoutName || 'detailSmall',
                 columnCount: this.columnCount,
-                buttonsPosition: false,
+                buttonsDisabled: true,
+                sideDisabled: this.sideDisabled,
+                bottomDisabled: this.bottomDisabled,
                 exit: function () {}
             };
+            this.handleRecordViewOptions(options);
             this.createView('edit', viewName, options, callback);
         },
+
+        handleRecordViewOptions: function (options) {},
 
         actionSave: function () {
             var editView = this.getView('edit');
@@ -152,10 +173,10 @@ Espo.define('views/modals/edit', 'views/modal', function (Dep) {
             }, this);
 
             var $buttons = this.dialog.$el.find('.modal-footer button');
-            $buttons.addClass('disabled');
+            $buttons.addClass('disabled').attr('disabled', 'disabled');
 
             editView.once('cancel:save', function () {
-                $buttons.removeClass('disabled');
+                $buttons.removeClass('disabled').removeAttr('disabled');
             }, this);
 
             editView.save();
@@ -171,12 +192,18 @@ Espo.define('views/modals/edit', 'views/modal', function (Dep) {
                 var model = this.getView('edit').model;
                 attributes = _.extend(attributes, model.getClonedAttributes());
 
+                var options = {
+                    attributes: attributes,
+                    relate: this.options.relate,
+                    returnUrl: this.options.returnUrl || Backbone.history.fragment,
+                    returnDispatchParams: this.options.returnDispatchParams || null,
+                };
+                if (this.options.rootUrl) {
+                    options.rootUrl = this.options.rootUrl;
+                }
+
                 setTimeout(function () {
-                    router.dispatch(this.scope, 'create', {
-                        attributes: attributes,
-                        relate: this.options.relate,
-                        returnUrl: this.options.returnUrl || Backbone.history.fragment,
-                    });
+                    router.dispatch(this.scope, 'create', options);
                     router.navigate(url, {trigger: false});
                 }.bind(this), 10);
             } else {
@@ -186,14 +213,19 @@ Espo.define('views/modals/edit', 'views/modal', function (Dep) {
                 var model = this.getView('edit').model;
                 attributes = _.extend(attributes, model.getClonedAttributes());
 
+                var options = {
+                    attributes: attributes,
+                    returnUrl: this.options.returnUrl || Backbone.history.fragment,
+                    returnDispatchParams: this.options.returnDispatchParams || null,
+                    model: this.sourceModel,
+                    id: this.id
+                };
+                if (this.options.rootUrl) {
+                    options.rootUrl = this.options.rootUrl;
+                }
+
                 setTimeout(function () {
-                    router.dispatch(this.scope, 'edit', {
-                        attributes: attributes,
-                        returnUrl: this.options.returnUrl || Backbone.history.fragment,
-                        returnDispatchParams: this.options.returnDispatchParams || null,
-                        model: this.sourceModel,
-                        id: this.id
-                    });
+                    router.dispatch(this.scope, 'edit', options);
                     router.navigate(url, {trigger: false});
                 }.bind(this), 10);
             }

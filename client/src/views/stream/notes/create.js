@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ Espo.define('views/stream/notes/create', 'views/stream/note', function (Dep) {
 
         messageName: 'create',
 
-        isRemovable: true,
+        isRemovable: false,
 
         data: function () {
             return _.extend({
@@ -63,11 +63,20 @@ Espo.define('views/stream/notes/create', 'views/stream/note', function (Dep) {
 
                 if (this.assignedUserId) {
                     this.messageName = 'createAssigned';
+
                     if (this.isThis) {
                         this.messageName += 'This';
+
+                        if (this.assignedUserId == this.model.get('createdById')) {
+                            this.messageName += 'Self';
+                        }
                     } else {
-                        if (isYou) {
-                            this.messageName += 'You';
+                        if (this.assignedUserId == this.model.get('createdById')) {
+                            this.messageName += 'Self';
+                        } else {
+                            if (isYou) {
+                                this.messageName += 'You';
+                            }
                         }
                     }
                 }

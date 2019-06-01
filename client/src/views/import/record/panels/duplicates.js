@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,11 +32,16 @@ Espo.define('views/import/record/panels/duplicates', 'views/import/record/panels
 
         link: 'duplicates',
 
+        setup: function () {
+            this.title = this.title || this.translate('Duplicates', 'labels', 'Import');
+            Dep.prototype.setup.call(this);
+        },
+
         actionUnmarkAsDuplicate: function (data) {
             var id = data.id;
             var type = data.type;
 
-            if (confirm(this.translate('confirmation', 'messages'))) {
+            this.confirm(this.translate('confirmation', 'messages'), function () {
                 this.ajaxPostRequest('Import/action/unmarkAsDuplicate', {
                     id: this.model.id,
                     entityId: id,
@@ -44,9 +49,8 @@ Espo.define('views/import/record/panels/duplicates', 'views/import/record/panels
                 }).then(function () {
                     this.collection.fetch();
                 });
-            }
+            }, this);
         }
 
     });
 });
-

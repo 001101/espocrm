@@ -1,11 +1,15 @@
 {
   "fields": {
-    "name": "Betreff",
     "description": "Beschreibung",
     "entryCount": "Eingabezähler",
     "campaigns": "Kampagnen",
     "endDate": "Enddatum",
-    "targetLists": "Kontaktlisten"
+    "targetLists": "Kontaktlisten",
+    "includingActionList": "Inklusive",
+    "excludingActionList": "Exklusive",
+    "optedOutCount": "gesetzte Opt-Out Anzahl",
+    "targetStatus": "Zielstatus",
+    "isOptedOut": "Ist Opt-Out gesetzt"
   },
   "links": {
     "accounts": "Firmen",
@@ -17,16 +21,16 @@
   "options": {
     "type": {
       "Email": "E-Mail",
-      "Web": "Web",
-      "Television": "Fernsehen",
-      "Radio": "Radio Button",
-      "Newsletter": "Newsletter"
+      "Television": "Fernsehen"
+    },
+    "targetStatus": {
+      "Opted Out": "Opt-Out gesetzt",
+      "Listed": "aufgelistet"
     }
   },
   "labels": {
     "Create TargetList": "Kontaktliste erstellen",
-    "Opted Out": "Keine E-Mails",
-    "Cancel Opt-Out": "Opt-Out zurücksetzen",
-    "Opt-Out": "Keine E-Mails"
+    "Opted Out": "Opt-Out gesetzt",
+    "Cancel Opt-Out": "Opt-Out zurücksetzen"
   }
 }

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -112,17 +112,27 @@ class Route
         }
     }
 
+    /**
+     * Unify routes
+     *
+     * @return array
+     */
     protected function unify()
     {
-        $data = array();
+        // for custom
+        $data = $this->getAddData([], $this->paths['customPath']);
 
-        $data = $this->getAddData($data, $this->paths['customPath']);
-
+        // for module
+        $moduleData = [];
         foreach ($this->getMetadata()->getModuleList() as $moduleName) {
             $modulePath = str_replace('{*}', $moduleName, $this->paths['modulePath']);
-            $data = $this->getAddData($data, $modulePath);
+            foreach ($this->getAddData([], $modulePath) as $row) {
+                $moduleData[$row['method'].$row['route']] = $row;
+            }
         }
+        $data = array_merge($data, array_values($moduleData));
 
+        // for core
         $data = $this->getAddData($data, $this->paths['corePath']);
 
         return $data;

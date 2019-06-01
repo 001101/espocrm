@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
  ************************************************************************/
 
 namespace Espo\Core\Upgrades\Actions;
+
 use Espo\Core\Utils\Util;
 use Espo\Core\Utils\System;
 use Espo\Core\Utils\Json;
@@ -60,6 +61,8 @@ abstract class Base
 
     protected $packagePostfix = 'z';
 
+    protected $scriptParams = [];
+
     /**
      * Directory name of files in a package
      */
@@ -83,6 +86,7 @@ abstract class Base
      */
     protected $defaultPackageType = 'extension';
 
+    protected $vendorDirName = 'vendor';
 
     public function __construct(\Espo\Core\Container $container, \Espo\Core\Upgrades\ActionManager $actionManager)
     {
@@ -109,13 +113,18 @@ abstract class Base
         return $this->actionManager;
     }
 
-    protected function getParams($name = null)
+    protected function getParams($name, $returns = null)
     {
         if (isset($this->params[$name])) {
             return $this->params[$name];
         }
 
-        return $this->params;
+        return $returns;
+    }
+
+    protected function setParam($name, $value)
+    {
+        $this->params[$name] = $value;
     }
 
     protected function getZipUtil()
@@ -151,6 +160,7 @@ abstract class Base
     {
         $this->deletePackageFiles();
         $this->deletePackageArchive();
+        $this->disableMaintenanceMode();
         throw new Error($errorMessage);
     }
 
@@ -162,7 +172,7 @@ abstract class Base
             throw new Error('Another installation process is currently running.');
         }
 
-        $this->processId = uniqid();
+        $this->processId = Util::generateId();
 
         return $this->processId;
     }
@@ -283,7 +293,7 @@ abstract class Base
             $script = new $scriptName();
 
             try {
-                $script->run($this->getContainer());
+                $script->run($this->getContainer(), $this->scriptParams);
             } catch (\Exception $e) {
                 $this->throwErrorAndRemovePackage($e->getMessage());
             }
@@ -311,6 +321,26 @@ abstract class Base
         return $this->getPath('packagePath', $isPackage);
     }
 
+    protected function getDeleteList($type = 'delete')
+    {
+        $manifest = $this->getManifest();
+
+        switch ($type) {
+            case 'delete':
+            case 'deleteBeforeCopy':
+                if (isset($manifest[$type])) {
+                    return $manifest[$type];
+                }
+                break;
+
+            case 'vendor':
+                return $this->getVendorFileList('delete');
+                break;
+        }
+
+        return array();
+    }
+
     /**
      * Get a list of files defined in manifest.json
      *
@@ -318,13 +348,26 @@ abstract class Base
      */
     protected function getDeleteFileList()
     {
-        $manifest = $this->getManifest();
+        if (!isset($this->data['deleteFileList'])) {
+            $deleteFileList = array();
 
-        if (!empty($manifest['delete'])) {
-            return $manifest['delete'];
+            $deleteList = array_merge($this->getDeleteList('delete'), $this->getDeleteList('deleteBeforeCopy'), $this->getDeleteList('vendor'));
+            foreach ($deleteList as $key => $itemPath) {
+                if (is_dir($itemPath)) {
+                    $fileList = $this->getFileManager()->getFileList($itemPath, true, '', true, true);
+                    $fileList = $this->concatStringWithArray($itemPath, $fileList);
+                    $deleteFileList = array_merge($deleteFileList, $fileList);
+
+                    continue;
+                }
+
+                $deleteFileList[] = $itemPath;
+            }
+
+            $this->data['deleteFileList'] = $deleteFileList;
         }
 
-        return array();
+        return $this->data['deleteFileList'];
     }
 
     /**
@@ -332,19 +375,12 @@ abstract class Base
      *
      * @return boolen
      */
-    protected function deleteFiles($withEmptyDirs = false)
+    protected function deleteFiles($type = 'delete', $withEmptyDirs = false)
     {
-        $deleteFileList = $this->getDeleteFileList();
+        $deleteList = $this->getDeleteList($type);
 
-        //remove directories, leave only files
-        foreach ($deleteFileList as $key => $filePath) {
-            if (!is_file($filePath)) {
-                unset($deleteFileList[$key]);
-            }
-        }
-
-        if (!empty($deleteFileList)) {
-            return $this->getFileManager()->remove($deleteFileList, null, $withEmptyDirs);
+        if (!empty($deleteList)) {
+            return $this->getFileManager()->remove($deleteList, null, $withEmptyDirs);
         }
 
         return true;
@@ -354,9 +390,7 @@ abstract class Base
     {
         if (!isset($this->data['fileList'])) {
             $packagePath = $this->getPackagePath();
-            $filesPath = Util::concatPath($packagePath, self::FILES);
-
-            $this->data['fileList'] = $this->getFileManager()->getFileList($filesPath, true, '', true, true);
+            $this->data['fileList'] = $this->getFileList($packagePath);
         }
 
         return $this->data['fileList'];
@@ -366,12 +400,59 @@ abstract class Base
     {
         if (!isset($this->data['restoreFileList'])) {
             $backupPath = $this->getPath('backupPath');
-            $backupFilePath = Util::concatPath($backupPath, self::FILES);
-
-            $this->data['restoreFileList'] = $this->getFileManager()->getFileList($backupFilePath, true, '', true, true);
+            $this->data['restoreFileList'] = $this->getFileList($backupPath);
         }
 
         return $this->data['restoreFileList'];
+    }
+
+    /**
+     * Get file directories (files, beforeInstallFiles, afterInstallFiles)
+     *
+     * @param  sting $parentDirPath
+     *
+     * @return array
+     */
+    protected function getFileDirs($parentDirPath = null)
+    {
+        $dirNames = $this->getParams('customDirNames');
+        $paths = array(self::FILES, $dirNames['before'], $dirNames['after']);
+
+        if (isset($parentDirPath)) {
+            foreach ($paths as &$path) {
+                $path = Util::concatPath($parentDirPath, $path);
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Get file list from directories: files, beforeUpgradeFiles, afterUpgradeFiles
+     *
+     * @param  string $dirPath
+     *
+     * @return array
+     */
+    protected function getFileList($dirPath)
+    {
+        $fileList = array();
+
+        $paths = $this->getFileDirs($dirPath);
+        foreach ($paths as $filesPath) {
+            if (file_exists($filesPath)) {
+                $files = $this->getFileManager()->getFileList($filesPath, true, '', true, true);
+                $fileList = array_merge($fileList, $files);
+            }
+        }
+
+        //vendor file list
+        $vendorFileList = $this->getVendorFileList('copy');
+        if (!empty($vendorFileList)) {
+            $fileList = array_merge($fileList, $vendorFileList);
+        }
+
+        return $fileList;
     }
 
     protected function copy($sourcePath, $destPath, $recursively = false, array $fileList = null, $copyOnlyFiles = false)
@@ -388,15 +469,74 @@ abstract class Base
     /**
      * Copy files from upgrade/extension package
      *
-     * @param  string $processId
+     * @param  string $type
+     *
      * @return boolean
      */
-    protected function copyFiles()
+    protected function copyFiles($type = null, $dest = '')
     {
-        $packagePath = $this->getPackagePath();
-        $filesPath = Util::concatPath($packagePath, self::FILES);
+        switch ($type) {
+            case 'before':
+            case 'after':
+                $dirNames = $this->getParams('customDirNames');
+                $dirPath = $dirNames[$type];
+                break;
 
-        return $this->copy($filesPath, '', true);
+            case 'vendor':
+                $dirNames = $this->getParams('customDirNames');
+                if (isset($dirNames['vendor'])) {
+                    $dirPath = $dirNames['vendor'];
+                    $dest = $this->vendorDirName;
+                }
+                break;
+
+            default:
+                $dirPath = self::FILES;
+                break;
+        }
+
+        if (isset($dirPath)) {
+            $packagePath = $this->getPackagePath();
+            $filesPath = Util::concatPath($packagePath, $dirPath);
+
+            if (file_exists($filesPath)) {
+                return $this->copy($filesPath, $dest, true);
+            }
+        }
+
+        return true;
+    }
+
+    protected function getVendorFileList($type = 'copy')
+    {
+        $list = [];
+
+        $packagePath = $this->getPackagePath();
+        $dirNames = $this->getParams('customDirNames');
+        if (!isset($dirNames['vendor'])) {
+            return $list;
+        }
+
+        $filesPath = Util::concatPath($packagePath, $dirNames['vendor']);
+        if (!file_exists($filesPath)) {
+            return $list;
+        }
+
+        switch ($type) {
+            case 'copy':
+                $list = $this->getFileManager()->getFileList($filesPath, true, '', true, true);
+                break;
+
+            case 'delete':
+                $list = $this->getFileManager()->getFileList($filesPath, false, '', null, true);
+                break;
+        }
+
+        foreach ($list as &$path) {
+            $path = Util::concatPath($this->vendorDirName, $path);
+        }
+
+        return $list;
     }
 
     public function getManifest()
@@ -424,6 +564,11 @@ abstract class Base
         return $this->data['manifest'];
     }
 
+    protected function setManifest()
+    {
+
+    }
+
     /**
      * Check if the manifest is correct
      *
@@ -444,6 +589,17 @@ abstract class Base
         }
 
         return true;
+    }
+
+    protected function getManifestParam($name, $default = null)
+    {
+        $manifest = $this->getManifest();
+
+        if (array_key_exists($name, $manifest)) {
+            return $manifest[$name];
+        }
+
+        return $default;
     }
 
     /**
@@ -494,7 +650,13 @@ abstract class Base
 
     protected function systemRebuild()
     {
-        return $this->getContainer()->get('dataManager')->rebuild();
+        try {
+            return $this->getContainer()->get('dataManager')->rebuild();
+        } catch (\Exception $e) {
+            $GLOBALS['log']->error('Database rebuild failure, details: '.$e->getMessage().'.');
+        }
+
+        return false;
     }
 
     /**
@@ -570,5 +732,70 @@ abstract class Base
         $this->helper->setActionObject($this);
 
         return $this->helper;
+    }
+
+    protected function concatStringWithArray($string, array $array)
+    {
+        foreach ($array as &$value) {
+            if (substr($string, -1) != '/') {
+                $string .= '/';
+            }
+            $value = $string . $value;
+        }
+
+        return $array;
+    }
+
+    protected function enableMaintenanceMode()
+    {
+        $config = $this->getConfig();
+
+        $actualParams = [
+            'maintenanceMode' => $config->get('maintenanceMode'),
+            'cronDisabled' => $config->get('cronDisabled'),
+            'useCache' => $config->get('useCache'),
+        ];
+
+        $this->setParam('beforeMaintenanceModeParams', $actualParams);
+
+        $save = false;
+
+        if (!$actualParams['maintenanceMode']) {
+            $config->set('maintenanceMode', true);
+            $save = true;
+        }
+
+        if (!$actualParams['cronDisabled']) {
+            $config->set('cronDisabled', true);
+            $save = true;
+        }
+
+        if ($actualParams['useCache']) {
+            $config->set('useCache', false);
+            $save = true;
+        }
+
+        if ($save) {
+            $config->save();
+        }
+    }
+
+    protected function disableMaintenanceMode()
+    {
+        $config = $this->getConfig();
+        $beforeMaintenanceModeParams = $this->getParams('beforeMaintenanceModeParams', []);
+
+        $save = false;
+
+        foreach ($beforeMaintenanceModeParams as $paramName => $paramValue) {
+            if ($config->get($paramName) != $paramValue) {
+                $config->set($paramName, $paramValue);
+                $save = true;
+            }
+        }
+
+        if ($save) {
+            $config->save();
+        }
     }
 }

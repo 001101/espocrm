@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,33 +47,14 @@ class Portal extends Record
         $this->loadUrlField($entity);
     }
 
-    protected function afterUpdate(Entity $entity, array $data = array())
+    protected function afterUpdateEntity(Entity $entity, $data)
     {
-        parent::afterUpdate($entity, $data);
         $this->loadUrlField($entity);
     }
 
     protected function loadUrlField(Entity $entity)
     {
-        if ($entity->get('customUrl')) {
-            $entity->set('url', $entity->get('customUrl'));
-            return;
-        }
-        $siteUrl = $this->getConfig()->get('siteUrl');
-        $siteUrl = rtrim($siteUrl , '/') . '/';
-        $url = $siteUrl . 'portal/';
-        if ($entity->id === $this->getConfig()->get('defaultPortalId')) {
-            $entity->set('isDefault', true);
-            $entity->setFetched('isDefault', true);
-        } else {
-            if ($entity->get('customId')) {
-                $url .= $entity->get('customId') . '/';
-            } else {
-                $url .= $entity->id . '/';
-            }
-            $entity->setFetched('isDefault', false);
-        }
-        $entity->set('url', $url);
+        $this->getRepository()->loadUrlField($entity);
     }
 }
 

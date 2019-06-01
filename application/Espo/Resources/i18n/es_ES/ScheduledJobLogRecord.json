@@ -1,7 +1,7 @@
 {
   "fields": {
     "status": "Estado",
-    "executionTime": "Tiempo de Ejecución",
+    "executionTime": "Fecha de ejecución",
     "target": "Objetivo"
   }
 }

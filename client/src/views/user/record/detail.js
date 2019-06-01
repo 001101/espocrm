@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,22 +39,34 @@ Espo.define('views/user/record/detail', 'views/record/detail', function (Dep) {
         setup: function () {
             Dep.prototype.setup.call(this);
 
-            if (this.model.id == this.getUser().id || this.getUser().isAdmin()) {
-                if (!this.model.get('isPortalUser')) {
-                    this.buttonList.push({
+            this.setupNonAdminFieldsAccess();
+
+            if (this.getUser().isAdmin()) {
+                if (!this.model.isPortal()) {
+                    this.addButton({
                         name: 'access',
                         label: 'Access',
                         style: 'default'
                     });
                 }
+            }
 
-                if (this.model.id == this.getUser().id) {
-                    this.dropdownItemList.push({
-                        name: 'changePassword',
-                        label: 'Change Password',
-                        style: 'default'
-                    });
-                }
+            if (
+                this.model.id == this.getUser().id
+                &&
+                !this.model.isApi()
+                &&
+                (this.getUser().isAdmin() || !this.getHelper().getAppParam('passwordChangeForNonAdminDisabled'))
+            ) {
+                this.addDropdownItem({
+                    name: 'changePassword',
+                    label: 'Change Password',
+                    style: 'default'
+                });
+            }
+
+            if (this.model.isPortal() || this.model.isApi()) {
+                this.hideActionItem('duplicate');
             }
 
             if (this.model.id == this.getUser().id) {
@@ -66,31 +78,52 @@ Espo.define('views/user/record/detail', 'views/record/detail', function (Dep) {
             this.setupFieldAppearance();
         },
 
+        setupActionItems: function () {
+            Dep.prototype.setupActionItems.call(this);
+
+            if (this.model.isApi() && this.getUser().isAdmin()) {
+                this.addDropdownItem({
+                    'label': 'Generate New API Key',
+                    'name': 'generateNewApiKey'
+                });
+            }
+        },
+
+        setupNonAdminFieldsAccess: function () {
+            if (this.getUser().isAdmin()) return;
+
+            var nonAdminReadOnlyFieldList = [
+                'userName',
+                'isActive',
+                'teams',
+                'roles',
+                'password',
+                'portals',
+                'portalRoles',
+                'contact',
+                'accounts',
+                'type'
+            ];
+
+            nonAdminReadOnlyFieldList.forEach(function (field) {
+                this.setFieldReadOnly(field, true);
+            }, this);
+
+            if (!this.getAcl().checkScope('Team')) {
+                this.setFieldReadOnly('defaultTeam', true);
+            }
+        },
+
         setupFieldAppearance: function () {
+
             this.controlFieldAppearance();
             this.listenTo(this.model, 'change', function () {
                 this.controlFieldAppearance();
             }, this);
-
-            var isAdminView = this.getFieldView('isAdmin');
-            if (isAdminView) {
-                this.listenTo(isAdminView, 'change', function () {
-                    if (this.model.get('isAdmin')) {
-                        this.model.set('isPortalUser', false, {silent: true});
-                    }
-                }, this);
-            }
         },
 
         controlFieldAppearance: function () {
-            if (this.model.get('isAdmin')) {
-                this.hideField('isPortalUser');
-            } else {
-                this.showField('isPortalUser');
-            }
-
-            if (this.model.get('isPortalUser')) {
-                this.hideField('isAdmin');
+            if (this.model.get('type') === 'portal') {
                 this.hideField('roles');
                 this.hideField('teams');
                 this.hideField('defaultTeam');
@@ -101,7 +134,6 @@ Espo.define('views/user/record/detail', 'views/record/detail', function (Dep) {
                 this.showPanel('portal');
                 this.hideField('title');
             } else {
-                this.showField('isAdmin');
                 this.showField('roles');
                 this.showField('teams');
                 this.showField('defaultTeam');
@@ -110,7 +142,34 @@ Espo.define('views/user/record/detail', 'views/record/detail', function (Dep) {
                 this.hideField('contact');
                 this.hideField('accounts');
                 this.hidePanel('portal');
-                this.showField('title');
+
+                if (this.model.get('type') === 'api') {
+                    this.hideField('title');
+                    this.hideField('emailAddress');
+                    this.hideField('phoneNumber');
+                    this.hideField('name');
+                    this.hideField('gender');
+
+                    if (this.model.get('authMethod') === 'Hmac') {
+                        this.showField('secretKey');
+                    } else {
+                        this.hideField('secretKey');
+                    }
+
+                } else {
+                    this.showField('title');
+                }
+            }
+
+            if (this.model.id === this.getUser().id) {
+                this.setFieldReadOnly('type');
+            } else {
+                if (this.model.get('type') == 'admin' || this.model.get('type') == 'regular') {
+                    this.setFieldNotReadOnly('type');
+                    this.setFieldOptionList('type', ['regular', 'admin']);
+                } else {
+                    this.setFieldReadOnly('type');
+                }
             }
         },
 
@@ -168,23 +227,38 @@ Espo.define('views/user/record/detail', 'views/record/detail', function (Dep) {
             this._helper.layoutManager.get(this.model.name, this.options.layoutName || this.layoutName, function (simpleLayout) {
                 var layout = Espo.Utils.cloneDeep(simpleLayout);
 
-                layout.push({
-                    "label": "Teams and Access Control",
-                    "name": "accessControl",
-                    "rows": [
-                        [{"name":"isActive"}, {"name":"isAdmin"}],
-                        [{"name":"teams"}, {"name":"isPortalUser"}],
-                        [{"name":"roles"}, {"name":"defaultTeam"}]
-                    ]
-                });
-                layout.push({
-                    "label": "Portal",
-                    "name": "portal",
-                    "rows": [
-                        [{"name":"portals"}, {"name":"contact"}],
-                        [{"name":"portalRoles"}, {"name":"accounts"}]
-                    ]
-                });
+                if (!this.getUser().isPortal()) {
+                    layout.push({
+                        "label": "Teams and Access Control",
+                        "name": "accessControl",
+                        "rows": [
+                            [{"name":"type"}, {"name":"isActive"}],
+                            [{"name":"teams"}, {"name":"defaultTeam"}],
+                            [{"name":"roles"}, false]
+                        ]
+                    });
+
+                    if (this.model.isPortal()) {
+                        layout.push({
+                            "label": "Portal",
+                            "name": "portal",
+                            "rows": [
+                                [{"name":"portals"}, {"name":"contact"}],
+                                [{"name":"portalRoles"}, {"name":"accounts"}]
+                            ]
+                        });
+                    }
+                }
+
+                if (this.getUser().isAdmin() && this.model.isApi()) {
+                    layout.push({
+                        "name": "auth",
+                        "rows": [
+                            [{"name":"authMethod"}, false],
+                            [{"name":"apiKey"}, {"name":"secretKey"}],
+                        ]
+                    });
+                }
 
                 var gridLayout = {
                     type: 'record',
@@ -195,7 +269,15 @@ Espo.define('views/user/record/detail', 'views/record/detail', function (Dep) {
             }.bind(this));
         },
 
+        actionGenerateNewApiKey: function () {
+            this.confirm(this.translate('confirmation', 'messages'), function () {
+                this.ajaxPostRequest('User/action/generateNewApiKey', {
+                    id: this.model.id
+                }).then(function (data) {
+                    this.model.set(data);
+                }.bind(this));
+            }.bind(this));
+        }
+
     });
-
 });
-

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,12 @@ class EntityManager extends Base
             'metadata' => $this->getContainer()->get('ormMetadata')->getData(),
             'repositoryFactoryClassName' => '\\Espo\\Core\\ORM\\RepositoryFactory',
             'driver' => $config->get('database.driver'),
-            'platform' => $config->get('database.platform')
+            'platform' => $config->get('database.platform'),
+            'sslCA' => $config->get('database.sslCA'),
+            'sslCert' => $config->get('database.sslCert'),
+            'sslKey' => $config->get('database.sslKey'),
+            'sslCAPath' => $config->get('database.sslCAPath'),
+            'sslCipher' => $config->get('database.sslCipher')
         );
 
         $entityManager = new \Espo\Core\ORM\EntityManager($params);

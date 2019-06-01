@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,31 +26,9 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('controllers/email-account', 'controllers/record', function (Dep) {
+define('controllers/email-account', 'controllers/record', function (Dep) {
 
     return Dep.extend({
-
-        list: function (options) {
-        	var userId = (options || {}).userId;
-        	if (!userId) {
-        		Dep.prototype.list.call(this, options);
-        	} else {
-	            this.getCollection(function (collection) {
-
-	            	collection.where = [{
-	            		type: 'equals',
-	            		field: 'assignedUserId',
-	            		value: userId
-	            	}];
-
-	                this.main(this.getViewName('list'), {
-	                    scope: this.name,
-	                    collection: collection,
-	                    userId: userId
-	                });
-	            });
-	        }
-        },
 
     });
 });

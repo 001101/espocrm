@@ -24,11 +24,33 @@
             "view":"crm:views/record/panels/tasks",
             "aclScope": "Task"
          }
+      ],
+      "detailSmall": [
+         {
+            "name":"activities",
+            "label":"Activities",
+            "view":"crm:views/record/panels/activities",
+            "aclScope": "Activities"
+         },
+         {
+            "name":"history",
+            "label":"History",
+            "view":"crm:views/record/panels/history",
+            "aclScope": "Activities"
+         },
+         {
+            "name":"tasks",
+            "label":"Tasks",
+            "view":"crm:views/record/panels/tasks",
+            "aclScope": "Task"
+         }
       ]
    },
    "relationshipPanels": {
       "contacts": {
-         "layout":"listForAccount"
+         "filterList": ["all", "accountActive"],
+         "layout":"listForAccount",
+         "orderBy": "name"
       },
       "opportunities":{
          "layout":"listForAccount"
@@ -37,6 +59,11 @@
         "rowActionsView": "views/record/row-actions/empty",
         "select": false,
         "create": false
+      },
+      "targetLists": {
+         "rowActionsView": "crm:views/record/row-actions/relationship-target",
+         "layout": "listForTarget",
+         "view": "crm:views/record/panels/target-lists"
       }
    },
    "filterList": [
@@ -49,5 +76,7 @@
       "detailConvert": {
          "type": "detail"
       }
-   }
+   },
+   "color": "#edc755",
+   "iconClass": "fas fa-building"
 }

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
  * In accordance with Section 7(b) of the GNU General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
+
 Espo.define('views/email/fields/email-address-varchar', ['views/fields/varchar', 'views/email/fields/from-address-varchar'], function (Dep, From) {
 
     return Dep.extend({
@@ -32,6 +33,14 @@ Espo.define('views/email/fields/email-address-varchar', ['views/fields/varchar',
         detailTemplate: 'email/fields/email-address-varchar/detail',
 
         editTemplate: 'email/fields/email-address-varchar/edit',
+
+        emailAddressRegExp: /([a-zA-Z0-9._\-\+"]+@[a-zA-Z0-9._\-]+\.[a-zA-Z0-9._\-]+)/gi,
+
+        data: function () {
+            var data = Dep.prototype.data.call(this);
+            data.valueIsSet = this.model.has(this.name);
+            return data;
+        },
 
         events: {
             'click a[data-action="clearAddress"]': function (e) {
@@ -42,9 +51,12 @@ Espo.define('views/email/fields/email-address-varchar', ['views/fields/varchar',
                 if (e.keyCode == 188 || e.keyCode == 186 || e.keyCode == 13) {
                     var $input = $(e.currentTarget);
                     var address = $input.val().replace(',', '').replace(';', '').trim();
+
                     if (~address.indexOf('@')) {
-                        this.addAddress(address, '');
-                        $input.val('');
+                        if (this.checkEmailAddressInString(address)) {
+                            this.addAddress(address, '');
+                            $input.val('');
+                        }
                     }
                 }
             },
@@ -52,14 +64,35 @@ Espo.define('views/email/fields/email-address-varchar', ['views/fields/varchar',
                 var $input = $(e.currentTarget);
                 var address = $input.val().replace(',','').replace(';','').trim();
                 if (~address.indexOf('@')) {
-                    this.addAddress(address, '');
-                    $input.val('');
+                    if (this.checkEmailAddressInString(address)) {
+                        this.addAddress(address, '');
+                        $input.val('');
+                    }
                 }
             },
             'click [data-action="createContact"]': function (e) {
                 var address = $(e.currentTarget).data('address');
                 From.prototype.createPerson.call(this, 'Contact', address);
+            },
+            'click [data-action="createLead"]': function (e) {
+                var address = $(e.currentTarget).data('address');
+                From.prototype.createPerson.call(this, 'Lead', address);
+            },
+            'click [data-action="addToContact"]': function (e) {
+                var address = $(e.currentTarget).data('address');
+                From.prototype.addToPerson.call(this, 'Contact', address);
+            },
+            'click [data-action="addToLead"]': function (e) {
+                var address = $(e.currentTarget).data('address');
+                From.prototype.addToPerson.call(this, 'Lead', address);
             }
+        },
+
+        getAutocompleteMaxCount: function () {
+            if (this.autocompleteMaxCount) {
+                return this.autocompleteMaxCount;
+            }
+            return this.getConfig().get('recordsPerPage');
         },
 
         parseNameFromStringAddress: function (s) {
@@ -118,14 +151,15 @@ Espo.define('views/email/fields/email-address-varchar', ['views/fields/varchar',
 
                 this.$input.autocomplete({
                     serviceUrl: function (q) {
-                        return 'EmailAddress/action/searchInAddressBook?limit=5';
+                        return 'EmailAddress/action/searchInAddressBook?onlyActual=true&maxSize=' + this.getAutocompleteMaxCount();
                     }.bind(this),
                     paramName: 'q',
                     minChars: 1,
                     autoSelectFirst: true,
+                    triggerSelectOnValidInput: false,
                     formatResult: function (suggestion) {
-                        return suggestion.name + ' &#60;' + suggestion.id + '&#62;';
-                    },
+                        return this.getHelper().escapeString(suggestion.name) + ' &#60;' + this.getHelper().escapeString(suggestion.id) + '&#62;';
+                    }.bind(this),
                     transformResult: function (response) {
                         var response = JSON.parse(response);
                         var list = [];
@@ -150,7 +184,22 @@ Espo.define('views/email/fields/email-address-varchar', ['views/fields/varchar',
                         this.$input.val('');
                     }.bind(this)
                 });
+
+                this.once('render', function () {
+                    this.$input.autocomplete('dispose');
+                }, this);
+
+                this.once('remove', function () {
+                    this.$input.autocomplete('dispose');
+                }, this);
             }
+        },
+
+        checkEmailAddressInString: function (string) {
+            var arr = string.match(this.emailAddressRegExp);
+            if (!arr || !arr.length) return;
+
+            return true;
         },
 
         addAddress: function (address, name, type, id) {
@@ -161,6 +210,14 @@ Espo.define('views/email/fields/email-address-varchar', ['views/fields/varchar',
             setTimeout(function () {
                 this.justAddedAddress = null;
             }.bind(this), 100);
+
+            address = address.trim();
+
+            if (!type) {
+                var arr = address.match(this.emailAddressRegExp);
+                if (!arr || !arr.length) return;
+                address = arr[0];
+            }
 
             if (!~this.addressList.indexOf(address)) {
                 this.addressList.push(address);
@@ -182,7 +239,7 @@ Espo.define('views/email/fields/email-address-varchar', ['views/fields/varchar',
             var conteiner = this.$el.find('.link-container');
             var html =
             '<div data-address="'+address+'" class="list-group-item">' +
-                '<a href="javascript:" class="pull-right" data-address="' + address + '" data-action="clearAddress"><span class="glyphicon glyphicon-remove"></a>' +
+                '<a href="javascript:" class="pull-right" data-address="' + address + '" data-action="clearAddress"><span class="fas fa-times"></a>' +
                 '<span>'+ ((name) ? (name + ' <span class="text-muted">&#187;</span> ') : '') + '<span>'+address+'</span>'+'</span>' +
 
             '</div>';
@@ -235,7 +292,11 @@ Espo.define('views/email/fields/email-address-varchar', ['views/fields/varchar',
             if (id) {
                 lineHtml = '<div>' + '<a href="#' + entityType + '/view/' + id + '">' + name + '</a> <span class="text-muted">&#187;</span> ' + addressHtml + '</div>';
             } else {
-                lineHtml = addressHtml;
+                if (name) {
+                    lineHtml = '<span>' + name + ' <span class="text-muted">&#187;</span> ' + addressHtml + '</span>';
+                } else {
+                    lineHtml = addressHtml;
+                }
             }
             if (!id) {
                 if (this.getAcl().check('Contact', 'edit')) {

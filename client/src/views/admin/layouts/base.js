@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,9 +44,9 @@ Espo.define('views/admin/layouts/base', 'view', function (Dep) {
                 this.cancel();
             },
             'click button[data-action="resetToDefault"]': function () {
-                if (confirm(this.translate('confirmation', 'messages'))) {
+                this.confirm(this.translate('confirmation', 'messages'), function () {
                     this.resetToDefault();
-                }
+                }, this)
             },
         },
 
@@ -108,11 +108,17 @@ Espo.define('views/admin/layouts/base', 'view', function (Dep) {
         fetch: function () {},
 
         setup: function () {
-            this.dataAttributes = _.clone(this.dataAttributes);
             this.buttonList = _.clone(this.buttonList);
             this.events = _.clone(this.events);
             this.scope = this.options.scope;
             this.type = this.options.type;
+
+            this.dataAttributeList =
+                this.getMetadata().get(['clientDefs', this.scope, 'additionalLayouts', this.type, 'dataAttributeList'])
+                ||
+                this.dataAttributeList;
+
+            this.dataAttributeList = Espo.Utils.clone(this.dataAttributeList);
         },
 
         unescape: function (string) {
@@ -136,15 +142,17 @@ Espo.define('views/admin/layouts/base', 'view', function (Dep) {
 
         openEditDialog: function (attributes) {
             var name = attributes.name;
-            this.createView('editModal', 'Admin.Layouts.Modals.EditAttributes', {
+            this.createView('editModal', 'views/admin/layouts/modals/edit-attributes', {
                 name: attributes.name,
                 scope: this.scope,
-                attributeList: this.dataAttributes,
+                attributeList: this.dataAttributeList,
                 attributeDefs: this.dataAttributesDefs,
-                attributes: attributes
+                attributes: attributes,
+                languageCategory: this.languageCategory
             }, function (view) {
                 view.render();
                 this.listenToOnce(view, 'after:save', function (attributes) {
+                    this.trigger('update-item', name, attributes);
                     var $li = $("#layout ul > li[data-name='" + name + "']");
                     for (var key in attributes) {
                         $li.attr('data-' + key, attributes[key]);

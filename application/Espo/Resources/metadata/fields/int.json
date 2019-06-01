@@ -24,7 +24,19 @@
       {
          "name":"audited",
          "type":"bool"
+      },
+      {
+         "name":"readOnly",
+         "type":"bool"
       }
    ],
-   "filter": true
+   "validationList": [
+      "required",
+      "min",
+      "max"
+   ],
+   "filter": true,
+   "textFilter": true,
+   "textFilterForeign": true,
+   "personalData": true
 }

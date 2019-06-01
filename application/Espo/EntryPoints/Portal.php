@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,14 @@ class Portal extends \Espo\Core\EntryPoints\Base
         } else if (!empty($data['id'])) {
             $id = $data['id'];
         } else {
-            $id = explode('/', $_SERVER['REQUEST_URI'])[count(explode('/', $_SERVER['SCRIPT_NAME'])) - 1];
+            $url = $_SERVER['REQUEST_URI'];
+            $id = explode('/', $url)[count(explode('/', $_SERVER['SCRIPT_NAME'])) - 1];
+
+            if (!isset($id)) {
+                $url = $_SERVER['REDIRECT_URL'];
+                $id = explode('/', $url)[count(explode('/', $_SERVER['SCRIPT_NAME'])) - 1];
+            }
+
             if (!$id) {
                 $id = $this->getConfig()->get('defaultPortalId');
             }

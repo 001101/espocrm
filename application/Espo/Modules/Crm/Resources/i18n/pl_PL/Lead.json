@@ -2,7 +2,8 @@
   "labels": {
     "Converted To": "Przekształcony w ",
     "Create Lead": "Utwórz potencjalny kontakt",
-    "Convert": "Przekształć"
+    "Convert": "Przekształć",
+    "convert": "przekształć"
   },
   "fields": {
     "name": "Nazwa",
@@ -13,7 +14,6 @@
     "accountName": "Nazwa Konta",
     "doNotCall": "Nie Dzwoń",
     "address": "Adres",
-    "status": "Status",
     "source": "Źródło",
     "opportunityAmount": "Wartość szansy sprzedaży",
     "opportunityAmountConverted": "Wartość szansy sprzedaży (konwertowana)",
@@ -31,7 +31,9 @@
     "campaign": "Kampania",
     "createdAccount": "Klient",
     "createdContact": "Kontakt",
-    "createdOpportunity": "Szansa sprzedaży"
+    "createdOpportunity": "Szansa sprzedaży",
+    "cases": "Zadania",
+    "documents": "Dokumenty"
   },
   "options": {
     "status": {
@@ -47,7 +49,6 @@
       "Call": "Rozmowa",
       "Email": "E-mail",
       "Existing Customer": "Istniejący klient",
-      "Partner": "Partner",
       "Public Relations": "Relacje",
       "Web Site": "Stwona Internetowa",
       "Campaign": "Kampania",

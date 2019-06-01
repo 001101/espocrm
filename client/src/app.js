@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,10 +27,60 @@
  ************************************************************************/
 
 
-Espo.define(
+define(
     'app',
-    ['ui', 'utils', 'acl-manager', 'cache', 'storage', 'models/settings', 'language', 'metadata', 'field-manager', 'models/user', 'models/preferences', 'model-factory' ,'collection-factory', 'pre-loader', 'view-helper', 'controllers/base', 'router', 'date-time', 'layout-manager', 'theme-manager'],
-    function (Ui, Utils, AclManager, Cache, Storage, Settings, Language, Metadata, FieldManager, User, Preferences, ModelFactory, CollectionFactory, PreLoader, ViewHelper, BaseController, Router, DateTime, LayoutManager, ThemeManager) {
+    [
+        'ui',
+        'utils',
+        'acl-manager',
+        'cache',
+        'storage',
+        'models/settings',
+        'language',
+        'metadata',
+        'field-manager',
+        'models/user',
+        'models/preferences',
+        'model-factory',
+        'collection-factory',
+        'pre-loader',
+        'controllers/base',
+        'router',
+        'date-time',
+        'layout-manager',
+        'theme-manager',
+        'session-storage',
+        'view-helper',
+        'web-socket-manager',
+        'ajax',
+        'number',
+    ],
+    function (
+        Ui,
+        Utils,
+        AclManager,
+        Cache,
+        Storage,
+        Settings,
+        Language,
+        Metadata,
+        FieldManager,
+        User,
+        Preferences,
+        ModelFactory,
+        CollectionFactory,
+        PreLoader,
+        BaseController,
+        Router,
+        DateTime,
+        LayoutManager,
+        ThemeManager,
+        SessionStorage,
+        ViewHelper,
+        WebSocketManager,
+        Ajax,
+        NumberUtil
+    ) {
 
     var App = function (options, callback) {
         var options = options || {};
@@ -41,13 +91,15 @@ Espo.define(
         this.url = options.url || this.url;
         this.basePath = options.basePath || '';
 
+        this.appParams = {};
+
         this.loader = Espo.loader;
         this.loader.basePath = this.basePath;
 
         this.controllers = {};
 
         if (this.useCache) {
-            this.cache = new Cache();
+            this.cache = new Cache(options.cacheTimestamp);
             if (options.cacheTimestamp) {
                 this.cache.handleActuality(options.cacheTimestamp);
             } else {
@@ -56,12 +108,17 @@ Espo.define(
         }
 
         this.storage = new Storage();
+        this.sessionStorage = new SessionStorage();
 
         this.loader.cache = this.cache;
 
+        if (this.useCache && !this.loader.cacheTimestamp && options.cacheTimestamp) {
+            this.loader.cacheTimestamp = options.cacheTimestamp;
+        }
+
         this.setupAjax();
 
-        this.settings = new Settings(null, {cache: this.cache});
+        this.settings = new Settings(null);
         this.language = new Language(this.cache);
         this.metadata = new Metadata(this.cache);
         this.fieldManager = new FieldManager();
@@ -75,7 +132,7 @@ Espo.define(
             new Promise(function (resolve) {
                 this.language.load(function () {
                     resolve();
-                });
+                }, false, true);
             }.bind(this))
         ]).then(function () {
             this.loader.addLibsConfig(this.settings.get('jsLibs') || {});
@@ -90,7 +147,11 @@ Espo.define(
             this.modelFactory = new ModelFactory(this.loader, this.metadata, this.user);
             this.collectionFactory = new CollectionFactory(this.loader, this.modelFactory);
 
-            this.initDateTime();
+            if (this.settings.get('useWebSocket')) {
+                this.webSocketManager = new WebSocketManager(this.settings);
+            }
+
+            this.initUtils();
             this.initView();
             this.initBaseController();
 
@@ -169,8 +230,11 @@ Espo.define(
                 this.viewHelper.layoutManager.userId = this.user.id;
 
                 if (this.themeManager.isUserTheme()) {
-                    var stylesheetPath = this.basePath + this.themeManager.getStylesheet();
-                    $('#main-stylesheet').attr('href', stylesheetPath);
+                    this.loadStylesheet();
+                }
+
+                if (this.webSocketManager) {
+                    this.webSocketManager.connect(this.auth, this.user.id);
                 }
 
                 var promiseList = [];
@@ -190,6 +254,25 @@ Espo.define(
                     }
                 }, this);
 
+                if (!this.themeManager.isApplied() && this.themeManager.isUserTheme()) {
+                    promiseList.push(
+                        new Promise(function (resolve) {
+                            (function check (i) {
+                                i = i || 0;
+                                if (!this.themeManager.isApplied()) {
+                                    if (i === 50) {
+                                        resolve();
+                                        return;
+                                    }
+                                    setTimeout(check.bind(this, i + 1), 10);
+                                    return;
+                                }
+                                resolve();
+                            }).call(this);
+                        }.bind(this))
+                    );
+                }
+
                 Promise.all(promiseList).then(function () {
                     this.acl.implementationClassMap = aclImplementationClassMap;
                     this.initRouter();
@@ -199,10 +282,14 @@ Espo.define(
         },
 
         initRouter: function () {
-            this.router = new Router();
+            var routes = this.metadata.get(['app', 'clientRoutes']) || {};
+            this.router = new Router({routes: routes});
             this.viewHelper.router = this.router;
             this.baseController.setRouter(this.router);
             this.router.confirmLeaveOutMessage = this.language.translate('confirmLeaveOutMessage', 'messages');
+            this.router.confirmLeaveOutConfirmText = this.language.translate('Yes');
+            this.router.confirmLeaveOutCancelText = this.language.translate('Cancel');
+
             this.router.on('routed', function (params) {
                 this.doAction(params);
             }.bind(this));
@@ -218,12 +305,14 @@ Espo.define(
 
         doAction: function (params) {
             this.trigger('action', params);
+            this.baseController.trigger('action');
 
             this.getController(params.controller, function (controller) {
                 try {
                     controller.doAction(params.action, params.options);
                     this.trigger('action:done');
                 } catch (e) {
+                    console.log(e);
                     switch (e.name) {
                         case 'AccessDenied':
                             this.baseController.error403();
@@ -273,7 +362,9 @@ Espo.define(
                         className = Espo.Utils.composeClassName(module, name, 'controllers');
                     }
                     Espo.require(className, function (controllerClass) {
-                        this.controllers[name] = new controllerClass(this.baseController.params, this.getControllerInjection());
+                        var injections = this.getControllerInjection();
+                        injections.baseController = this.baseController;
+                        this.controllers[name] = new controllerClass(this.baseController.params, injections);
                         this.controllers[name].name = name;
                         this.controllers[name].masterView = this.masterView;
                         callback(this.controllers[name]);
@@ -292,14 +383,16 @@ Espo.define(
             this.preLoader.load(callback, this);
         },
 
-        initDateTime: function () {
+        initUtils: function () {
             this.dateTime = new DateTime();
             this.modelFactory.dateTime = this.dateTime;
             this.dateTime.setSettingsAndPreferences(this.settings, this.preferences);
+
+            this.numberUtil = new NumberUtil(this.settings, this.preferences);
         },
 
         createAclManager: function () {
-            return new AclManager(this.user);
+            return new AclManager(this.user, null, this.settings.get('aclAllowDeleteCreated'));
         },
 
         initView: function () {
@@ -307,6 +400,7 @@ Espo.define(
 
             helper.layoutManager = new LayoutManager({cache: this.cache, applicationId: this.id});
             helper.settings = this.settings;
+            helper.config = this.settings;
             helper.user = this.user;
             helper.preferences = this.preferences;
             helper.acl = this.acl;
@@ -320,7 +414,11 @@ Espo.define(
             helper.cache = this.cache;
             helper.storage = this.storage;
             helper.themeManager = this.themeManager;
+            helper.sessionStorage = this.sessionStorage;
             helper.basePath = this.basePath;
+            helper.appParams = this.appParams;
+            helper.webSocketManager = this.webSocketManager;
+            helper.numberUtil = this.numberUtil;
 
             this.viewLoader = function (viewName, callback) {
                 Espo.require(Espo.Utils.composeViewClassName(viewName), callback);
@@ -332,6 +430,9 @@ Espo.define(
                 var path = null;
                 switch (type) {
                     case 'template':
+                        if (~name.indexOf('.')) {
+                            console.warn(name + ': template name should use slashes for a directory separator.');
+                        }
                         path = 'res/templates/' + name.split('.').join('/') + '.tpl';
                         break;
                     case 'layoutTemplate':
@@ -388,7 +489,7 @@ Espo.define(
                 this.auth = Base64.encode(data.auth.userName  + ':' + data.auth.token);
                 this.storage.set('user', 'auth', this.auth);
 
-                this.setCookieAuthToken(data.auth.token);
+                this.setCookieAuth(data.auth.userName, data.auth.token);
 
                 this.initUserData(data, function () {
                     this.trigger('auth');
@@ -405,14 +506,14 @@ Espo.define(
             if (this.auth) {
                 var arr = Base64.decode(this.auth).split(':');
                 if (arr.length > 1) {
-                    $.ajax({
-                        url: 'App/action/destroyAuthToken',
-                        type: 'POST',
-                        data: JSON.stringify({
-                            token: arr[1]
-                        })
+                    Espo.Ajax.postRequest('App/action/destroyAuthToken', {
+                        token: arr[1]
                     });
                 }
+            }
+
+            if (this.webSocketManager) {
+                this.webSocketManager.close();
             }
 
             this.auth = null;
@@ -421,23 +522,34 @@ Espo.define(
             this.acl.clear();
             this.storage.clear('user', 'auth');
             this.doAction({action: 'login'});
-            this.language.clearCache();
 
-            this.unsetCookieAuthToken();
+            this.unsetCookieAuth();
 
             xhr = new XMLHttpRequest;
-            xhr.open('GET', this.url + '/', true, 'logout', 'logout');
+            xhr.open('GET', this.url + '/');
+            xhr.setRequestHeader('Authorization', 'Basic ' + Base64.encode('**logout:logout'));
             xhr.send('');
             xhr.abort();
+
+            this.loadStylesheet();
         },
 
-        setCookieAuthToken: function (token) {
+        loadStylesheet: function () {
+            if (!this.metadata.get(['themes'])) return;
+
+            var stylesheetPath = this.basePath + this.themeManager.getStylesheet();
+            $('#main-stylesheet').attr('href', stylesheetPath);
+        },
+
+        setCookieAuth: function (username, token) {
             var date = new Date();
             date.setTime(date.getTime() + (1000 * 24*60*60*1000));
+            document.cookie = 'auth-username='+username+'; expires='+date.toGMTString()+'; path=/';
             document.cookie = 'auth-token='+token+'; expires='+date.toGMTString()+'; path=/';
         },
 
-        unsetCookieAuthToken: function () {
+        unsetCookieAuth: function () {
+            document.cookie = 'auth-username' + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
             document.cookie = 'auth-token' + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
         },
 
@@ -456,45 +568,57 @@ Espo.define(
                         options = data;
                         resolve();
                     });
-
-                }.bind(this)),
-                new Promise(function (resolve) {
-                    this.language.load(function () {
-                        resolve();
-                    }.bind(this), true);
                 }.bind(this))
             ]).then(function () {
-                this.dateTime.setLanguage(this.language);
+                (new Promise(function (resolve) {
+                    this.language.name = options.language;
+                    this.language.load(function () {
+                        resolve();
+                    }.bind(this));
+                }.bind(this))).then(function () {
+                    this.dateTime.setLanguage(this.language);
 
-                var userData = options.user || null;
-                var preferencesData = options.preferences || null;
-                var aclData = options.acl || null;
+                    var userData = options.user || null;
+                    var preferencesData = options.preferences || null;
+                    var aclData = options.acl || null;
 
-                this.user.set(userData);
-                this.preferences.set(preferencesData);
-                this.acl.set(aclData);
+                    var settingData = options.settings || {};
 
-                if (!this.auth) {
-                    return;
-                }
+                    this.user.set(userData);
+                    this.preferences.set(preferencesData);
 
-                var arr = Base64.decode(this.auth).split(':');
-                var xhr = new XMLHttpRequest();
-                xhr.open('GET', this.basePath + this.url + '/', true, arr[0], arr[1]);
-                xhr.send('');
+                    this.settings.set(settingData);
+                    this.acl.set(aclData);
 
-                if (callback) {
-                    callback();
-                }
+                    for (var param in options.appParams) {
+                        this.appParams[param] = options.appParams[param];
+                    }
+
+                    if (!this.auth) {
+                        return;
+                    }
+
+                    var xhr = new XMLHttpRequest();
+
+                    xhr.open('GET', this.basePath + this.url + '/');
+                    xhr.setRequestHeader('Authorization', 'Basic ' + this.auth);
+
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+
+                            var arr = Base64.decode(this.auth).split(':');
+                            this.setCookieAuth(arr[0], arr[1]);
+                            callback();
+                        }
+                    }.bind(this);
+
+                    xhr.send('');
+                }.bind(this));
             }.bind(this));
         },
 
         requestUserData: function (callback) {
-            $.ajax({
-                url: 'App/user',
-            }).done(function (data) {
-                callback(data);
-            }.bind(this));
+            Espo.Ajax.getRequest('App/user').then(callback);
         },
 
         setupAjax: function () {
@@ -511,6 +635,7 @@ Espo.define(
                     if (self.auth !== null) {
                         xhr.setRequestHeader('Authorization', 'Basic ' + self.auth);
                         xhr.setRequestHeader('Espo-Authorization', self.auth);
+                        xhr.setRequestHeader('Espo-Authorization-By-Token', true);
                     }
                 },
                 dataType: 'json',
@@ -536,9 +661,10 @@ Espo.define(
                         break;
                     case 401:
                         if (!options.login) {
-                            Espo.Ui.error(self.language.translate('Auth error'));
                             if (self.auth) {
                                 self.logout();
+                            } else {
+                                Espo.Ui.error(self.language.translate('Auth error'));
                             }
                         }
                         break;
@@ -550,6 +676,11 @@ Espo.define(
                             msg += ': ' + self.language.translate('Access denied');
                             Espo.Ui.error(msg);
                         }
+                        break;
+                    case 400:
+                        var msg = self.language.translate('Error') + ' ' + xhr.status;
+                        msg += ': ' + self.language.translate('Bad request');
+                        Espo.Ui.error(msg);
                         break;
                     case 404:
                         if (options.main) {
@@ -580,5 +711,3 @@ Espo.define(
 
     return App;
 });
-
-

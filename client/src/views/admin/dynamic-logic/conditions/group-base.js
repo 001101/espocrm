@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,8 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
             return {
                 viewDataList: this.viewDataList,
                 operator: this.operator,
-                level: this.level
+                level: this.level,
+                groupOperator: this.getGroupOperator()
             };
         },
 
@@ -45,16 +46,16 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
                 e.stopPropagation();
                 this.trigger('remove-item');
             },
-            'click > div.group-head [data-action="addField"]': function (e) {
+            'click > div.group-bottom [data-action="addField"]': function (e) {
                 this.actionAddField();
             },
-            'click > div.group-head [data-action="addAnd"]': function (e) {
+            'click > div.group-bottom [data-action="addAnd"]': function (e) {
                 this.actionAddGroup('and');
             },
-            'click > div.group-head [data-action="addOr"]': function (e) {
+            'click > div.group-bottom [data-action="addOr"]': function (e) {
                 this.actionAddGroup('or');
             },
-            'click > div.group-head [data-action="addNot"]': function (e) {
+            'click > div.group-bottom [data-action="addNot"]': function (e) {
                 this.actionAddGroup('not');
             }
         },
@@ -79,6 +80,12 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
             }, this);
         },
 
+        getGroupOperator: function () {
+            if (this.operator === 'or') return 'or';
+
+            return 'and';
+        },
+
         getKey: function (i) {
             return 'view-' + this.level.toString() + '-' + this.number.toString() + '-' + i.toString();
         },
@@ -99,7 +106,15 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
                 viewName = 'views/admin/dynamic-logic/conditions/' + type;
             } else {
                 fieldType = this.getMetadata().get(['entityDefs', this.scope, 'fields', field, 'type']);
-                viewName = this.getMetadata().get(['clientDefs', 'DynamicLogic', 'fieldTypes', fieldType, 'view']);
+
+                if (field === 'id') {
+                    fieldType = 'id';
+                }
+
+                if (fieldType) {
+                    viewName = this.getMetadata().get(['clientDefs', 'DynamicLogic', 'fieldTypes', fieldType, 'view']);
+                }
+
             }
 
             if (!viewName) return;
@@ -117,6 +132,8 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
                 if (this.isRendered()) {
                     view.render()
                 }
+
+                this.controlAddItemVisibility();
 
                 this.listenToOnce(view, 'remove-item', function () {
                     this.removeItem(number);
@@ -143,6 +160,7 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
             this.clearView(key);
 
             this.$el.find('[data-view-key="'+key+'"]').remove();
+            this.$el.find('[data-view-ref-key="'+key+'"]').remove();
 
             var index = -1;
             this.viewDataList.forEach(function (data, i) {
@@ -153,6 +171,8 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
             if (~index) {
                 this.viewDataList.splice(index, 1);
             }
+
+            this.controlAddItemVisibility();
         },
 
         actionAddField: function () {
@@ -170,6 +190,9 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
 
         addField: function (field) {
             var fieldType = this.getMetadata().get(['entityDefs', this.scope, 'fields', field, 'type']);
+            if (!fieldType && field == 'id') {
+                fieldType = 'id';
+            }
             if (!this.getMetadata().get(['clientDefs', 'DynamicLogic', 'fieldTypes', fieldType])) {
                 throw new Error();
             }
@@ -205,6 +228,10 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
         addItemContainer: function (i) {
             var $item = $('<div data-view-key="'+this.getKey(i)+'"></div>');
             this.$el.find('> .item-list').append($item);
+
+            var groupOperatorLabel = this.translate(this.getGroupOperator(), 'logicalOperators', 'Admin');
+            var $operatorItem = $('<div class="group-operator" data-view-ref-key="'+this.getKey(i)+'">' + groupOperatorLabel +'</div>');
+            this.$el.find('> .item-list').append($operatorItem);
         },
 
         actionAddGroup: function (operator) {
@@ -219,6 +246,12 @@ Espo.define('views/admin/dynamic-logic/conditions/group-base', 'view', function 
                 value: []
             });
         },
+
+        afterRender: function () {
+            this.controlAddItemVisibility();
+        },
+
+        controlAddItemVisibility: function () {}
 
     });
 

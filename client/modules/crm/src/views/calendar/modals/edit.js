@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,8 @@ Espo.define('crm:views/calendar/modals/edit', 'views/modals/edit', function (Dep
                     var attributes = this.getView('edit').fetch();
                     attributes = _.extend(attributes, this.getView('edit').model.toJSON());
                     model.set(attributes);
-                    this.createEdit(model, function (view) {
+                    this.model = model;
+                    this.createRecordView(model, function (view) {
                         view.render();
                         view.notify(false);
                     });
@@ -65,8 +66,49 @@ Espo.define('crm:views/calendar/modals/edit', 'views/modals/edit', function (Dep
             },
         },
 
+        createRecordView: function (model, callback) {
+            if (!this.id && !this.dateIsChanged) {
+                if (this.options.dateStart && this.options.dateEnd) {
+                    this.model.set('dateStart', this.options.dateStart);
+                    this.model.set('dateEnd', this.options.dateEnd);
+                }
+
+                if (this.options.allDay) {
+                    var allDayScopeList = this.getMetadata().get('clientDefs.Calendar.allDayScopeList') || [];
+                    if (~allDayScopeList.indexOf(this.scope)) {
+                        this.model.set('dateStart', null);
+                        this.model.set('dateEnd', null);
+                        this.model.set('dateStartDate', null);
+                        this.model.set('dateEndDate', this.options.dateEndDate);
+                        if (this.options.dateEndDate !== this.options.dateStartDate) {
+                            this.model.set('dateStartDate', this.options.dateStartDate)
+                        }
+                    } else if (this.getMetadata().get(['entityDefs', this.scope, 'fields', 'dateStartDate'])) {
+                        this.model.set('dateStart', null);
+                        this.model.set('dateEnd', null);
+                        this.model.set('dateStartDate', this.options.dateStartDate);
+                        this.model.set('dateEndDate', this.options.dateEndDate);
+                        this.model.set('isAllDay', true);
+                    }
+                }
+            }
+
+            this.listenTo(this.model, 'change:dateStart', function (m, value, o) {
+                if (o.ui) {
+                    this.dateIsChanged = true;
+                }
+            }, this);
+            this.listenTo(this.model, 'change:dateEnd', function (m, value, o) {
+                if (o.ui || o.updatedByDuration) {
+                    this.dateIsChanged = true;
+                }
+            }, this);
+
+            Dep.prototype.createRecordView.call(this, model, callback);
+        },
+
         handleAccess: function (model) {
-            if (!this.getAcl().checkModel(model, 'edit')) {
+            if (this.id && !this.getAcl().checkModel(model, 'edit') || !this.id && !this.getAcl().checkModel(model, 'create')) {
                 this.hideButton('save');
                 this.hideButton('fullForm');
                 this.$el.find('button[data-name="save"]').addClass('hidden');
@@ -100,7 +142,7 @@ Espo.define('crm:views/calendar/modals/edit', 'views/modals/edit', function (Dep
             if (!this.options.id && !this.options.scope) {
                 var scopeList = [];
                 this.scopeList.forEach(function (scope) {
-                    if (this.getAcl().check(scope, 'edit')) {
+                    if (this.getAcl().check(scope, 'create')) {
                         if (~this.enabledScopeList.indexOf(scope)) {
                             scopeList.push(scope);
                         }
@@ -124,14 +166,13 @@ Espo.define('crm:views/calendar/modals/edit', 'views/modals/edit', function (Dep
             Dep.prototype.setup.call(this);
 
             if (!this.id) {
-                this.header = this.translate('Create', 'labels', 'Calendar');
+                this.headerHtml = this.translate('Create', 'labels', 'Calendar');
             }
 
             if (this.id) {
                 this.buttonList.splice(1, 0, {
                     name: 'remove',
-                    text: this.translate('Remove'),
-                    style: 'danger'
+                    text: this.translate('Remove')
                 });
             }
         },
@@ -139,7 +180,7 @@ Espo.define('crm:views/calendar/modals/edit', 'views/modals/edit', function (Dep
         actionRemove: function () {
             var model = this.getView('edit').model;
 
-            if (confirm(this.translate('removeRecordConfirmation', 'messages'))) {
+            this.confirm(this.translate('removeRecordConfirmation', 'messages'), function () {
                 var $buttons = this.dialog.$el.find('.modal-footer button');
                 $buttons.addClass('disabled');
                 model.destroy({
@@ -151,7 +192,7 @@ Espo.define('crm:views/calendar/modals/edit', 'views/modals/edit', function (Dep
                         $buttons.removeClass('disabled');
                     }
                 });
-            }
+            }, this);
         }
     });
 });

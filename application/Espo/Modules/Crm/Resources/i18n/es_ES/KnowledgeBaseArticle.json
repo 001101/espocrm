@@ -1,28 +1,30 @@
 {
   "labels": {
     "Create KnowledgeBaseArticle": "Crear artículo",
-    "Any": "Alguna",
-    "Send in Email": "Enviar por correo electrónico",
-    "Move Up": "Ascender",
-    "Move Down": "Mover hacia abajo"
+    "Any": "Cualquiera",
+    "Send in Email": "Enviar por correo",
+    "Move Up": "Mover arriba",
+    "Move Down": "Mover abajo",
+    "Move to Top": "Mover al inicio",
+    "Move to Bottom": "Mover al final"
   },
   "fields": {
     "name": "Nombre",
     "status": "Estado",
     "type": "Tipo",
-    "attachments": "Archivos adjuntos",
+    "attachments": "Adjuntos",
     "publishDate": "Fecha de publicación",
     "expirationDate": "Fecha de caducidad",
     "description": "Descripción",
     "body": "Cuerpo",
-    "categories": "Categorias",
+    "categories": "Categorías",
     "language": "Idioma",
     "portals": "Portales"
   },
   "links": {
-    "cases": "Casos",
+    "cases": "Tickets",
     "opportunities": "Oportunidades",
-    "categories": "Categorias",
+    "categories": "Categorías",
     "portals": "Portales"
   },
   "options": {
@@ -36,10 +38,10 @@
       "Article": "Artículo"
     }
   },
-  "tooltips": {
-    "portals": "Si no está vacía, entonces este artículo estará disponible solo en portales específicos. Si está vacío, entonces estará disponible en todos los portales.\t"
-  },
   "presetFilters": {
     "published": "Publicado"
+  },
+  "tooltips": {
+    "portals": "El artículo estará disponible solo en los portales especificados."
   }
 }

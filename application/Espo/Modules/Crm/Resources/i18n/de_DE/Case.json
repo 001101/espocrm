@@ -1,28 +1,27 @@
 {
   "fields": {
-    "name": "Betreff",
     "number": "Nummer",
-    "status": "Status",
     "account": "Firma",
     "contact": "Kontakt",
     "contacts": "Kontakte",
     "priority": "Priorität",
     "type": "Typ",
     "description": "Beschreibung",
-    "inboundEmail": "Eingehende E-Mail",
-    "lead": "Interessent"
+    "lead": "Interessent",
+    "attachments": "Anhänge",
+    "inboundEmail": "Gruppen E-Mail Konto"
   },
   "links": {
-    "inboundEmail": "Eingehende E-Mail",
     "account": "Firma",
     "contact": "Kontakt (Primär)",
     "Contacts": "Kontakte",
-    "meetings": "Meetings",
     "calls": "Anrufe",
     "tasks": "Aufgaben",
     "emails": "E-Mails",
     "articles": "Wissensbasis Artikel",
-    "lead": "Interessent"
+    "lead": "Interessent",
+    "attachments": "Anhänge",
+    "inboundEmail": "Gruppen E-Mail Konto"
   },
   "options": {
     "status": {
@@ -35,14 +34,12 @@
     },
     "priority": {
       "Low": "Niedrig",
-      "Normal": "Normal",
       "High": "Hoch",
       "Urgent": "Dringend"
     },
     "type": {
       "Question": "Frage",
-      "Incident": "Vorfall",
-      "Problem": "Problem"
+      "Incident": "Vorfall"
     }
   },
   "labels": {

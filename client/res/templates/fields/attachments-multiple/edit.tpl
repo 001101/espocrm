@@ -1,18 +1,18 @@
-<div>
-    <div class="clearfix">
+<div class="attachment-upload">
+    <div class="clearfix attachment-control">
         {{#unless uploadFromFileSystemDisabled}}
         <div class="pull-left">
-            <label style="overflow: hidden; width: 50px; cursor: pointer;" title="{{translate 'Attach File'}}">
-                <span class="btn btn-default" style="cursor: pointer;"><span class="glyphicon glyphicon-paperclip"></span></span>
-                <input type="file" class="file pull-right" multiple style="opacity: 0; width: 1px;">
+            <label class="attach-file-label" title="{{translate 'Attach File'}}">
+                <span class="btn btn-default btn-icon"><span class="fas fa-paperclip"></span></span>
+                <input type="file" class="file pull-right" multiple>
             </label>
         </div>
         {{/unless}}
 
         {{#if sourceList.length}}
         <div class="pull-left dropdown">
-            <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">
-                <span class="glyphicon glyphicon-file"></span>
+            <button class="btn btn-default btn-icon dropdown-toggle" type="button" data-toggle="dropdown">
+                <span class="fas fa-file"></span>
             </button>
             <ul class="dropdown-menu" role="menu">
             {{#each sourceList}}

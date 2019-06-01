@@ -3,7 +3,8 @@
         "name": {
             "type": "varchar",
             "required": true,
-            "trim": true
+            "trim": true,
+            "view": "views/attachment/fields/name"
         },
         "type": {
             "type": "varchar",
@@ -14,16 +15,23 @@
             "min": 0
         },
         "parent": {
-            "type": "linkParent"
+            "type": "linkParent",
+            "view": "views/attachment/fields/parent"
         },
         "related": {
             "type": "linkParent",
-            "noLoad": true
+            "noLoad": true,
+            "view": "views/attachment/fields/parent"
         },
         "sourceId": {
             "type": "varchar",
             "maxLength": 36,
             "readOnly": true,
+            "disabled": true,
+            "index": true
+        },
+        "field": {
+            "type": "varchar",
             "disabled": true
         },
         "createdAt": {
@@ -39,8 +47,26 @@
             "notStorable": true
         },
         "role": {
+            "type": "enum",
+            "maxLength": 36,
+            "options": [
+                "Attachment",
+                "Inline Attachment",
+                "Import File",
+                "Export File",
+                "Mail Merge",
+                "Mass Pdf"
+            ]
+        },
+        "storage": {
             "type": "varchar",
-            "maxLength": 36
+            "maxLength": 24,
+            "default": null
+        },
+        "storageFilePath": {
+            "type": "varchar",
+            "maxLength": 260,
+            "default": null
         },
         "global": {
             "type": "bool",
@@ -69,9 +95,5 @@
             "columns": ["parentType", "parentId"]
         }
     },
-    "sources": {
-        "Document": {
-            "insertModalView": ""
-        }
-    }
+    "sourceList": ["Document"]
 }

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,18 +42,30 @@ Espo.define('views/email/list', 'views/list', function (Dep) {
 
         defaultFolderId: 'inbox',
 
+        keepCurrentRootUrl: true,
+
         setup: function () {
             Dep.prototype.setup.call(this);
 
+            this.addMenuItem('dropdown', false);
+
+            if (this.getAcl().checkScope('EmailAccountScope')) {
+                this.addMenuItem('dropdown', {
+                    name: 'reply',
+                    label: 'Email Accounts',
+                    link: '#EmailAccount/list/userId=' + this.getUser().id + '&userName=' +  encodeURIComponent(this.getUser().get('name'))
+                });
+            }
+
             if (this.getUser().isAdmin()) {
-                this.menu.dropdown.push({
+                this.addMenuItem('dropdown', {
                     link: '#InboundEmail',
                     label: 'Inbound Emails'
                 });
             }
 
             this.foldersDisabled = this.foldersDisabled ||
-                                   this.getMetadata().get('scopes.' + this.folderScope + '.disabled') ||
+                                   this.getMetadata().get(['scopes', this.folderScope, 'disabled']) ||
                                    !this.getAcl().checkScope(this.folderScope);
 
             var params = this.options.params || {};
@@ -95,8 +107,9 @@ Espo.define('views/email/list', 'views/list', function (Dep) {
         getFolderCollection: function (callback) {
             this.getCollectionFactory().create(this.folderScope, function (collection) {
                 collection.url = 'EmailFolder/action/listAll';
+                collection.maxSize = 200;
 
-                this.collection.folderCollection = collection;
+                collection.folderCollection = collection;
 
                 this.listenToOnce(collection, 'sync', function () {
                     callback.call(this, collection);
@@ -106,6 +119,7 @@ Espo.define('views/email/list', 'views/list', function (Dep) {
         },
 
         loadFolders: function () {
+            var xhr = null;
             this.getFolderCollection(function (collection) {
                 this.createView('folders', 'views/email-folder/list-side', {
                     collection: collection,
@@ -119,16 +133,23 @@ Espo.define('views/email/list', 'views/list', function (Dep) {
                         this.selectedFolderId = id;
                         this.applyFolder();
 
+                        if (xhr && xhr.readyState < 4) {
+                            xhr.abort();
+                        }
+
                         this.notify('Please wait...');
-                        this.collection.fetch().then(function () {
-                            this.notify(false);
-                        }.bind(this));
+                        xhr = this.collection.fetch({
+                            success: function () {
+                                this.notify(false);
+                            }.bind(this)
+                        });
 
                         if (id !== this.defaultFolderId) {
                             this.getRouter().navigate('#Email/list/folder=' + id);
                         } else {
                             this.getRouter().navigate('#Email');
                         }
+                        this.updateLastUrl();
                     }, this);
                 }, this);
             }, this);
@@ -136,8 +157,26 @@ Espo.define('views/email/list', 'views/list', function (Dep) {
 
         applyFolder: function () {
             this.collection.data.folderId = this.selectedFolderId;
+        },
+
+        applyRoutingParams: function (params) {
+            var id;
+
+            if ('folder' in params) {
+                id = params.folder || 'inbox';
+            } else {
+                return;
+            }
+
+            if (!params.isReturnThroughLink && id !== this.selectedFolderId) {
+                var foldersView = this.getView('folders');
+                if (foldersView) {
+                    foldersView.actionSelectFolder(id);
+                    foldersView.reRender();
+                    $(window).scrollTop(0);
+                }
+            }
         }
 
     });
 });
-

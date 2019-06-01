@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,16 +36,37 @@ class Account extends \Espo\Services\Record
     protected $linkSelectParams = array(
         'contacts' => array(
             'additionalColumns' => array(
-                'role' => 'accountRole'
+                'role' => 'accountRole',
+                'isInactive' => 'accountIsInactive'
+            )
+        ),
+        'targetLists' => array(
+            'additionalColumns' => array(
+                'optedOut' => 'isOptedOut'
             )
         )
     );
 
-    protected function getDuplicateWhereClause(Entity $entity, $data = array())
+    protected function getDuplicateWhereClause(Entity $entity, $data)
     {
-        return array(
+        if (!$entity->get('name')) {
+            return false;
+        }
+        return [
             'name' => $entity->get('name')
-        );
+        ];
+    }
+
+    protected function afterMerge(Entity $entity, array $sourceList, $attributes)
+    {
+        foreach ($sourceList as $source) {
+            $contactList = $this->getEntityManager()->getRepository('Contact')->where([
+                'accountId' => $source->id
+            ])->find();
+            foreach ($contactList as $contact) {
+                $contact->set('accountId', $entity->id);
+                $this->getEntityManager()->saveEntity($contact);
+            }
+        }
     }
 }
-

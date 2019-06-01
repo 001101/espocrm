@@ -1,8 +1,6 @@
 {
   "fields": {
-    "name": "Betreff",
     "parent": "Bezieht sich auf",
-    "status": "Status",
     "dateStart": "Startdatum",
     "dateEnd": "Fällig am",
     "dateStartDate": "Startdatum (ganztägig)",
@@ -12,10 +10,14 @@
     "isOverdue": "Ist überfällig",
     "account": "Firma",
     "dateCompleted": "Datum erledigt",
-    "attachments": "Anhänge"
+    "attachments": "Anhänge",
+    "reminders": "Erinnerungen",
+    "contact": "Kontakt"
   },
   "links": {
-    "attachments": "Anhänge"
+    "attachments": "Anhänge",
+    "account": "Firma",
+    "contact": "Kontakt"
   },
   "options": {
     "status": {
@@ -27,7 +29,6 @@
     },
     "priority": {
       "Low": "Niedrig",
-      "Normal": "Normal",
       "High": "Hoch",
       "Urgent": "Dringend"
     }
@@ -40,6 +41,7 @@
     "actual": "Aktuell",
     "completed": "Abgeschlossen",
     "todays": "Heutige",
-    "overdue": "Überfällig"
+    "overdue": "Überfällig",
+    "deferred": "Zurückgestellt"
   }
 }

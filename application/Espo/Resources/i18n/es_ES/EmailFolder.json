@@ -1,6 +1,6 @@
 {
   "fields": {
-    "skipNotifications": "Omitir Notificaciones"
+    "skipNotifications": "Omitir notificaciones"
   },
   "labels": {
     "Create EmailFolder": "Crear carpeta",

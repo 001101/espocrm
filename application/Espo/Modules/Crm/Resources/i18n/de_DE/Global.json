@@ -4,7 +4,6 @@
     "contacts": "Kontakte",
     "opportunities": "Verkaufschancen",
     "leads": "Interessenten",
-    "meetings": "Meetings",
     "calls": "Anrufe",
     "tasks": "Aufgaben",
     "emails": "E-Mails",
@@ -21,21 +20,20 @@
     "Lead": "Interessent",
     "Target": "Ziel",
     "Opportunity": "Verkaufschance",
-    "Meeting": "Meeting",
     "Calendar": "Kalender",
     "Call": "Anruf",
     "Task": "Aufgabe",
     "Case": "Fall",
     "Document": "Dokument",
-    "DocumentFolder": "Dokumente Ordner",
+    "DocumentFolder": "Dokumentenordner",
     "Campaign": "Kampagne",
     "TargetList": "Kontaktliste",
     "MassEmail": "Massen E-Mails",
     "EmailQueueItem": "E-Mail Warteschlangeneintrag",
-    "CampaignTrackingUrl": "Tracking URL",
     "Activities": "Aktivitäten",
     "KnowledgeBaseArticle": "Wissensbasis Artikel",
-    "KnowledgeBaseCategory": "Wissensbasis Kategorie"
+    "KnowledgeBaseCategory": "Wissensbasis Kategorie",
+    "CampaignLogRecord": "Kampagnen-Logeintrag"
   },
   "scopeNamesPlural": {
     "Account": "Firmen",
@@ -43,21 +41,20 @@
     "Lead": "Interessenten",
     "Target": "Zielkontakte",
     "Opportunity": "Verkaufschancen",
-    "Meeting": "Meetings",
     "Calendar": "Kalender",
     "Call": "Anrufe",
     "Task": "Aufgaben",
     "Case": "Fälle",
     "Document": "Dokumente",
-    "DocumentFolder": "Dokumente Ordner",
+    "DocumentFolder": "Dokumentenordner",
     "Campaign": "Kampagnen",
     "TargetList": "Kontaktlisten",
     "MassEmail": "Massen E-Mails",
     "EmailQueueItem": "E-Mail Warteschlangeneinträge",
-    "CampaignTrackingUrl": "Tracking URLs",
     "Activities": "Aktivitäten",
     "KnowledgeBaseArticle": "Wissensbasis",
-    "KnowledgeBaseCategory": "Wissensbasis Kategorien"
+    "KnowledgeBaseCategory": "Wissensbasis Kategorien",
+    "CampaignLogRecord": "Kampagnen-Logeinträge"
   },
   "dashlets": {
     "Leads": "Meine Interessenten",
@@ -103,12 +100,12 @@
     "shippingAddressCity": "Ort (Lieferadresse)",
     "shippingAddressStreet": "Straße (Lieferadresse)",
     "shippingAddressCountry": "Land (Lieferadresse)",
-    "shippingAddressMap": "Karte (Lieferadresse)",
-    "shippingAddressPostalCode": "PLZ (Lieferadresse)"
+    "shippingAddressState": "Bundesland/Kanton (Versand)",
+    "shippingAddressPostalCode": "PLZ (Lieferadresse)",
+    "shippingAddressMap": "Karte (Lieferadresse)"
   },
   "options": {
     "reminderTypes": {
-      "Popup": "Popup",
       "Email": "E-Mail"
     }
   }

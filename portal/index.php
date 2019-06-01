@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,15 @@ if (!$app->isInstalled()) {
     exit;
 }
 
-$a = explode('?', $_SERVER['REQUEST_URI']);
+$url = $_SERVER['REQUEST_URI'];
+$portalId = explode('/', $url)[count(explode('/', $_SERVER['SCRIPT_NAME'])) - 1];
+
+if (!isset($portalId)) {
+    $url = $_SERVER['REDIRECT_URL'];
+    $portalId = explode('/', $url)[count(explode('/', $_SERVER['SCRIPT_NAME'])) - 1];
+}
+
+$a = explode('?', $url);
 if (substr($a[0], -1) !== '/') {
     $url = $a[0] . '/';
     if (count($a) > 1) {
@@ -44,7 +52,6 @@ if (substr($a[0], -1) !== '/') {
     exit();
 }
 
-$portalId = explode('/', $_SERVER['REQUEST_URI'])[count(explode('/', $_SERVER['SCRIPT_NAME'])) - 1];
 if ($portalId) {
     $app->setBasePath('../../');
 } else {

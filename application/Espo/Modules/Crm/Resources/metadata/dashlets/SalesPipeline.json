@@ -2,6 +2,7 @@
     "view":"crm:views/dashlets/sales-pipeline",
     "aclScope": "Opportunity",
     "options": {
+        "view": "crm:views/dashlets/options/chart",
         "fields": {
             "title": {
                 "type": "varchar",
@@ -14,13 +15,26 @@
             "dateTo": {
                 "type": "date",
                 "required": true
+            },
+            "dateFilter": {
+                "type": "enum",
+                "options": ["currentYear", "currentQuarter", "currentMonth", "currentFiscalYear", "currentFiscalQuarter", "ever", "between"],
+                "default": "currentYear",
+                "translation": "Global.options.dateSearchRanges"
+            },
+            "useLastStage": {
+                "type": "bool"
             }
         },
         "layout": [
             {
                 "rows": [
                     [
-                        {"name": "title"}
+                        {"name": "title", "span": 2}
+                    ],
+                    [
+                        {"name": "dateFilter"},
+                        {"name": "useLastStage"}
                     ],
                     [
                         {"name": "dateFrom"},
@@ -28,6 +42,9 @@
                     ]
                 ]
             }
-        ]
+        ],
+        "defaults": {
+            "dateFilter": "currentYear"
+        }
     }
 }

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,27 +25,16 @@
  *
  * In accordance with Section 7(b) of the GNU General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
- *
- * The interactive user interfaces in modified source and object code versions
- * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
- *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
- * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-$sapiName = php_sapi_name();
-
-if (substr($sapiName, 0, 3) != 'cli') {
-    die("Extension installer script can be run only via CLI.\n");
-}
+if (substr(php_sapi_name(), 0, 3) != 'cli') exit;
 
 include "bootstrap.php";
 
 $arg = isset($_SERVER['argv'][1]) ? trim($_SERVER['argv'][1]) : '';
 
 if (empty($arg)) {
-    die("Specify extension package file.\n");
+    die("Extension package file is not specified.\n");
 }
 
 if (!file_exists($arg)) {
@@ -67,7 +56,7 @@ $app->getContainer()->setUser($user);
 
 $upgradeManager = new \Espo\Core\ExtensionManager($app->getContainer());
 
-echo "Start install process...\n";
+echo "Starting installation process...\n";
 
 try {
     $fileData = file_get_contents($arg);
@@ -84,4 +73,4 @@ try {
     $app->runRebuild();
 } catch (\Exception $e) {}
 
-echo "Install is completed.\n";
+echo "Extension installation is complete.\n";

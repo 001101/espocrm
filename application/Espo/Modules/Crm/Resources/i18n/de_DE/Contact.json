@@ -1,21 +1,25 @@
 {
   "fields": {
-    "name": "Betreff",
     "emailAddress": "E-Mail",
-    "title": "Funktion",
     "accountRole": "Funktion",
     "account": "Firma",
     "accounts": "Firmen",
     "phoneNumber": "Telefon",
     "accountType": "Firmentyp",
-    "doNotCall": "Nicht anrufen",
+    "doNotCall": "Anrufe unerwünscht",
     "address": "Adresse",
     "opportunityRole": "Verkaufschance Rolle",
     "description": "Beschreibung",
     "campaign": "Kampagne",
     "targetLists": "Kontaktlisten",
     "targetList": "Kontaktliste",
-    "portalUser": "Portal Benutzer"
+    "portalUser": "Portal Benutzer",
+    "originalLead": "Ursprünglicher Interessent",
+    "acceptanceStatus": "Akzeptanzstatus",
+    "accountIsInactive": "Inaktives Konto",
+    "acceptanceStatusMeetings": "Akzeptanzstatus (Meetings)",
+    "acceptanceStatusCalls": "Akzeptanzstatus (Anrufe)",
+    "title": "Primärer Zugangstitel"
   },
   "links": {
     "opportunities": "Verkaufschancen",
@@ -26,14 +30,16 @@
     "account": "Firma (Primär)",
     "accounts": "Firmen",
     "casesPrimary": "Fälle (Primär)",
-    "portalUser": "Portal Benutzer"
+    "portalUser": "Portal Benutzer",
+    "originalLead": "Ursprünglicher Interessent",
+    "documents": "Dokumente",
+    "tasksPrimary": "Aufgaben (erweitert)"
   },
   "labels": {
     "Create Contact": "Kontakt erstellen"
   },
   "options": {
     "opportunityRole": {
-      "": "--Kein(e)--",
       "Decision Maker": "Entscheider",
       "Evaluator": "Vorentscheider",
       "Influencer": "Einflussreiche Person"
@@ -41,6 +47,7 @@
   },
   "presetFilters": {
     "portalUsers": "Portal Benutzer",
-    "notPortalUsers": "Keine Portal Benutzer"
+    "notPortalUsers": "Keine Portal Benutzer",
+    "accountActive": "Aktiv"
   }
 }

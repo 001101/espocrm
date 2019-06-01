@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,12 +48,7 @@ class Schema
 
     private $converter;
 
-    private $connection;
-
-    protected $drivers = array(
-        'mysqli' => '\Espo\Core\Utils\Database\DBAL\Driver\Mysqli\Driver',
-        'pdo_mysql' => '\Espo\Core\Utils\Database\DBAL\Driver\PDOMySql\Driver',
-    );
+    private $databaseHelper;
 
     protected $fieldTypePaths = array(
         'application/Espo/Core/Utils/Database/DBAL/FieldTypes',
@@ -79,8 +74,6 @@ class Schema
      */
     protected $rebuildActionClasses = null;
 
-
-
     public function __construct(\Espo\Core\Utils\Config $config, \Espo\Core\Utils\Metadata $metadata, \Espo\Core\Utils\File\Manager $fileManager, \Espo\Core\ORM\EntityManager $entityManager, \Espo\Core\Utils\File\ClassParser $classParser, \Espo\Core\Utils\Metadata\OrmMetadata $ormMetadata)
     {
         $this->config = $config;
@@ -89,16 +82,16 @@ class Schema
         $this->entityManager = $entityManager;
         $this->classParser = $classParser;
 
+        $this->databaseHelper = new \Espo\Core\Utils\Database\Helper($this->config);
+
         $this->comparator = new \Espo\Core\Utils\Database\DBAL\Schema\Comparator();
         $this->initFieldTypes();
 
-        $this->converter = new \Espo\Core\Utils\Database\Converter($this->metadata, $this->fileManager);
-
-        $this->schemaConverter = new Converter($this->fileManager);
+        $this->converter = new \Espo\Core\Utils\Database\Converter($this->metadata, $this->fileManager, $this->config);
+        $this->schemaConverter = new Converter($this->metadata, $this->fileManager, $this, $this->config);
 
         $this->ormMetadata = $ormMetadata;
     }
-
 
     protected function getConfig()
     {
@@ -140,25 +133,15 @@ class Schema
         return $this->getConnection()->getDatabasePlatform();
     }
 
+    public function getDatabaseHelper()
+    {
+        return $this->databaseHelper;
+    }
 
     public function getConnection()
     {
-        if (isset($this->connection)) {
-            return $this->connection;
-        }
-
-        $dbalConfig = new \Doctrine\DBAL\Configuration();
-
-        $connectionParams = $this->getConfig()->get('database');
-
-        $connectionParams['driverClass'] = $this->drivers[ $connectionParams['driver'] ];
-        unset($connectionParams['driver']);
-
-        $this->connection = \Doctrine\DBAL\DriverManager::getConnection($connectionParams, $dbalConfig);
-
-        return $this->connection;
+        return $this->getDatabaseHelper()->getDbalConnection();
     }
-
 
     protected function initFieldTypes()
     {
@@ -186,8 +169,6 @@ class Schema
             }
         }
     }
-
-
 
     /*
      * Rebuild database schema
@@ -224,7 +205,6 @@ class Schema
         return (bool) $result;
     }
 
-
     /*
     * Get current database schema
     *
@@ -248,7 +228,6 @@ class Schema
         //return $schema->toSql($this->getPlatform()); //it can return with DROP TABLE
     }
 
-
     /*
     * Get SQL queries to get from one to another schema
     *
@@ -260,8 +239,6 @@ class Schema
 
         return $this->toSql($schemaDiff); //$schemaDiff->toSql($this->getPlatform());
     }
-
-
 
     /**
      * Init Rebuild Actions, get all classes and create them
@@ -311,6 +288,4 @@ class Schema
             }
         }
     }
-
-
 }

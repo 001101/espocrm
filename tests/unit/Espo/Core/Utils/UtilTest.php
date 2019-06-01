@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ namespace tests\Espo\Core\Utils;
 
 use Espo\Core\Utils\Util;
 
-class UtilTest extends \PHPUnit_Framework_TestCase
+class UtilTest extends \PHPUnit\Framework\TestCase
 {
     public function testGetSeparator()
     {
@@ -43,6 +43,8 @@ class UtilTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('detail', Util::toCamelCase('detail'));
         $this->assertEquals('detailView', Util::toCamelCase('detail-view', '-'));
         $this->assertEquals('myDetailView', Util::toCamelCase('my_detail_view'));
+        $this->assertEquals('AdvancedPack', Util::toCamelCase('Advanced Pack', ' ', true));
+        $this->assertEquals('advancedPack', Util::toCamelCase('Advanced Pack', ' '));
 
         $input = array(
             'detail',
@@ -1150,13 +1152,23 @@ class UtilTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($testResult, Util::replaceInArray('{0}', 'DONE', $testArray, true));
     }
 
-
-    public function testGetClassName()
+    /**
+     * @dataProvider dp_classNames
+     */
+    public function testGetClassName($path, $expectedClassName = '\Espo\EntryPoints\Donwload')
     {
-        $this->assertEquals('\Espo\EntryPoints\Donwload', Util::getClassName('application/Espo/EntryPoints/Donwload.php'));
-        $this->assertEquals('\Espo\EntryPoints\Donwload', Util::getClassName('custom/Espo/EntryPoints/Donwload.php'));
-        $this->assertEquals('\Espo\EntryPoints\Donwload', Util::getClassName('Espo/EntryPoints/Donwload.php'));
-        $this->assertEquals('\Espo\EntryPoints\Donwload', Util::getClassName('application/Espo/EntryPoints/Donwload'));
+        $this->assertEquals($expectedClassName, Util::getClassName($path));
+    }
+
+    public function dp_classNames()
+    {
+        return [
+            "application/Espo/EntryPoints/Donwload.php" => ['application/Espo/EntryPoints/Donwload.php'],
+            "custom/Espo/EntryPoints/Donwload.php" => ['custom/Espo/EntryPoints/Donwload.php'],
+            "Espo/EntryPoints/Donwload.php" => ['Espo/EntryPoints/Donwload.php'],
+            "application/Espo/EntryPoints/Donwload" => ['application/Espo/EntryPoints/Donwload'],
+            "\application\Espo\EntryPoints\Donwload" => ['application\Espo\EntryPoints\Donwload'],
+        ];
     }
 
     public function testUnsetInArrayNotSingle()
@@ -1427,6 +1439,38 @@ class UtilTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('customReturns', Util::getValueByKey($inputArray, 'Contact.notExists', 'customReturns'));
     }
 
+    public function testGetValueByKeyWithObjects()
+    {
+        $inputObject = (object) [
+            'Account' => (object) [
+                'useCache' => true,
+                'sub' =>  (object) [
+                    'subV' => '125',
+                    'subO' => (object) [
+                        'subOV' => '125',
+                        'subOV2' => '125',
+                    ],
+                ],
+            ],
+            'Contact' => (object) [
+                'useCache' => true,
+            ],
+        ];
+
+        $this->assertEquals($inputObject, Util::getValueByKey($inputObject));
+        $this->assertEquals($inputObject, Util::getValueByKey($inputObject, ''));
+
+        $this->assertEquals('125', Util::getValueByKey($inputObject, 'Account.sub.subV'));
+
+        $result = (object) ['useCache' => true];
+        $this->assertEquals($result, Util::getValueByKey($inputObject, 'Contact'));
+
+        $this->assertNull(Util::getValueByKey($inputObject, 'Contact.notExists'));
+
+        $this->assertEquals('customReturns', Util::getValueByKey($inputObject, 'Contact.notExists', 'customReturns'));
+        $this->assertNotEquals('customReturns', Util::getValueByKey($inputObject, 'Contact.useCache', 'customReturns'));
+    }
+
     public function testUnsetInArrayByValue()
     {
         $newArray = json_decode('[
@@ -1469,6 +1513,74 @@ class UtilTest extends \PHPUnit_Framework_TestCase
         }', true);
 
         $this->assertEquals($result, Util::unsetInArrayByValue('__APPEND__', $newArray, false));
+    }
+
+    public function testArrayDiff()
+    {
+        $array1 = array (
+          'type' => 'enum',
+          'options' =>
+          array (
+            0 => '',
+            1 => 'Call',
+            2 => 'Email',
+            3 => 'Existing Customer',
+            4 => 'Partner',
+            5 => 'Public Relations',
+            6 => 'Campaign',
+            7 => 'Other',
+          ),
+          'default' => '',
+          'required' => true,
+          'isSorted' => false,
+          'audited' => false,
+          'readOnly' => false,
+          'tooltip' => false,
+          'newAttr1' => false,
+        );
+
+        $array2 = array (
+          'type' => 'enum',
+          'options' =>
+          array (
+            0 => '',
+            1 => 'Call',
+            2 => 'Email',
+            3 => 'Existing Customer',
+            4 => 'Partner',
+            5 => 'Public Relations',
+            6 => 'Web Site',
+            7 => 'Campaign',
+            8 => 'Other',
+          ),
+          'default' => '',
+          'required' => false,
+          'isSorted' => false,
+          'audited' => false,
+          'readOnly' => false,
+          'tooltip' => false,
+          'newAttr2' => false,
+        );
+
+        $result = array (
+          'options' =>
+          array (
+            0 => '',
+            1 => 'Call',
+            2 => 'Email',
+            3 => 'Existing Customer',
+            4 => 'Partner',
+            5 => 'Public Relations',
+            6 => 'Web Site',
+            7 => 'Campaign',
+            8 => 'Other',
+          ),
+          'required' => false,
+          'newAttr1' => false,
+          'newAttr2' => false,
+        );
+
+        $this->assertEquals($result, \Espo\Core\Utils\Util::arrayDiff($array1, $array2));
     }
 }
 

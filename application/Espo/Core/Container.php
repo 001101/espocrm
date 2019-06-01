@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,17 +32,13 @@ namespace Espo\Core;
 class Container
 {
 
-    private $data = array();
+    private $data = [];
 
-
-    /**
-     * Constructor
-     */
     public function __construct()
     {
     }
 
-    public function get($name)
+    public function get(string $name)
     {
         if (empty($this->data[$name])) {
             $this->load($name);
@@ -67,7 +63,7 @@ class Container
         } else {
 
             try {
-                $className = $this->get('metadata')->get('app.loaders.' . ucfirst($name));
+                $className = $this->get('metadata')->get(['app', 'loaders', ucfirst($name)]);
             } catch (\Exception $e) {}
 
             if (!isset($className) || !class_exists($className)) {
@@ -86,36 +82,11 @@ class Container
         return null;
     }
 
-    protected function getServiceClassName($name, $default)
+    public function getServiceClassName(string $name, string $default)
     {
         $metadata = $this->get('metadata');
-        $className = $metadata->get('app.serviceContainer.classNames.' . $name, $default);
+        $className = $metadata->get(['app', 'serviceContainer', 'classNames',  $name], $default);
         return $className;
-    }
-
-    protected function loadLog()
-    {
-        $config = $this->get('config');
-
-        $path = $config->get('logger.path', 'data/logs/espo.log');
-        $rotation = $config->get('logger.rotation', true);
-
-        $log = new \Espo\Core\Utils\Log('Espo');
-        $levelCode = $log->getLevelCode($config->get('logger.level', 'WARNING'));
-
-        if ($rotation) {
-            $maxFileNumber = $config->get('logger.maxFileNumber', 30);
-            $handler = new \Espo\Core\Utils\Log\Monolog\Handler\RotatingFileHandler($path, $maxFileNumber, $levelCode);
-        } else {
-            $handler = new \Espo\Core\Utils\Log\Monolog\Handler\StreamHandler($path, $levelCode);
-        }
-        $log->pushHandler($handler);
-
-        $errorHandler = new \Monolog\ErrorHandler($log);
-        $errorHandler->registerExceptionHandler(null, false);
-        $errorHandler->registerErrorHandler(array(), false);
-
-        return $log;
     }
 
     protected function loadContainer()
@@ -128,10 +99,50 @@ class Container
         return new \Espo\Core\Utils\Api\Slim();
     }
 
+    protected function loadFileStorageManager()
+    {
+        return new \Espo\Core\FileStorage\Manager(
+            $this->get('metadata')->get(['app', 'fileStorage', 'implementationClassNameMap']),
+            $this
+        );
+    }
+
+    protected function loadLog()
+    {
+        $config = $this->get('config');
+
+        $path = $config->get('logger.path', 'data/logs/espo.log');
+        $rotation = $config->get('logger.rotation', true);
+
+        $log = new \Espo\Core\Utils\Log('Espo');
+        $levelCode = $log::toMonologLevel($config->get('logger.level', 'WARNING'));
+
+        if ($rotation) {
+            $maxFileNumber = $config->get('logger.maxFileNumber', 30);
+            $handler = new \Espo\Core\Utils\Log\Monolog\Handler\RotatingFileHandler($path, $maxFileNumber, $levelCode);
+        } else {
+            $handler = new \Espo\Core\Utils\Log\Monolog\Handler\StreamHandler($path, $levelCode);
+        }
+        $log->pushHandler($handler);
+
+        $errorHandler = new \Monolog\ErrorHandler($log);
+        $errorHandler->registerExceptionHandler(null, false);
+        $errorHandler->registerErrorHandler([], false);
+
+        return $log;
+    }
+
     protected function loadFileManager()
     {
         return new \Espo\Core\Utils\File\Manager(
             $this->get('config')
+        );
+    }
+
+    protected function loadControllerManager()
+    {
+        return new \Espo\Core\ControllerManager(
+            $this
         );
     }
 
@@ -161,15 +172,6 @@ class Container
         );
     }
 
-    protected function loadMailSender()
-    {
-        $className = $this->getServiceClassName('mailSernder', '\\Espo\\Core\\Mail\\Sender');
-        return new $className(
-            $this->get('config'),
-            $this->get('entityManager')
-        );
-    }
-
     protected function loadDateTime()
     {
         return new \Espo\Core\Utils\DateTime(
@@ -194,15 +196,10 @@ class Container
         );
     }
 
-    protected function loadSelectManagerFactory()
+    protected function loadNotificatorFactory()
     {
-        return new \Espo\Core\SelectManagerFactory(
-            $this->get('entityManager'),
-            $this->get('user'),
-            $this->get('acl'),
-            $this->get('aclManager'),
-            $this->get('metadata'),
-            $this->get('config')
+        return new \Espo\Core\NotificatorFactory(
+            $this
         );
     }
 
@@ -224,6 +221,14 @@ class Container
     }
 
     protected function loadAclManager()
+    {
+        $className = $this->getServiceClassName('acl', '\\Espo\\Core\\AclManager');
+        return new $className(
+            $this->get('container')
+        );
+    }
+
+    protected function loadInternalAclManager()
     {
         $className = $this->getServiceClassName('acl', '\\Espo\\Core\\AclManager');
         return new $className(
@@ -257,7 +262,7 @@ class Container
         return new \Espo\Core\Utils\Metadata\OrmMetadata(
             $this->get('metadata'),
             $this->get('fileManager'),
-            $this->get('config')->get('useCache')
+            $this->get('config')
         );
     }
 
@@ -276,6 +281,16 @@ class Container
             \Espo\Core\Utils\Language::detectLanguage($this->get('config'), $this->get('preferences')),
             $this->get('fileManager'),
             $this->get('metadata'),
+            $this->get('config')->get('useCache')
+        );
+    }
+
+    protected function loadBaseLanguage()
+    {
+        return new \Espo\Core\Utils\Language(
+            'en_US',
+            $this->get('fileManager'),
+            $this->get('metadata'),
             $this->get('useCache')
         );
     }
@@ -283,7 +298,7 @@ class Container
     protected function loadDefaultLanguage()
     {
         return new \Espo\Core\Utils\Language(
-            null,
+            \Espo\Core\Utils\Language::detectLanguage($this->get('config')),
             $this->get('fileManager'),
             $this->get('metadata'),
             $this->get('useCache')
@@ -314,9 +329,14 @@ class Container
     protected function loadFieldManager()
     {
         return new \Espo\Core\Utils\FieldManager(
-            $this->get('metadata'),
-            $this->get('language'),
             $this
+        );
+    }
+
+    protected function loadFieldManagerUtil()
+    {
+        return new \Espo\Core\Utils\FieldManagerUtil(
+            $this->get('metadata')
         );
     }
 
@@ -328,11 +348,10 @@ class Container
         );
     }
 
-    protected function loadClientManager()
+    protected function loadInjectableFactory()
     {
-        return new \Espo\Core\Utils\ClientManager(
-            $this->get('config'),
-            $this->get('themeManager')
+        return new \Espo\Core\InjectableFactory(
+            $this
         );
     }
 
@@ -341,4 +360,3 @@ class Container
         $this->set('user', $user);
     }
 }
-

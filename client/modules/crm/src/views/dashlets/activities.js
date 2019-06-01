@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ Espo.define('crm:views/dashlets/activities', ['views/dashlets/abstract/base', 'm
 
         _template: '<div class="list-container">{{{list}}}</div>',
 
-        rowActionsView: 'crm:views/meeting/record/row-actions/dashlet',
+        rowActionsView: 'crm:views/record/row-actions/activities-dashlet',
 
         defaultListLayout: {
             rows: [
@@ -57,13 +57,44 @@ Espo.define('crm:views/dashlets/activities', ['views/dashlets/abstract/base', 'm
             ]
         },
 
+        listLayoutEntityTypeMap: {
+            Task: {
+                rows: [
+                    [
+                        {
+                            name: 'ico',
+                            view: 'crm:views/fields/ico',
+                            params: {
+                                notRelationship: true
+                            }
+                        },
+                        {
+                            name: 'name',
+                            link: true,
+                        },
+                    ],
+                    [
+                        {name: 'dateEnd'}
+                    ]
+                ]
+            }
+        },
+
+        init: function () {
+            Dep.prototype.init.call(this);
+        },
+
         setup: function () {
             this.seeds = {};
 
-            this.scopeList = this.getConfig().get('activitiesEntityList') || [];
+            this.scopeList = this.getOption('enabledScopeList') || [];
 
             this.listLayout = {};
             this.scopeList.forEach(function (item) {
+                if (item in this.listLayoutEntityTypeMap) {
+                    this.listLayout[item] = this.listLayoutEntityTypeMap[item];
+                    return;
+                }
                 this.listLayout[item] = this.defaultListLayout;
             }, this);
 
@@ -84,7 +115,7 @@ Espo.define('crm:views/dashlets/activities', ['views/dashlets/abstract/base', 'm
                     this.actionList.unshift({
                         name: 'createActivity',
                         html: this.translate('Create ' + scope, 'labels', scope),
-                        iconHtml: '<span class="glyphicon glyphicon-plus"></span>',
+                        iconHtml: '<span class="fas fa-plus"></span>',
                         url: '#' + scope + '/create',
                         data: {
                             scope: scope
@@ -98,10 +129,12 @@ Espo.define('crm:views/dashlets/activities', ['views/dashlets/abstract/base', 'm
             this.collection = new MultiCollection();
             this.collection.seeds = this.seeds;
             this.collection.url = 'Activities/action/listUpcoming';
-            this.collection.maxSize = this.getConfig().get('recordsPerPageSmall') || 5;
+            this.collection.maxSize = this.getOption('displayRecords') || this.getConfig().get('recordsPerPageSmall') || 5;
+            this.collection.data.entityTypeList = this.scopeList;
+            this.collection.data.futureDays = this.getOption('futureDays');
 
             this.listenToOnce(this.collection, 'sync', function () {
-                this.createView('list', 'crm:views/meeting/record/list-expanded', {
+                this.createView('list', 'crm:views/record/list-activities-dashlet', {
                     el: this.options.el + ' > .list-container',
                     pagination: false,
                     type: 'list',
@@ -125,6 +158,8 @@ Espo.define('crm:views/dashlets/activities', ['views/dashlets/abstract/base', 'm
             var scope = data.scope;
             var attributes = {};
 
+            this.populateAttributesAssignedUser(scope, attributes);
+
             this.notify('Loading...');
             var viewName = this.getMetadata().get('clientDefs.'+scope+'.modalViews.edit') || 'views/modals/edit';
             this.createView('quickCreate', viewName, {
@@ -141,6 +176,8 @@ Espo.define('crm:views/dashlets/activities', ['views/dashlets/abstract/base', 'm
 
         actionCreateMeeting: function () {
             var attributes = {};
+
+            this.populateAttributesAssignedUser('Meeting', attributes);
 
             this.notify('Loading...');
             var viewName = this.getMetadata().get('clientDefs.Meeting.modalViews.edit') || 'views/modals/edit';
@@ -159,6 +196,8 @@ Espo.define('crm:views/dashlets/activities', ['views/dashlets/abstract/base', 'm
         actionCreateCall: function () {
             var attributes = {};
 
+            this.populateAttributesAssignedUser('Call', attributes);
+
             this.notify('Loading...');
             var viewName = this.getMetadata().get('clientDefs.Call.modalViews.edit') || 'views/modals/edit';
             this.createView('quickCreate', viewName, {
@@ -171,7 +210,17 @@ Espo.define('crm:views/dashlets/activities', ['views/dashlets/abstract/base', 'm
                     this.actionRefresh();
                 }, this);
             }.bind(this));
+        },
+
+        populateAttributesAssignedUser: function (scope, attributes) {
+            if (this.getMetadata().get(['entityDefs', scope, 'fields', 'assignedUsers'])) {
+                attributes['assignedUsersIds'] = [this.getUser().id];
+                attributes['assignedUsersNames'] = {};
+                attributes['assignedUsersNames'][this.getUser().id] = this.getUser().get('name');
+            } else {
+                attributes['assignedUserId'] = this.getUser().id;
+                attributes['assignedUserName'] = this.getUser().get('name');
+            }
         }
     });
 });
-

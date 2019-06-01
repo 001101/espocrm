@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,15 +50,25 @@ Espo.define('views/admin/layouts/modals/edit-attributes', ['views/modal', 'model
             model.name = 'LayoutManager';
             model.set(this.options.attributes || {});
 
-            this.header = this.translate(this.options.name, 'fields', this.options.scope);
-
-            var attributeList = Espo.Utils.clone(this.options.attributeList || []);
-            var index = attributeList.indexOf('name');
-            if (~index) {
-                attributeList.splice(index, 1);
+            if (this.options.languageCategory) {
+                this.header = this.translate(this.options.name, this.options.languageCategory || 'fields', this.options.scope);
+            } else {
+                this.header = false;
             }
 
-            this.createView('edit', 'Admin.Layouts.Record.EditAttributes', {
+            var attributeList = Espo.Utils.clone(this.options.attributeList || []);
+
+            var filteredAttribueList = [];
+            attributeList.forEach(function (item) {
+                if ((this.options.attributeDefs[item] || {}).readOnly) {
+                    return;
+                }
+                filteredAttribueList.push(item);
+            }, this);
+
+            attributeList = filteredAttribueList;
+
+            this.createView('edit', 'views/admin/layouts/record/edit-attributes', {
                 el: this.options.el + ' .edit-container',
                 attributeList: attributeList,
                 attributeDefs: this.options.attributeDefs,

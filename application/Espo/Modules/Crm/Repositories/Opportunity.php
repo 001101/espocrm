@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,14 +35,73 @@ class Opportunity extends \Espo\Core\ORM\Repositories\RDB
 {
     public function beforeSave(Entity $entity, array $options = array())
     {
-        parent::beforeSave($entity, $options);
-
         if ($entity->isNew()) {
             if (!$entity->has('probability') && $entity->get('stage')) {
-                $probability = $this->getMetadata()->get('entityDefs.Opportunity.probabilityMap.' . $entity->get('stage'), 0);
-                $entity->set('probability', $probability);
+                $probability = $this->getMetadata()->get('entityDefs.Opportunity.fields.stage.probabilityMap.' . $entity->get('stage'), 0);
+                if (!is_null($probability)) {
+                    $entity->set('probability', $probability);
+                }
             }
+        }
+
+        if (!$entity->isAttributeChanged('lastStage') && $entity->isAttributeChanged('stage')) {
+            $probability = $this->getMetadata()->get(['entityDefs', 'Opportunity', 'fields', 'stage', 'probabilityMap', $entity->get('stage')], 0);
+            $probabilityMap =  $this->getMetadata()->get(['entityDefs', 'Opportunity', 'fields', 'stage', 'probabilityMap'], []);
+
+            if (!$probability) {
+                $stageList = $this->getMetadata()->get('entityDefs.Opportunity.fields.stage.options', []);
+                if ($entity->isNew()) {
+                    if (count($stageList)) {
+                        $min = 100;
+                        $minStage = null;
+                        foreach ($stageList as $stage) {
+                            if (!empty($probabilityMap[$stage]) && $probabilityMap[$stage] !== 100) {
+                                if ($probabilityMap[$stage] < $min) {
+                                    $min = $probabilityMap[$stage];
+                                    $minStage = $stage;
+                                }
+                            }
+                        }
+                        if ($minStage) {
+                            $entity->set('lastStage', $minStage);
+                        }
+                    }
+                } else {
+                    $lastStageProbability = $this->getMetadata()->get(['entityDefs', 'Opportunity', 'fields', 'stage', 'probabilityMap', $entity->get('lastStage')], 0);
+                    if ($lastStageProbability === 100) {
+                        if (count($stageList)) {
+                            $max = 0;
+                            $maxStage = null;
+                            foreach ($stageList as $stage) {
+                                if (!empty($probabilityMap[$stage]) && $probabilityMap[$stage] !== 100) {
+                                    if ($probabilityMap[$stage] > $max) {
+                                        $max = $probabilityMap[$stage];
+                                        $maxStage = $stage;
+                                    }
+                                }
+                            }
+                            if ($maxStage) {
+                                $entity->set('lastStage', $maxStage);
+                            }
+                        }
+                    }
+                }
+            } else {
+                $entity->set('lastStage', $entity->get('stage'));
+            }
+        }
+
+        parent::beforeSave($entity, $options);
+    }
+
+    public function afterSave(Entity $entity, array $options = array())
+    {
+        parent::afterSave($entity, $options);
+        if ($entity->isAttributeChanged('amount') || $entity->isAttributeChanged('probability')) {
+            $amountConverted = $entity->get('amountConverted');
+            $probability = $entity->get('probability');
+            $amountWeightedConverted = round($amountConverted * $probability / 100, 2);
+            $entity->set('amountWeightedConverted', $amountWeightedConverted);
         }
     }
 }
-

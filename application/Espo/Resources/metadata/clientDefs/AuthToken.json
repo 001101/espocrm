@@ -1,5 +1,24 @@
 {
-   "recordViews":{
-      "list":"Admin.AuthToken.Record.List"
-   }
+    "controller": "controllers/record",
+    "recordViews": {
+        "list": "views/admin/auth-token/record/list",
+        "detail": "views/admin/auth-token/record/detail",
+        "detailSmall": "views/admin/auth-token/record/detail-small"
+    },
+    "modalViews": {
+        "detail": "views/admin/auth-token/modals/detail"
+    },
+    "filterList": [
+        "active",
+        "inactive"
+    ],
+    "createDisabled": true,
+    "relationshipPanels": {
+        "actionHistoryRecords": {
+            "createDisabled": true,
+            "selectDisabled": true,
+            "unlinkDisabled": true,
+            "rowActionsView": "views/record/row-actions/relationship-view-only"
+        }
+    }
 }

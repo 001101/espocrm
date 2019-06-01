@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,25 +33,8 @@ use \Espo\ORM\Entity;
 
 class KnowledgeBaseCategory extends \Espo\Services\RecordTree
 {
-    protected function checkFilterOnlyNotEmpty()
-    {
-        if (!$this->getAcl()->checkScope('KnowledgeBaseArticle', 'create')) {
-            return true;
-        }
-    }
+    protected $subjectEntityType = 'KnowledgeBaseArticle';
 
-    protected function checkItemIsEmpty(Entity $entity)
-    {
-        $selectManager = $this->getSelectManager('KnowledgeBaseArticle');
+    protected $categoryField = 'categories';
 
-        $selectParams = $selectManager->getEmptySelectParams();
-        $selectManager->applyInCategory('categories', $entity->id, $selectParams);
-        $selectManager->applyAccess($selectParams);
-
-        if ($this->getEntityManager()->getRepository('KnowledgeBaseArticle')->findOne($selectParams)) {
-            return false;
-        }
-        return true;
-    }
 }
-

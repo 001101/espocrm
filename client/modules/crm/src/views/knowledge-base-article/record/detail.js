@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,10 +33,29 @@ Espo.define('crm:views/knowledge-base-article/record/detail', 'views/record/deta
         setup: function () {
             Dep.prototype.setup.call(this);
 
-            this.dropdownItemList.push({
-                'label': 'Send in Email',
-                'name': 'sendInEmail'
-            });
+            if (this.getUser().isPortal()) {
+                this.sideDisabled = true;
+            }
+
+            if (this.getAcl().checkScope('Email', 'create')) {
+                this.dropdownItemList.push({
+                    'label': 'Send in Email',
+                    'name': 'sendInEmail'
+                });
+            }
+
+            if (this.getUser().isPortal()) {
+                if (!this.getAcl().checkScope(this.scope, 'edit')) {
+                    if (!this.model.getLinkMultipleIdList('attachments').length) {
+                        this.hideField('attachments');
+                        this.listenToOnce(this.model, 'sync', function () {
+                            if (this.model.getLinkMultipleIdList('attachments').length) {
+                                this.showField('attachments');
+                            }
+                        }, this);
+                    }
+                }
+            }
         },
 
         actionSendInEmail: function () {

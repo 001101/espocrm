@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/dashboard', ['view', 'lib!gridstack'], function (Dep, Gridstack) {
+define('views/dashboard', ['view', 'lib!gridstack'], function (Dep, Gridstack) {
 
     return Dep.extend({
 
@@ -169,30 +169,75 @@ Espo.define('views/dashboard', ['view', 'lib!gridstack'], function (Dep, Gridsta
             if (this.getUser().get('portalId')) {
                 this.layoutReadOnly = true;
                 this.dashletsReadOnly = true;
+            } else {
+                var forbiddenPreferencesFieldList = this.getAcl().getScopeForbiddenFieldList('Preferences', 'edit');
+                if (~forbiddenPreferencesFieldList.indexOf('dashboardLayout')) {
+                    this.layoutReadOnly = true;
+                }
+                if (~forbiddenPreferencesFieldList.indexOf('dashletsOptions')) {
+                    this.dashletsReadOnly = true;
+                }
             }
+
+            this.once('remove', function () {
+                if (this.$gridstack) {
+                    var gridStack = this.$gridstack.data('gridstack');
+                    if (gridStack) {
+                        gridStack.destroy();
+                    }
+                }
+            }, this);
         },
 
         afterRender: function () {
+            this.initGridstack();
+        },
+
+        initGridstack: function () {
             var $gridstack = this.$gridstack = this.$el.find('> .dashlets');
 
-            $gridstack.gridstack({
-                min_width: 4,
-                cell_height: this.getThemeManager().getParam('dashboardCellHeight'),
-                vertical_margin: this.getThemeManager().getParam('dashboardCellMargin'),
-                width: 4,
-                min_width: this.getThemeManager().getParam('screenWidthXs'),
-                handle: '.dashlet-container .panel-heading',
-                draggable: {
+            var draggable = false;
+            var resizable = false;
+            var disableDrag = false;
+            var disableResize = false;
+
+            if (this.getUser().isPortal()) {
+                draggable = {
                     handle: '.dashlet-container .panel-heading',
-                },
-                resizable: {
+                };
+                resizable = {
                     handles: 'se',
                     helper: false
-                }
+                };
+                disableDrag = true;
+                disableResize = true;
+            }
+
+            $gridstack.gridstack({
+                minWidth: 4,
+                cellHeight: this.getThemeManager().getParam('dashboardCellHeight'),
+                verticalMargin: this.getThemeManager().getParam('dashboardCellMargin'),
+                width: 4,
+                minWidth: this.getThemeManager().getParam('screenWidthXs'),
+                handle: '.dashlet-container .panel-heading',
+                disableDrag: disableDrag,
+                disableResize: disableResize
             });
 
             var grid = $gridstack.data('gridstack');
-            grid.remove_all();
+            grid.removeAll();
+
+            this.currentTabLayout.forEach(function (o) {
+                var $item = this.prepareGridstackItem(o.id, o.name);
+                grid.addWidget($item, o.x, o.y, o.width, o.height);
+            }, this);
+
+            $gridstack.find(' .grid-stack-item').css('position', 'absolute');
+
+            this.currentTabLayout.forEach(function (o) {
+                if (!o.id || !o.name) return;
+                this.createDashletView(o.id, o.name);
+            }, this);
 
             $gridstack.on('change', function (e, itemList) {
                 this.fetchLayout();
@@ -205,18 +250,6 @@ Espo.define('views/dashboard', ['view', 'lib!gridstack'], function (Dep, Gridsta
                 if (!view) return;
                 view.trigger('resize');
             }.bind(this));
-
-            this.currentTabLayout.forEach(function (o) {
-                var $item = this.prepareGridstackItem(o.id, o.name);
-                grid.add_widget($item, o.x, o.y, o.width, o.height);
-            }, this);
-
-            $gridstack.find(' .grid-stack-item').css('position', 'absolute');
-
-            this.currentTabLayout.forEach(function (o) {
-                if (!o.id || !o.name) return;
-                this.createDashletView(o.id, o.name);
-            }, this);
         },
 
         fetchLayout: function () {
@@ -260,7 +293,7 @@ Espo.define('views/dashboard', ['view', 'lib!gridstack'], function (Dep, Gridsta
         removeDashlet: function (id) {
             var grid = this.$gridstack.data('gridstack');
             var $item = this.$gridstack.find('.grid-stack-item[data-id="'+id+'"]');
-            grid.remove_widget($item, true);
+            grid.removeWidget($item, true);
 
             var layout = this.dashboardLayout[this.currentTab].layout;
             layout.forEach(function (o, i) {
@@ -294,11 +327,15 @@ Espo.define('views/dashboard', ['view', 'lib!gridstack'], function (Dep, Gridsta
             var $item = this.prepareGridstackItem(id, name);
 
             var grid = this.$gridstack.data('gridstack');
-            grid.add_widget($item, 0, 0, 2, 2);
+            grid.addWidget($item, 0, 0, 2, 2);
 
-            this.createDashletView(id, name, name, function () {
+            this.createDashletView(id, name, name, function (view) {
                 this.fetchLayout();
                 this.saveLayout();
+
+                if (view.getView('body') && view.getView('body').afterAdding) {
+                    view.getView('body').afterAdding.call(view.getView('body'));
+                }
             }, this);
         },
 
@@ -324,8 +361,8 @@ Espo.define('views/dashboard', ['view', 'lib!gridstack'], function (Dep, Gridsta
                 view.render();
 
                 this.listenToOnce(view, 'change', function () {
+                    this.clearView(id);
                     this.createDashletView(id, name, label, function (view) {
-                        view.render();
                     }, this);
                 }, this);
 
@@ -340,4 +377,3 @@ Espo.define('views/dashboard', ['view', 'lib!gridstack'], function (Dep, Gridsta
         }
     });
 });
-

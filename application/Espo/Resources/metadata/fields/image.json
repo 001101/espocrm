@@ -12,6 +12,12 @@
          "options": ["x-small", "small", "medium", "large"]
       },
       {
+         "name": "maxFileSize",
+         "type": "float",
+         "tooltip": true,
+         "min": 0
+      },
+      {
          "name":"audited",
          "type":"bool"
       }
@@ -22,12 +28,15 @@
    "notActualFields":[
       "name"
    ],
-   "filter": false,
+   "validationList": [
+      "required"
+   ],
+   "filter": true,
    "linkDefs": {
       "type": "belongsTo",
-      "entity": "Attachment"
+      "entity": "Attachment",
+      "skipOrmDefs": true,
+      "disabled": true
    },
-   "fieldDefs":{
-      "skipOrmDefs": true
-   }
+   "personalData": true
 }

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ Espo.define('views/admin/field-manager/fields/options', 'views/fields/array', fu
 
     return Dep.extend({
 
+        maxItemLength: 100,
+
         setup: function () {
             Dep.prototype.setup.call(this);
 
@@ -38,19 +40,27 @@ Espo.define('views/admin/field-manager/fields/options', 'views/fields/array', fu
             list.forEach(function (value) {
                 this.translatedOptions[value] = this.getLanguage().translateOption(value, this.options.field, this.options.scope);
             }, this);
+
+            this.model.fetchedAttributes.translatedOptions = this.translatedOptions;
         },
 
         getItemHtml: function (value) {
-            var translatedValue = this.translatedOptions[value] || value;
+            var valueSanitized = this.escapeValue(value);
+
+            var translatedValue = this.translatedOptions[value] || valueSanitized;
+
+            translatedValue = translatedValue.replace(/"/g, '&quot;');
+
+            var valueInternal = this.escapeValue(value);
 
             var html = '' +
-            '<div class="list-group-item link-with-role form-inline" data-value="' + value + '">' +
-                '<div class="pull-left" style="width: 92%; display: inline-block;">' +
-                    '<input name="translatedValue" data-value="' + value + '" class="role form-control input-sm pull-right" value="'+translatedValue+'">' + 
-                    '<div>' + value + '</div>' +
+            '<div class="list-group-item link-with-role form-inline" data-value="' + valueInternal + '">' +
+                '<div class="pull-left item-content" style="width: 92%; display: inline-block;">' +
+                    '<input data-name="translatedValue" data-value="' + valueInternal + '" class="role form-control input-sm pull-right" value="'+translatedValue+'">' +
+                    '<div class="item-text">' + valueSanitized + '</div>' +
                 '</div>' +
                 '<div style="width: 8%; display: inline-block; vertical-align: top;">' +
-                    '<a href="javascript:" class="pull-right" data-value="' + value + '" data-action="removeValue"><span class="glyphicon glyphicon-remove"></a>' +
+                    '<a href="javascript:" class="pull-right" data-value="' + valueInternal + '" data-action="removeValue"><span class="fas fa-times"></a>' +
                 '</div><br style="clear: both;" />' +
             '</div>';
 
@@ -59,14 +69,25 @@ Espo.define('views/admin/field-manager/fields/options', 'views/fields/array', fu
 
         fetch: function () {
             var data = Dep.prototype.fetch.call(this);
+
+            if (!data[this.name].length) {
+                data[this.name] = false;
+                data.translatedOptions = {};
+                return data;
+            }
+
             data.translatedOptions = {};
             (data[this.name] || []).forEach(function (value) {
-                data.translatedOptions[value] = this.$el.find('input[name="translatedValue"][data-value="'+value+'"]').val() || value;
+                var valueInternal = value.replace(/"/g, '\\"');
+                var translatedValue = this.$el.find('input[data-name="translatedValue"][data-value="'+valueInternal+'"]').val() || value;
+
+                translatedValue = translatedValue.toString();
+
+                data.translatedOptions[value] = translatedValue;
             }, this);
 
             return data;
         }
 
     });
-
 });

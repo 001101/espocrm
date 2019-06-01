@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -88,16 +88,16 @@ class Preferences extends \Espo\Core\Controllers\Base
             throw new BadRequest();
         }
 
-        if ($this->getAcl()->getLevel('Preferences', 'read') === 'no') {
+        if ($this->getAcl()->getLevel('Preferences', 'edit') === 'no') {
             throw new Forbidden();
         }
 
         foreach ($this->getAcl()->getScopeForbiddenAttributeList('Preferences', 'edit') as $attribute) {
-            unset($data[$attribute]);
+            unset($data->$attribute);
         }
 
-        if (array_key_exists('smtpPassword', $data)) {
-            $data['smtpPassword'] = $this->getCrypt()->encrypt($data['smtpPassword']);
+        if (property_exists($data, 'smtpPassword')) {
+            $data->smtpPassword = $this->getCrypt()->encrypt($data->smtpPassword);
         }
 
         $user = $this->getEntityManager()->getEntity('User', $userId);
@@ -113,7 +113,7 @@ class Preferences extends \Espo\Core\Controllers\Base
 
             $entity->clear('smtpPassword');
 
-            return $entity->toArray();
+            return $entity->getValueMap();
         }
         throw new Error();
     }
@@ -132,7 +132,7 @@ class Preferences extends \Espo\Core\Controllers\Base
 
         $entity->set('smtpEmailAddress', $user->get('emailAddress'));
         $entity->set('name', $user->get('name'));
-        $entity->set('isPortalUser', $user->get('isPortalUser'));
+        $entity->set('isPortalUser', $user->isPortal());
 
         $entity->clear('smtpPassword');
 
@@ -140,7 +140,47 @@ class Preferences extends \Espo\Core\Controllers\Base
             $entity->clear($attribute);
         }
 
-        return $entity->toArray();
+        return $entity->getValueMap();
+    }
+
+    public function postActionResetDashboard($params, $data)
+    {
+        if (empty($data->id)) throw new BadRequest();
+
+        $userId = $data->id;
+
+        $this->handleUserAccess($userId);
+
+        $user = $this->getEntityManager()->getEntity('User', $userId);
+        $preferences = $this->getEntityManager()->getEntity('Preferences', $userId);
+        if (!$user)  throw new NotFound();
+        if (!$preferences)  throw new NotFound();
+
+        if ($user->isPortal()) throw new Forbidden();
+
+        if ($this->getAcl()->getLevel('Preferences', 'edit') === 'no') {
+            throw new Forbidden();
+        }
+
+        $forbiddenAttributeList = $this->getAcl()->getScopeForbiddenAttributeList('Preferences', 'edit');
+
+        if (in_array('dashboardLayout', $forbiddenAttributeList)) {
+            throw new Forbidden();
+        }
+
+        $dashboardLayout = $this->getConfig()->get('dashboardLayout');
+        $dashletsOptions = $this->getConfig()->get('dashletsOptions');
+
+        $preferences->set([
+            'dashboardLayout' => $dashboardLayout,
+            'dashletsOptions' => $dashletsOptions
+        ]);
+
+        $this->getEntityManager()->saveEntity($preferences);
+
+        return (object) [
+            'dashboardLayout' => $preferences->get('dashboardLayout'),
+            'dashletsOptions' => $preferences->get('dashletsOptions')
+        ];
     }
 }
-

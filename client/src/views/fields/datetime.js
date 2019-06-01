@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ Espo.define('views/fields/datetime', 'views/fields/date', function (Dep) {
 
         validations: ['required', 'datetime', 'after', 'before'],
 
-        searchTypeList: ['lastSevenDays', 'ever', 'isEmpty', 'currentMonth', 'lastMonth', 'currentQuarter', 'lastQuarter', 'currentYear', 'lastYear', 'today', 'past', 'future', 'lastXDays', 'nextXDays', 'on', 'after', 'before', 'between'],
+        searchTypeList: ['lastSevenDays', 'ever', 'isEmpty', 'currentMonth', 'lastMonth', 'nextMonth', 'currentQuarter', 'lastQuarter', 'currentYear', 'lastYear', 'today', 'past', 'future', 'lastXDays', 'nextXDays', 'olderThanXDays', 'afterXDays', 'on', 'after', 'before', 'between'],
 
         timeFormatMap: {
             'HH:mm': 'H:i',
@@ -56,18 +56,27 @@ Espo.define('views/fields/datetime', 'views/fields/date', function (Dep) {
             return data;
         },
 
-        getValueForDisplay: function () {
+        getDateStringValue: function () {
+            if (this.mode === 'detail' && !this.model.has(this.name)) {
+                return '...';
+            }
             var value = this.model.get(this.name);
             if (!value) {
-                if (this.mode == 'edit' || this.mode == 'search') {
+                if (this.mode == 'edit' || this.mode == 'search' || this.mode === 'list' || this.mode == 'listLink') {
                     return '';
                 }
                 return this.translate('None');
             }
 
-            if (this.mode == 'list' || this.mode == 'detail') {
-                if (this.getConfig().get('readableDateFormatDisabled')) {
+            if (this.mode == 'list' || this.mode == 'detail' || this.mode == 'listLink') {
+                if (this.getConfig().get('readableDateFormatDisabled') || this.params.useNumericFormat) {
                     return this.getDateTime().toDisplayDateTime(value);
+                }
+
+                var timeFormat = this.getDateTime().timeFormat;
+
+                if (this.params.hasSeconds) {
+                    timeFormat = timeFormat.replace(/:mm/, ':mm:ss');
                 }
 
                 var d = this.getDateTime().toMoment(value);
@@ -81,19 +90,19 @@ Espo.define('views/fields/datetime', 'views/fields/date', function (Dep) {
                 };
 
                 if (d.unix() > ranges['today'][0] && d.unix() < ranges['today'][1]) {
-                    return this.translate('Today') + ' ' + d.format(this.getDateTime().timeFormat);
+                    return this.translate('Today') + ' ' + d.format(timeFormat);
                 } else if (d.unix() > ranges['tomorrow'][0] && d.unix() < ranges['tomorrow'][1]) {
-                    return this.translate('Tomorrow') + ' ' + d.format(this.getDateTime().timeFormat);
+                    return this.translate('Tomorrow') + ' ' + d.format(timeFormat);
                 } else if (d.unix() > ranges['yesterday'][0] && d.unix() < ranges['yesterday'][1]) {
-                    return this.translate('Yesterday') + ' ' + d.format(this.getDateTime().timeFormat);
+                    return this.translate('Yesterday') + ' ' + d.format(timeFormat);
                 }
 
                 var readableFormat = this.getDateTime().getReadableDateFormat();
 
                 if (d.format('YYYY') == now.format('YYYY')) {
-                    return d.format(readableFormat) + ' ' + d.format(this.getDateTime().timeFormat);
+                    return d.format(readableFormat) + ' ' + d.format(timeFormat);
                 } else {
-                    return d.format(readableFormat + ', YYYY') + ' ' + d.format(this.getDateTime().timeFormat);
+                    return d.format(readableFormat + ', YYYY') + ' ' + d.format(timeFormat);
                 }
             }
 
@@ -103,7 +112,7 @@ Espo.define('views/fields/datetime', 'views/fields/date', function (Dep) {
         initTimepicker: function () {
             var $time = this.$time;
             $time.timepicker({
-                step: 30,
+                step: this.params.minuteStep || 30,
                 scrollDefaultNow: true,
                 timeFormat: this.timeFormatMap[this.getDateTime().timeFormat]
             });
@@ -125,7 +134,7 @@ Espo.define('views/fields/datetime', 'views/fields/date', function (Dep) {
 
             if (this.mode == 'edit') {
                 var $date = this.$date = this.$element;
-                var $time = this.$time = this.$el.find('input[name="' + this.name + '-time"]');
+                var $time = this.$time = this.$el.find('input.time-part');
                 this.initTimepicker();
 
                 this.$element.on('change.datetime', function (e) {
@@ -168,8 +177,8 @@ Espo.define('views/fields/datetime', 'views/fields/date', function (Dep) {
         fetch: function () {
             var data = {};
 
-            var date = this.$el.find('[name="' + this.name + '"]').val();
-            var time = this.$el.find('[name="' + this.name + '-time"]').val();
+            var date = this.$date.val();
+            var time = this.$time.val();
 
             var value = null;
             if (date != '' && time != '') {
@@ -181,7 +190,7 @@ Espo.define('views/fields/datetime', 'views/fields/date', function (Dep) {
 
         validateDatetime: function () {
             if (this.model.get(this.name) === -1) {
-                var msg = this.translate('fieldShouldBeDatetime', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
+                var msg = this.translate('fieldShouldBeDatetime', 'messages').replace('{field}', this.getLabelText());
                 this.showValidationMessage(msg);
                 return true;
             }
@@ -198,4 +207,3 @@ Espo.define('views/fields/datetime', 'views/fields/date', function (Dep) {
 
     });
 });
-

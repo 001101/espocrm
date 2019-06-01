@@ -1,8 +1,6 @@
 {
   "fields": {
-    "name": "Betreff",
     "description": "Beschreibung",
-    "status": "Status",
     "type": "Typ",
     "startDate": "Startdatum",
     "endDate": "Enddatum",
@@ -11,15 +9,21 @@
     "sentCount": "Gesendet",
     "openedCount": "Geöffnet",
     "clickedCount": "Geklickt",
-    "optedOutCount": "Keine E-Mails",
+    "optedOutCount": "Opt-Out gesetzt",
     "bouncedCount": "Nicht zustellbar",
-    "hardBouncedCount": "Hard Bounced",
-    "softBouncedCount": "Soft Bounced",
+    "hardBouncedCount": "Zurückgewiesen",
+    "softBouncedCount": "Temporär nicht zustellbar",
     "leadCreatedCount": "Erstellte Interessenten",
     "revenue": "Umsatz",
-    "revenueConverted": "Umsatz (konvertiert)",
-    "budget": "Budget",
-    "budgetConverted": "Budget (konvertiert)"
+    "revenueConverted": "Umsatz (umgerechnet)",
+    "budgetConverted": "Budget (umgerechnet)",
+    "contactsTemplate": "Kontaktvorlage",
+    "leadsTemplate": "Interessentenvorlage",
+    "accountsTemplate": "Kontenvorlage",
+    "usersTemplate": "Benutzervorlage",
+    "mailMergeOnlyWithAddress": "Datensätze ohne gefüllte Adresse überspringen",
+    "optedInCount": "Opt-In gesetzt",
+    "budgetCurrency": "Budget Währung"
   },
   "links": {
     "targetLists": "Kontaktlisten",
@@ -30,22 +34,21 @@
     "opportunities": "Verkaufschancen",
     "campaignLogRecords": "Protokoll",
     "massEmails": "Massen E-Mails",
-    "trackingUrls": "Tracking URLs"
+    "contactsTemplate": "Kontaktvorlage",
+    "leadsTemplate": "Interessentenvorlage",
+    "accountsTemplate": "Kontenvorlage",
+    "usersTemplate": "Benutzervorlage"
   },
   "options": {
     "type": {
       "Email": "E-Mail",
-      "Web": "Web",
-      "Television": "Fernsehen",
-      "Radio": "Radio Button",
-      "Newsletter": "Newsletter",
-      "Mail": "Mail"
+      "Television": "Fernsehen"
     },
     "status": {
       "Planning": "Planung",
       "Active": "Aktiv",
       "Inactive": "Inaktiv",
-      "Complete": "Fertig"
+      "Complete": "Abgeschlossen"
     }
   },
   "labels": {
@@ -56,13 +59,19 @@
     "soft": "weich",
     "Unsubscribe": "Abmelden",
     "Mass Emails": "Massen E-Mails",
-    "Email Templates": "E-Mail Vorlagen"
+    "Email Templates": "E-Mail Vorlagen",
+    "Unsubscribe again": "Abmelden",
+    "Subscribe again": "Anmelden",
+    "Create Target List": "Interessentenliste erstellen",
+    "Mail Merge": "Serienbrief",
+    "Generate Mail Merge PDF": "Serienbrief-PDF generieren"
   },
   "presetFilters": {
     "active": "Aktiv"
   },
   "messages": {
-    "unsubscribed": "Sie wurden erfolgreich von unserem Verteiler entfernt"
+    "unsubscribed": "Sie wurden erfolgreich aus unserem Verteiler entfernt",
+    "subscribedAgain": "Sie sind wieder angemeldet."
   },
   "tooltips": {
     "targetLists": "Zielkontakte die Nachrichten empfangen sollen",

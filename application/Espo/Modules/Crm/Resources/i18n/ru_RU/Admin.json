@@ -1,6 +1,7 @@
 {
   "layouts": {
-    "detailConvert": "Преобразовать кандидата",
-    "listForAccount": "Список (для контрагента)"
+    "detailConvert": "Конвертировать лид",
+    "listForAccount": "Список (для контрагента)",
+    "listForContact": "Список (для контакта)"
   }
 }

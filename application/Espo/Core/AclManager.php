@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,16 +41,26 @@ class AclManager
 
     private $metadata;
 
-    private $implementationHashMap = array();
+    private $implementationHashMap = [];
 
-    private $tableHashMap = array();
+    private $tableHashMap = [];
 
     protected $tableClassName = '\\Espo\\Core\\Acl\\Table';
+
+    protected $userAclClassName = '\\Espo\\Core\\Acl';
+
+    protected $globalRestricton;
 
     public function __construct(Container $container)
     {
         $this->container = $container;
         $this->metadata = $container->get('metadata');
+
+        $this->globalRestricton = new \Espo\Core\Acl\GlobalRestricton(
+            $container->get('metadata'),
+            $container->get('fileManager'),
+            $container->get('fieldManagerUtil')
+        );
     }
 
     protected function getContainer()
@@ -83,8 +93,8 @@ class AclManager
 
             if (class_exists($className)) {
                 $acl = new $className($scope);
-                $dependencies = $acl->getDependencyList();
-                foreach ($dependencies as $name) {
+                $dependencyList = $acl->getDependencyList();
+                foreach ($dependencyList as $name) {
                     $acl->inject($name, $this->getContainer()->get($name));
                 }
                 $this->implementationHashMap[$scope] = $acl;
@@ -107,7 +117,7 @@ class AclManager
             $config = $this->getContainer()->get('config');
             $fileManager = $this->getContainer()->get('fileManager');
             $metadata = $this->getContainer()->get('metadata');
-            $fieldManager = $this->getContainer()->get('fieldManager');
+            $fieldManager = $this->getContainer()->get('fieldManagerUtil');
 
             $this->tableHashMap[$key] = new $this->tableClassName($user, $config, $fileManager, $metadata, $fieldManager);
         }
@@ -123,7 +133,7 @@ class AclManager
     public function getLevel(User $user, $scope, $action)
     {
         if ($user->isAdmin()) {
-            return 'all';
+            return $this->getTable($user)->getHighestLevel($action);
         }
         return $this->getTable($user)->getLevel($scope, $action);
     }
@@ -131,6 +141,15 @@ class AclManager
     public function get(User $user, $permission)
     {
         return $this->getTable($user)->get($permission);
+    }
+
+    public function checkReadNo(User $user, $scope)
+    {
+        if ($user->isAdmin()) {
+            return false;
+        }
+        $data = $this->getTable($user)->getScopeData($scope);
+        return $this->getImplementation($scope)->checkReadNo($user, $data);
     }
 
     public function checkReadOnlyTeam(User $user, $scope)
@@ -171,9 +190,15 @@ class AclManager
 
         $impl = $this->getImplementation($scope);
 
-        $methodName = 'checkEntity' . ucfirst($action);
-        if (method_exists($impl, $methodName)) {
-            return $impl->$methodName($user, $entity, $data);
+        if (!$action) {
+            $action = 'read';
+        }
+
+        if ($action) {
+            $methodName = 'checkEntity' . ucfirst($action);
+            if (method_exists($impl, $methodName)) {
+                return $impl->$methodName($user, $entity, $data);
+            }
         }
 
         return $impl->checkEntity($user, $entity, $data, $action);
@@ -224,16 +249,80 @@ class AclManager
         return true;
     }
 
+    protected function getGlobalRestrictionTypeList(User $user, $action = 'read')
+    {
+        $typeList = ['forbidden'];
+
+        if ($action === 'read') {
+            $typeList[] = 'internal';
+        }
+
+        if (!$user->isAdmin()) {
+            $typeList[] = 'onlyAdmin';
+        }
+
+        if ($action === 'edit') {
+            $typeList[] = 'readOnly';
+            if (!$user->isAdmin()) {
+                $typeList[] = 'nonAdminReadOnly';
+            }
+        }
+
+        return $typeList;
+    }
+
     public function getScopeForbiddenAttributeList(User $user, $scope, $action = 'read', $thresholdLevel = 'no')
     {
-        if ($user->isAdmin()) return [];
-        return $this->getTable($user)->getScopeForbiddenAttributeList($scope, $action, $thresholdLevel);
+        $list = [];
+
+        if (!$user->isAdmin()) {
+            $list = $this->getTable($user)->getScopeForbiddenAttributeList($scope, $action, $thresholdLevel);
+        }
+
+        if ($thresholdLevel === 'no') {
+            $list = array_merge(
+                $list,
+                $this->getScopeRestrictedAttributeList($scope, $this->getGlobalRestrictionTypeList($user, $action))
+            );
+            $list = array_values($list);
+        }
+
+        return $list;
     }
 
     public function getScopeForbiddenFieldList(User $user, $scope, $action = 'read', $thresholdLevel = 'no')
     {
-        if ($user->isAdmin()) return [];
-        return $this->getTable($user)->getScopeForbiddenFieldList($scope, $action, $thresholdLevel);
+        $list = [];
+
+        if (!$user->isAdmin()) {
+            $list = $this->getTable($user)->getScopeForbiddenFieldList($scope, $action, $thresholdLevel);
+        }
+
+        if ($thresholdLevel === 'no') {
+            $list = array_merge(
+                $list,
+                $this->getScopeRestrictedFieldList($scope, $this->getGlobalRestrictionTypeList($user, $action))
+            );
+            $list = array_values($list);
+        }
+
+        return $list;
+    }
+
+
+    public function getScopeForbiddenLinkList(User $user, $scope, $action = 'read', $thresholdLevel = 'no')
+    {
+        $list = [];
+
+        if ($thresholdLevel === 'no') {
+            $list = array_merge(
+                $list,
+                $this->getScopeRestrictedLinkList($scope, $this->getGlobalRestrictionTypeList($user, $action))
+            );
+            $list = array_values($list);
+        }
+
+        return $list;
     }
 
     public function checkUserPermission(User $user, $target, $permissionType = 'userPermission')
@@ -270,5 +359,53 @@ class AclManager
     {
         return $this->checkUserPermission($user, $target, 'assignmentPermission');
     }
-}
 
+    public function createUserAcl(User $user)
+    {
+        $className = $this->userAclClassName;
+        $acl = new $className($this, $user);
+        return $acl;
+    }
+
+    public function getScopeRestrictedFieldList($scope, $type)
+    {
+        if (is_array($type)) {
+            $typeList = $type;
+            $list = [];
+            foreach ($typeList as $type) {
+                $list = array_merge($list, $this->globalRestricton->getScopeRestrictedFieldList($scope, $type));
+            }
+            $list = array_values($list);
+            return $list;
+        }
+        return $this->globalRestricton->getScopeRestrictedFieldList($scope, $type);
+    }
+
+    public function getScopeRestrictedAttributeList($scope, $type)
+    {
+        if (is_array($type)) {
+            $typeList = $type;
+            $list = [];
+            foreach ($typeList as $type) {
+                $list = array_merge($list, $this->globalRestricton->getScopeRestrictedAttributeList($scope, $type));
+            }
+            $list = array_values($list);
+            return $list;
+        }
+        return $this->globalRestricton->getScopeRestrictedAttributeList($scope, $type);
+    }
+
+    public function getScopeRestrictedLinkList($scope, $type)
+    {
+        if (is_array($type)) {
+            $typeList = $type;
+            $list = [];
+            foreach ($typeList as $type) {
+                $list = array_merge($list, $this->globalRestricton->getScopeRestrictedLinkList($scope, $type));
+            }
+            $list = array_values($list);
+            return $list;
+        }
+        return $this->globalRestricton->getScopeRestrictedLinkList($scope, $type);
+    }
+}

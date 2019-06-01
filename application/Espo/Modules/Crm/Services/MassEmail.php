@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,17 +39,19 @@ class MassEmail extends \Espo\Services\Record
 {
     const MAX_ATTEMPT_COUNT = 3;
 
-    const MAX_PER_HOUR_COUNT = 100;
+    const MAX_PER_HOUR_COUNT = 10000;
 
     private $campaignService = null;
 
     private $emailTemplateService = null;
 
+    protected $mandatorySelectAttributeList = ['campaignId'];
+
     protected function init()
     {
         parent::init();
         $this->addDependency('container');
-        $this->addDependency('language');
+        $this->addDependency('defaultLanguage');
     }
 
     protected function getMailSender()
@@ -59,20 +61,20 @@ class MassEmail extends \Espo\Services\Record
 
     protected function getLanguage()
     {
-        return $this->getInjection('language');
+        return $this->getInjection('defaultLanguage');
     }
 
-    protected function beforeCreate(Entity $entity, array $data = array())
+    protected function beforeCreateEntity(Entity $entity, $data)
     {
-        parent::beforeCreate($entity, $data);
+        parent::beforeCreateEntity($entity, $data);
         if (!$this->getAcl()->check($entity, 'edit')) {
             throw new Forbidden();
         }
     }
 
-    protected function afterRemove(Entity $entity, array $data = array())
+    protected function afterDeleteEntity(Entity $massEmail)
     {
-        parent::afterRemove($entity, $data);
+        parent::afterDeleteEntity($massEmail);
         $existingQueueItemList = $this->getEntityManager()->getRepository('EmailQueueItem')->where(array(
             'status' => ['Pending', 'Failed'],
             'massEmailId' => $massEmail->id
@@ -222,6 +224,7 @@ class MassEmail extends \Espo\Services\Record
         foreach ($entityList as $target) {
             $emailAddress = $target->get('emailAddress');
             if (!$target->get('emailAddress')) continue;
+            if (strpos($emailAddress, 'ERASED:') === 0) continue;
             $emailAddressRecord = $this->getEntityManager()->getRepository('EmailAddress')->getByAddress($emailAddress);
             if ($emailAddressRecord) {
                 if ($emailAddressRecord->get('invalid') || $emailAddressRecord->get('optOut')) {
@@ -309,8 +312,33 @@ class MassEmail extends \Espo\Services\Record
         }
         $attachmentList = $emailTemplate->get('attachments');
 
+        $smtpParams = null;
+
+        if ($massEmail->get('inboundEmailId')) {
+            $inboundEmail = $this->getEntityManager()->getEntity('InboundEmail', $massEmail->get('inboundEmailId'));
+            if (!$inboundEmail) {
+                throw new Error("Group Email Account '".$massEmail->get('inboundEmailId')."' is not available.");
+            }
+
+            if (
+                $inboundEmail->get('status') !== 'Active'
+                ||
+                !$inboundEmail->get('useSmtp')
+                ||
+                !$inboundEmail->get('smtpIsForMassEmail')
+            ) {
+                throw new Error("Group Email Account '".$massEmail->get('inboundEmailId')."' can't be used for Mass Email.");
+            }
+
+            $inboundEmailService = $this->getServiceFactory()->create('InboundEmail');
+            $smtpParams = $inboundEmailService->getSmtpParamsFromAccount($inboundEmail);
+            if (!$smtpParams) {
+                throw new Error("Group Email Account '".$massEmail->get('inboundEmailId')."' has no SMTP params.");
+            }
+        }
+
         foreach ($queueItemList as $queueItem) {
-            $this->sendQueueItem($queueItem, $massEmail, $emailTemplate, $attachmentList, $campaign, $isTest);
+            $this->sendQueueItem($queueItem, $massEmail, $emailTemplate, $attachmentList, $campaign, $isTest, $smtpParams);
         }
 
         if (!$isTest) {
@@ -337,8 +365,6 @@ class MassEmail extends \Espo\Services\Record
 
         $body = $emailData['body'];
 
-
-
         $optOutUrl = $this->getConfig()->get('siteUrl') . '?entryPoint=unsubscribe&id=' . $queueItem->id;
         $optOutLink = '<a href="'.$optOutUrl.'">'.$this->getLanguage()->translate('Unsubscribe', 'labels', 'Campaign').'</a>';
 
@@ -358,14 +384,14 @@ class MassEmail extends \Espo\Services\Record
             }
         }
 
-        $trackOpenedUrl = $this->getConfig()->get('siteUrl') . '?entryPoint=campaignTrackOpened&id=' . $queueItem->id;
-        $trackOpenedHtml = '<img width="1" height="1" border="0" src="'.$trackOpenedUrl.'">';
+        $trackImageAlt = $this->getLanguage()->translate('Campaign', 'scopeNames');
 
-        if ($massEmail->get('campaignId')) {
+        $trackOpenedUrl = $this->getConfig()->get('siteUrl') . '?entryPoint=campaignTrackOpened&id=' . $queueItem->id;
+        $trackOpenedHtml = '<img alt="'.$trackImageAlt.'" width="1" height="1" border="0" src="'.$trackOpenedUrl.'">';
+
+        if ($massEmail->get('campaignId') && $this->getConfig()->get('massEmailOpenTracking')) {
             if ($emailData['isHtml']) {
-                if ($massEmail->get('campaignId')) {
-                    $body .= $trackOpenedHtml;
-                }
+                $body .= '<br>' . $trackOpenedHtml;
             }
         }
 
@@ -392,8 +418,16 @@ class MassEmail extends \Espo\Services\Record
         return $email;
     }
 
-    protected function sendQueueItem(Entity $queueItem, Entity $massEmail, Entity $emailTemplate, $attachmentList = [], $campaign = null, $isTest = false)
+    protected function sendQueueItem(Entity $queueItem, Entity $massEmail, Entity $emailTemplate, $attachmentList = [], $campaign = null, $isTest = false, $smtpParams = false)
     {
+        $queueItemFetched = $this->getEntityManager()->getEntity($queueItem->getEntityType(), $queueItem->id);
+        if ($queueItemFetched->get('status') !== 'Pending') {
+            return;
+        }
+
+        $queueItem->set('status', 'Sending');
+        $this->getEntityManager()->saveEntity($queueItem);
+
         $target = $this->getEntityManager()->getEntity($queueItem->get('targetType'), $queueItem->get('targetId'));
         if (!$target || !$target->id || !$target->get('emailAddress')) {
             $queueItem->set('status', 'Failed');
@@ -432,6 +466,8 @@ class MassEmail extends \Espo\Services\Record
             $params['replyToName'] = $massEmail->get('replyToName');
         }
 
+        $isSent = false;
+
         try {
             $attemptCount = $queueItem->get('attemptCount');
             $attemptCount++;
@@ -443,8 +479,37 @@ class MassEmail extends \Espo\Services\Record
             $header->setId($queueItem->id);
             $message->getHeaders()->addHeader($header);
 
-            $this->getMailSender()->useGlobal()->send($email, $params, $message, $attachmentList);
+            $message->getHeaders()->addHeaderLine('Precedence', 'bulk');
 
+            if (!$this->getConfig()->get('massEmailDisableMandatoryOptOutLink')) {
+                $optOutUrl = $this->getConfig()->getSiteUrl() . '?entryPoint=unsubscribe&id=' . $queueItem->id;
+                $message->getHeaders()->addHeaderLine('List-Unsubscribe', '<' . $optOutUrl . '>');
+            }
+
+            $sender = $this->getMailSender();
+
+            if ($smtpParams) {
+                $sender->useSmtp($smtpParams);
+            } else {
+                $sender->useGlobal();
+            }
+
+            $sender->send($email, $params, $message, $attachmentList);
+
+            $isSent = true;
+        } catch (\Exception $e) {
+            $maxAttemptCount = $this->getConfig()->get('massEmailMaxAttemptCount', self::MAX_ATTEMPT_COUNT);
+            if ($queueItem->get('attemptCount') >= $maxAttemptCount) {
+                $queueItem->set('status', 'Failed');
+            } else {
+                $queueItem->set('status', 'Pending');
+            }
+            $this->getEntityManager()->saveEntity($queueItem);
+            $GLOBALS['log']->error('MassEmail#sendQueueItem: [' . $e->getCode() . '] ' .$e->getMessage());
+            return false;
+        }
+
+        if ($isSent) {
             $emailObject = $emailTemplate;
             if ($massEmail->get('storeSentEmails') && !$isTest) {
                 $this->getEntityManager()->saveEntity($email);
@@ -460,14 +525,6 @@ class MassEmail extends \Espo\Services\Record
             if ($campaign) {
                 $this->getCampaignService()->logSent($campaign->id, $queueItem->id, $target, $emailObject, $target->get('emailAddress'), null, $queueItem->get('isTest'));
             }
-
-        } catch (\Exception $e) {
-            if ($queueItem->get('attemptCount') >= self::MAX_ATTEMPT_COUNT) {
-                $queueItem->set('status', 'Failed');
-            }
-            $this->getEntityManager()->saveEntity($queueItem);
-            $GLOBALS['log']->error('MassEmail#sendQueueItem: [' . $e->getCode() . '] ' .$e->getMessage());
-            return false;
         }
 
         return true;
@@ -489,7 +546,7 @@ class MassEmail extends \Espo\Services\Record
         return $this->campaignService;
     }
 
-    protected function findLinkedEntitiesQueueItems($id, $params)
+    protected function findLinkedQueueItems($id, $params)
     {
         $link = 'queueItems';
 
@@ -522,5 +579,32 @@ class MassEmail extends \Espo\Services\Record
         );
     }
 
-}
+    public function getSmtpAccountDataList()
+    {
+        if (!$this->getAcl()->checkScope('MassEmail', 'create') && !$this->getAcl()->checkScope('MassEmail', 'edit')) {
+            throw new Forbidden();
+        }
+        $dataList = [];
 
+        $inboundEmailList = $this->getEntityManager()->getRepository('InboundEmail')->where([
+            'useSmtp' => true,
+            'status' => 'Active',
+            'smtpIsForMassEmail' => true,
+            'emailAddress!=' => '',
+            'emailAddress!=' => null
+        ])->find();
+
+        foreach ($inboundEmailList as $inboundEmail) {
+            $item = (object) [];
+            $key = 'inboundEmail:' . $inboundEmail->id;
+            $item->key = $key;
+            $item->emailAddress = $inboundEmail->get('emailAddress');
+            $item->fromName = $inboundEmail->get('fromName');
+
+            $dataList[] = $item;
+        }
+
+        return $dataList;
+    }
+
+}

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,9 +32,9 @@ Espo.define('crm:views/record/panels/history', 'crm:views/record/panels/activiti
 
         name: 'history',
 
-        sortBy: 'dateStart',
+        orderBy: 'dateStart',
 
-        asc: false,
+        orderDirection: 'desc',
 
         rowActionsView: 'crm:views/record/row-actions/history',
 
@@ -52,7 +52,8 @@ Espo.define('crm:views/record/panels/history', 'crm:views/record/panels/activiti
                     ],
                     [
                         {name: 'status'},
-                        {name: 'dateSent'}
+                        {name: 'dateSent'},
+                        {name: 'hasAttachment', view: 'views/email/fields/has-attachment'}
                     ]
                 ]
             },
@@ -98,16 +99,23 @@ Espo.define('crm:views/record/panels/history', 'crm:views/record/panels/activiti
                 attributes.parentId = this.model.id
                 attributes.parentName = this.model.get('name');
             }
-            if (~['Contact', 'Lead', 'Account'].indexOf(this.model.name) && this.model.get('emailAddress')) {
-                attributes.nameHash = {};
-                attributes.nameHash[this.model.get('emailAddress')] = this.model.get('name');
-            }
 
-            if (scope && !attributes.parentId) {
-                if (this.checkParentTypeAvailability(scope, this.model.name)) {
-                    attributes.parentType = this.model.name;
-                    attributes.parentId = this.model.id;
-                    attributes.parentName = this.model.get('name');
+            attributes.nameHash = {};
+            attributes.nameHash[this.model.get('emailAddress')] = this.model.get('name');
+
+            if (scope) {
+                if (!attributes.parentId) {
+                    if (this.checkParentTypeAvailability(scope, this.model.name)) {
+                        attributes.parentType = this.model.name;
+                        attributes.parentId = this.model.id;
+                        attributes.parentName = this.model.get('name');
+                    }
+                } else {
+                    if (attributes.parentType && !this.checkParentTypeAvailability(scope, attributes.parentType)) {
+                        attributes.parentType = null;
+                        attributes.parentId = null;
+                        attributes.parentName = null;
+                    }
                 }
             }
             callback.call(this, attributes);
@@ -153,7 +161,7 @@ Espo.define('crm:views/record/panels/history', 'crm:views/record/panels/activiti
             }
 
             Espo.require('EmailHelper', function (EmailHelper) {
-                var emailHelper = new EmailHelper(this.getLanguage(), this.getUser());
+                var emailHelper = new EmailHelper(this.getLanguage(), this.getUser(), this.getDateTime(), this.getAcl());
 
                 this.notify('Please wait...');
 
@@ -165,9 +173,7 @@ Espo.define('crm:views/record/panels/history', 'crm:views/record/panels/activiti
                         this.createView('quickCreate', viewName, {
                             attributes: attributes,
                         }, function (view) {
-                            view.render(function () {
-                                view.getView('edit').hideField('selectTemplate');
-                            });
+                            view.render();
 
                             this.listenToOnce(view, 'after:save', function () {
                                 this.collection.fetch();
@@ -183,4 +189,3 @@ Espo.define('crm:views/record/panels/history', 'crm:views/record/panels/activiti
         }
     });
 });
-

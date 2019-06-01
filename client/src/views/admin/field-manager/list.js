@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,20 +44,21 @@ Espo.define('views/admin/field-manager/list', 'view', function (Dep) {
             'click [data-action="removeField"]': function (e) {
                 var field = $(e.currentTarget).data('name');
 
-                if (confirm(this.translate('confirmation', 'messages'))) {
-                    this.notify('Removing...');
-                    $.ajax({
-                        url: 'Admin/fieldManager/' + this.scope + '/' + field,
-                        type: 'DELETE',
-                        success: function () {
-                            this.notify('Removed', 'success');
-                            var data = this.getMetadata().data;
-                            delete data['entityDefs'][this.scope]['fields'][field];
+                this.confirm(this.translate('confirmation', 'messages'), function () {
+                    Espo.Ui.notify(this.translate('Removing...'));
+                    Espo.Ajax.request('Admin/fieldManager/' + this.scope + '/' + field, 'delete').then(function () {
+                        Espo.Ui.success(this.translate('Removed'));
+
+                        $(e.currentTarget).closest('tr').remove();
+                        var data = this.getMetadata().data;
+
+                        delete data['entityDefs'][this.scope]['fields'][field];
+
+                        this.getMetadata().load(function () {
                             this.getMetadata().storeToCache();
-                            $(e.currentTarget).closest('tr').remove();
-                        }.bind(this),
-                    });
-                }
+                        }.bind(this), true);
+                    }.bind(this));
+                }.bind(this));
             }
         },
 
@@ -75,6 +76,10 @@ Espo.define('views/admin/field-manager/list', 'view', function (Dep) {
                     }
                 }
             }, this);
+
+            this.typeList.sort(function (v1, v2) {
+                return this.translate(v1, 'fieldTypes', 'Admin').localeCompare(this.translate(v2, 'fieldTypes', 'Admin'));
+            }.bind(this));
 
             this.wait(true);
             this.getModelFactory().create(this.scope, function (model) {

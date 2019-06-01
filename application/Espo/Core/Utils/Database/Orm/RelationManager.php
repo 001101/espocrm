@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ class RelationManager
         return false;
     }
 
-    public function convert($linkName, $linkParams, $entityName, $ormMeta)
+    public function convert($linkName, $linkParams, $entityName, $ormMetadata)
     {
         $entityDefs = $this->getMetadata()->get('entityDefs');
 
@@ -132,7 +132,7 @@ class RelationManager
         }
 
         if (isset($className) && $className !== false) {
-            $helperClass = new $className($this->metadata, $ormMeta, $entityDefs);
+            $helperClass = new $className($this->metadata, $ormMetadata, $entityDefs);
             return $helperClass->process($linkName, $entityName, $foreignLink['name'], $foreignEntityName);
         }
         //END: relationDefs defined in separate file

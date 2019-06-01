@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('dynamic-logic', [], function () {
+define('dynamic-logic', [], function () {
 
     var DynamicLogic = function (defs, recordView) {
         this.defs = defs || {};
@@ -65,21 +65,8 @@ Espo.define('dynamic-logic', [], function () {
 
             var panels = this.defs.panels || {};
             Object.keys(panels).forEach(function (panel) {
-                var item = (panels[panel] || {});
                 this.panelTypeList.forEach(function (type) {
-                    if (!(type in item)) return;
-                    var typeItem = (item[type] || {});
-                    var conditionGroup = typeItem.conditionGroup;
-                    var conditionGroup = (item[type] || {}).conditionGroup;
-                    if (!typeItem.conditionGroup) return;
-                    var result = this.checkConditionGroup(typeItem.conditionGroup);
-                    var methodName;
-                    if (result) {
-                        methodName = 'makePanel' + Espo.Utils.upperCaseFirst(type) + 'True';
-                    } else {
-                        methodName = 'makePanel' + Espo.Utils.upperCaseFirst(type) + 'False';
-                    }
-                    this[methodName](panel);
+                    this.processPanel(panel, type);
                 }, this);
             }, this);
 
@@ -99,6 +86,25 @@ Espo.define('dynamic-logic', [], function () {
                     this.resetOptionList(field);
                 }
             }, this);
+        },
+
+        processPanel: function (panel, type) {
+            var panels = this.defs.panels || {};
+            var item = (panels[panel] || {});
+
+            if (!(type in item)) return;
+            var typeItem = (item[type] || {});
+            var conditionGroup = typeItem.conditionGroup;
+            var conditionGroup = (item[type] || {}).conditionGroup;
+            if (!typeItem.conditionGroup) return;
+            var result = this.checkConditionGroup(typeItem.conditionGroup);
+            var methodName;
+            if (result) {
+                methodName = 'makePanel' + Espo.Utils.upperCaseFirst(type) + 'True';
+            } else {
+                methodName = 'makePanel' + Espo.Utils.upperCaseFirst(type) + 'False';
+            }
+            this[methodName](panel);
         },
 
         checkConditionGroup: function (data, type) {
@@ -157,20 +163,20 @@ Espo.define('dynamic-logic', [], function () {
                 if (Array.isArray(setValue)) {
                     return !setValue.length;
                 }
-                return setValue === null || (setValue === '');
+                return setValue === null || (setValue === '') || typeof setValue === 'undefined';
             } else if (type === 'isNotEmpty') {
                 if (Array.isArray(setValue)) {
                     return !!setValue.length;
                 }
-                return setValue !== null && (setValue !== '');
+                return setValue !== null && (setValue !== '') && typeof setValue !== 'undefined';
             } else if (type === 'isTrue') {
                 return !!setValue;
             } else if (type === 'isFalse') {
                 return !setValue;
-            } else if (type === 'contains') {
+            } else if (type === 'contains' || type === 'has') {
                 if (!setValue) return false;
                 return !!~setValue.indexOf(value);
-            } else if (type === 'notContains') {
+            } else if (type === 'notContains' || type === 'notHas') {
                 if (!setValue) return true;
                 return !~setValue.indexOf(value);
             } else if (type === 'greaterThan') {
@@ -257,10 +263,17 @@ Espo.define('dynamic-logic', [], function () {
 
         makePanelVisibleFalse: function (field) {
             this.recordView.hidePanel(field);
+        },
+
+        addPanelVisibleCondition: function (name, item) {
+            this.defs.panels = this.defs.panels || {};
+            this.defs.panels[name] = {
+                visible: item
+            };
+            this.processPanel(name, 'visible');
         }
 
     });
 
     return DynamicLogic;
 });
-

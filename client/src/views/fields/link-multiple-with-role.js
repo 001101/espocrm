@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@ Espo.define('views/fields/link-multiple-with-role', 'views/fields/link-multiple'
 
         roleFieldIsForeign: true,
 
+        emptyRoleValue: null,
+
         setup: function () {
             Dep.prototype.setup.call(this);
 
@@ -47,6 +49,8 @@ Espo.define('views/fields/link-multiple-with-role', 'views/fields/link-multiple'
             }, this);
 
             this.roleField = this.getMetadata().get('entityDefs.' + this.model.name + '.fields.' + this.name + '.columns.' + this.columnName);
+
+            this.displayRoleAsLabel = this.getMetadata().get(['entityDefs', this.model.entityType, 'fields', this.roleField, 'displayAsLabel']);
 
             if (this.roleFieldIsForeign) {
                 this.roleFieldScope = this.foreignScope;
@@ -67,13 +71,39 @@ Espo.define('views/fields/link-multiple-with-role', 'views/fields/link-multiple'
 
         getDetailLinkHtml: function (id, name) {
             name = name || this.nameHash[id];
+            if (!name && id) {
+                name = this.translate(this.foreignScope, 'scopeNames');
+            }
 
             var role = (this.columns[id] || {})[this.columnName] || '';
             var roleHtml = '';
-            if (role != '') {
-                roleHtml = '<span class="text-muted small"> &#187; ' + this.getLanguage().translateOption(role, this.roleField, this.roleFieldScope) + '</span>';
+
+            if (this.emptyRoleValue && role === this.emptyRoleValue) {
+                role = '';
             }
-            var lineHtml = '<div>' + '<a href="#' + this.foreignScope + '/view/' + id + '">' + name + '</a> ' + roleHtml + '</div>';
+            if (role != '') {
+                var style = this.getMetadata().get(['entityDefs', this.model.entityType, 'fields', this.roleField, 'style', role]);
+                var className = 'text';
+
+                if (this.displayRoleAsLabel && style && style !== 'default') {
+                    className = 'label label-sm label';
+                    if (style === 'muted') {
+                        style = 'default';
+                    }
+                } else {
+                    style = style || 'muted';
+                }
+
+                roleHtml = '<span class="test-muted small"> &#187; </span>' +
+                '<span class="'+className+'-'+style+' small">' +
+                this.getHelper().escapeString(this.getLanguage().translateOption(role, this.roleField, this.roleFieldScope)) +
+                '</span>';
+            }
+            var iconHtml = '';
+            if (this.mode == 'detail') {
+                iconHtml = this.getIconHtml(id);
+            }
+            var lineHtml = '<div>' + iconHtml + '<a href="#' + this.foreignScope + '/view/' + id + '">' + this.getHelper().escapeString(name) + '</a> ' + roleHtml + '</div>';
             return lineHtml;
         },
 
@@ -132,11 +162,11 @@ Espo.define('views/fields/link-multiple-with-role', 'views/fields/link-multiple'
                 return Dep.prototype.addLinkHtml.call(this, id, name);
             }
             var $container = this.$el.find('.link-container');
-            var $el = $('<div class="form-inline list-group-item link-with-role">').addClass('link-' + id);
+            var $el = $('<div class="form-inline list-group-item link-with-role link-group-item-with-columns clearfix">').addClass('link-' + id);
 
-            var nameHtml = '<div>' + name + '&nbsp;' + '</div>';
+            var nameHtml = '<div>' + this.getHelper().escapeString(name) + '&nbsp;' + '</div>';
 
-            var removeHtml = '<a href="javascript:" class="pull-right" data-id="' + id + '" data-action="clearLink"><span class="glyphicon glyphicon-remove"></a>';
+            var removeHtml = '<a href="javascript:" class="pull-right" data-id="' + id + '" data-action="clearLink"><span class="fas fa-times"></a>';
 
             var $role;
 
@@ -151,31 +181,23 @@ Espo.define('views/fields/link-multiple-with-role', 'views/fields/link-multiple'
                 $role = $('<input class="role form-control input-sm pull-right" maxlength="50" placeholder="'+label+'" data-id="'+id+'" value="' + (roleValue || '') + '">');
             }
 
-            $left = $('<div class="pull-left">').css({
-                'width': '92%',
-                'display': 'inline-block'
-            });
+            $left = $('<div class="pull-left">');
             if ($role) {
                 $left.append($role);
             }
             $left.append(nameHtml);
             $el.append($left);
 
-            $right = $('<div>').css({
-                'width': '8%',
-                'display': 'inline-block',
-                'vertical-align': 'top'
-            });
+            $right = $('<div>');
             $right.append(removeHtml);
             $el.append($right);
-            $el.append('<br style="clear: both;" />');
 
             $container.append($el);
 
             if (this.mode == 'edit') {
                 if ($role) {
                     var fetch = function ($target) {
-                        if (!$target || !$target.size()) return;
+                        if (!$target || !$target.length) return;
 
                         var value = $target.val().toString().trim();
                         var id = $target.data('id');

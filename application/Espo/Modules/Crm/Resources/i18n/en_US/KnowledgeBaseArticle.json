@@ -4,7 +4,9 @@
         "Any": "Any",
         "Send in Email": "Send in Email",
         "Move Up": "Move Up",
-        "Move Down": "Move Down"
+        "Move Down": "Move Down",
+        "Move to Top": "Move to Top",
+        "Move to Bottom": "Move to Bottom"
     },
     "fields": {
         "name": "Name",
@@ -37,7 +39,7 @@
         }
     },
     "tooltips": {
-        "portals": "If not empty then this article will be available only in specified portals. If empty then it will available in all portals."
+        "portals": "Article will be available only in specified portals."
     },
     "presetFilters": {
         "published": "Published"

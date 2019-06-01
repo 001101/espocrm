@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ class Import extends \Espo\Core\ORM\Repositories\RDB
     {
         $entityType = $entity->get('entityType');
         $pdo = $this->getEntityManager()->getPDO();
-        $table = $this->getEntityManager()->getQuery()->toDb($entityType);
+        $table = $this->getEntityManager()->getQuery()->toDb($this->getEntityManager()->getQuery()->sanitize($entityType));
 
         $part = "0";
         switch ($link) {

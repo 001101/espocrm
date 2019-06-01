@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('crm:views/lead/convert', 'View', function (Dep) {
+Espo.define('crm:views/lead/convert', 'view', function (Dep) {
 
     return Dep.extend({
 
@@ -81,51 +81,46 @@ Espo.define('crm:views/lead/convert', 'View', function (Dep) {
                 if (scope == 'Account' && this.getConfig().get('b2cMode')) {
                     return;
                 }
+                if (this.getMetadata().get(['scopes', scope, 'disabled'])) return;
                 if (this.getAcl().check(scope, 'edit')) {
                     scopeList.push(scope);
                 }
             }, this);
             var i = 0;
 
-            var attributeList = this.getFieldManager().getEntityAttributes(this.model.name);
+            var attributeList = this.getFieldManager().getEntityTypeAttributeList(this.model.name);
             var ignoreAttributeList = ['createdAt', 'modifiedAt', 'modifiedById', 'modifiedByName', 'createdById', 'createdByName'];
 
-            scopeList.forEach(function (scope) {
-                this.getModelFactory().create(scope, function (model) {
-                    model.populateDefaults();
+            if (scopeList.length) {
+                this.ajaxPostRequest('Lead/action/getConvertAttributes', {
+                    id: this.model.id
+                }).done(function (data) {
+                    scopeList.forEach(function (scope) {
+                        this.getModelFactory().create(scope, function (model) {
+                            model.populateDefaults();
 
-                    this.getFieldManager().getEntityAttributes(model.name).forEach(function (attr) {
-                        if (~attributeList.indexOf(attr) && !~ignoreAttributeList.indexOf(attr)) {
-                            model.set(attr, this.model.get(attr), {silent: true}); 
-                        }
+                            model.set(data[scope] || {}, {silent: true});
+
+                            var convertEntityViewName = this.getMetadata().get(['clientDefs', scope, 'recordViews', 'edit']) || 'views/record/edit';
+                            this.createView(scope, convertEntityViewName, {
+                                model: model,
+                                el: '#main .edit-container-' + Espo.Utils.toDom(scope),
+                                buttonsPosition: false,
+                                buttonsDisabled: true,
+                                layoutName: 'detailConvert',
+                                exit: function () {},
+                            }, function (view) {
+                                i++;
+                                if (i == scopeList.length) {
+                                    this.wait(false);
+                                    this.notify(false);
+                                }
+                            }, this);
+
+                        }, this);
                     }, this);
-
-                    for (var field in this.model.defs.convertFields[scope]) {
-                        var leadField = this.model.defs.convertFields[scope][field];
-                        var leadAttrs = this.getFieldManager().getAttributes(this.model.getFieldParam(leadField, 'type'), leadField);
-                        var attrs = this.getFieldManager().getAttributes(model.getFieldParam(field, 'type'), field);
-
-                        attrs.forEach(function (attr, i) {
-                            var leadAttr = leadAttrs[i];
-                            model.set(attr, this.model.get(leadAttr));
-                        }.bind(this));
-                    }
-
-                    this.createView(scope, 'Record.Edit', {
-                        model: model,
-                        el: '#main .edit-container-' + Espo.Utils.toDom(scope),
-                        buttonsPosition: false,
-                        layoutName: 'detailConvert',
-                        exit: function () {},
-                    }, function (view) {
-                        i++;
-                        if (i == scopeList.length) {
-                            this.wait(false);
-                            this.notify(false);
-                        }
-                    }.bind(this));
-                }, this);
-            }, this);
+                }.bind(this));
+            }
 
             if (scopeList.length == 0) {
                 this.wait(false);

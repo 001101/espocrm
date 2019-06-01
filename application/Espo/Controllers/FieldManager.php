@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,10 +29,10 @@
 
 namespace Espo\Controllers;
 
-use \Espo\Core\Exceptions\Error,
-    \Espo\Core\Exceptions\Forbidden,
-    \Espo\Core\Exceptions\NotFound,
-    \Espo\Core\Exceptions\BadRequest;
+use Espo\Core\Exceptions\Error;
+use Espo\Core\Exceptions\Forbidden;
+use Espo\Core\Exceptions\NotFound;
+use Espo\Core\Exceptions\BadRequest;
 
 class FieldManager extends \Espo\Core\Controllers\Base
 {
@@ -49,7 +49,7 @@ class FieldManager extends \Espo\Core\Controllers\Base
             throw new BadRequest();
         }
 
-        $data = $this->getContainer()->get('fieldManager')->read($params['name'], $params['scope']);
+        $data = $this->getContainer()->get('fieldManager')->read($params['scope'], $params['name']);
 
         if (!isset($data)) {
             throw new BadRequest();
@@ -60,21 +60,26 @@ class FieldManager extends \Espo\Core\Controllers\Base
 
     public function postActionCreate($params, $data)
     {
-        if (empty($params['scope']) || empty($data['name'])) {
+        if (empty($params['scope']) || empty($data->name)) {
             throw new BadRequest();
         }
 
         $fieldManager = $this->getContainer()->get('fieldManager');
-        $fieldManager->create($data['name'], $data, $params['scope']);
+        $fieldManager->create($params['scope'], $data->name, get_object_vars($data));
 
         try {
             $this->getContainer()->get('dataManager')->rebuild($params['scope']);
         } catch (Error $e) {
-            $fieldManager->delete($data['name'], $params['scope']);
+            $fieldManager->delete($params['scope'], $data->name);
             throw new Error($e->getMessage());
         }
 
-        return $fieldManager->read($data['name'], $params['scope']);
+        return $fieldManager->read($params['scope'], $data->name);
+    }
+
+    public function patchActionUpdate($params, $data)
+    {
+        return $this->putActionUpdate($params, $data);
     }
 
     public function putActionUpdate($params, $data)
@@ -84,7 +89,7 @@ class FieldManager extends \Espo\Core\Controllers\Base
         }
 
         $fieldManager = $this->getContainer()->get('fieldManager');
-        $fieldManager->update($params['name'], $data, $params['scope']);
+        $fieldManager->update($params['scope'], $params['name'], get_object_vars($data));
 
         if ($fieldManager->isChanged()) {
             $this->getContainer()->get('dataManager')->rebuild($params['scope']);
@@ -92,7 +97,7 @@ class FieldManager extends \Espo\Core\Controllers\Base
             $this->getContainer()->get('dataManager')->clearCache();
         }
 
-        return $fieldManager->read($params['name'], $params['scope']);
+        return $fieldManager->read($params['scope'], $params['name']);
     }
 
     public function deleteActionDelete($params, $data)
@@ -101,24 +106,23 @@ class FieldManager extends \Espo\Core\Controllers\Base
             throw new BadRequest();
         }
 
-        $res = $this->getContainer()->get('fieldManager')->delete($params['name'], $params['scope']);
+        $result = $this->getContainer()->get('fieldManager')->delete($params['scope'], $params['name']);
 
         $this->getContainer()->get('dataManager')->rebuildMetadata();
 
-        return $res;
+        return $result;
     }
 
     public function postActionResetToDefault($params, $data)
     {
-        if (empty($data['scope']) || empty($data['name'])) {
+        if (empty($data->scope) || empty($data->name)) {
             throw new BadRequest();
         }
 
-        $this->getContainer()->get('fieldManager')->resetToDefault($data['name'], $data['scope']);
+        $this->getContainer()->get('fieldManager')->resetToDefault($data->scope, $data->name);
 
         $this->getContainer()->get('dataManager')->rebuildMetadata();
 
         return true;
     }
 }
-

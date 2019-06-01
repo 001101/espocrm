@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,6 +66,8 @@ Espo.define('views/fields/base', 'view', function (Dep) {
 
         initialAttributes: null,
 
+        VALIDATION_POPOVER_TIMEOUT: 3000,
+
         isRequired: function () {
             return this.params.required;
         },
@@ -76,6 +78,10 @@ Espo.define('views/fields/base', 'view', function (Dep) {
          */
         getCellElement: function () {
             return this.$el.parent();
+        },
+
+        isInlineEditMode: function () {
+            return !!this._isInlineEditMode;
         },
 
         setDisabled: function (locked) {
@@ -92,11 +98,31 @@ Espo.define('views/fields/base', 'view', function (Dep) {
 
         setRequired: function () {
             this.params.required = true;
+
+            if (this.mode === 'edit') {
+                if (this.isRendered()) {
+                    this.showRequiredSign();
+                } else {
+                    this.once('after:render', function () {
+                        this.showRequiredSign();
+                    }, this);
+                }
+            }
         },
 
         setNotRequired: function () {
             this.params.required = false;
             this.getCellElement().removeClass('has-error');
+
+            if (this.mode === 'edit') {
+                if (this.isRendered()) {
+                    this.hideRequiredSign();
+                } else {
+                    this.once('after:render', function () {
+                        this.hideRequiredSign();
+                    }, this);
+                }
+            }
         },
 
         setReadOnly: function (locked) {
@@ -106,6 +132,10 @@ Espo.define('views/fields/base', 'view', function (Dep) {
                 this.readOnlyLocked = true;
             }
             if (this.mode == 'edit') {
+                if (this.isInlineEditMode()) {
+                    this.inlineEditClose();
+                    return;
+                }
                 this.setMode('detail');
                 if (this.isRendered()) {
                     this.reRender();
@@ -123,7 +153,10 @@ Espo.define('views/fields/base', 'view', function (Dep) {
          * {jQuery}
          */
         getLabelElement: function () {
-            return this.$el.parent().children('label');
+            if (!this.$label || !this.$label.length) {
+                this.$label = this.$el.parent().children('label');
+            }
+            return this.$label;
         },
 
         /**
@@ -161,12 +194,34 @@ Espo.define('views/fields/base', 'view', function (Dep) {
                 data.searchType = this.getSearchType();
                 data.searchTypeList = this.getSearchTypeList();
             }
+
             return data;
         },
 
         getValueForDisplay: function () {
             return this.model.get(this.name);
         },
+
+        isReadMode: function () {
+            return this.mode === 'list' || this.mode === 'detail' || this.mode === 'listLink';
+        },
+
+        isListMode: function () {
+            return this.mode === 'list' || this.mode === 'listLink';
+        },
+
+        isDetailMode: function () {
+            return this.mode === 'detail';
+        },
+
+        isEditMode: function () {
+            return this.mode === 'edit';
+        },
+
+        isSearchMode: function () {
+            return this.mode === 'search';
+        },
+
 
         setMode: function (mode) {
             this.mode = mode;
@@ -175,6 +230,18 @@ Espo.define('views/fields/base', 'view', function (Dep) {
                 this[property] = 'fields/' + Espo.Utils.camelCaseToHyphen(this.type) + '/' + this.mode;
             }
             this.template = this[property];
+
+            var contentProperty = mode + 'TemplateContent';
+
+            if (!this._template) {
+                this._templateCompiled = null;
+                if (contentProperty in this) {
+                    this.compiledTemplatesCache = this.compiledTemplatesCache || {};
+                    this._templateCompiled =
+                    this.compiledTemplatesCache[contentProperty] =
+                        this.compiledTemplatesCache[contentProperty] || this._templator.compileTemplate(this[contentProperty]);
+                }
+            }
         },
 
         init: function () {
@@ -193,16 +260,27 @@ Espo.define('views/fields/base', 'view', function (Dep) {
             this.getFieldManager().getParamList(this.type).forEach(function (d) {
                 var name = d.name;
                 if (!(name in this.params)) {
-                    this.params[name] = this.model.getFieldParam(this.name, name) || null;
+                    this.params[name] = this.model.getFieldParam(this.name, name);
+                    if (typeof this.params[name] === 'undefined') {
+                        this.params[name] = null;
+                    }
                 }
+            }, this);
+
+            var additionaParamList = ['inlineEditDisabled'];
+
+            additionaParamList.forEach(function (item) {
+                this.params[item] = this.model.getFieldParam(this.name, item) || null;
             }, this);
 
             this.mode = this.options.mode || this.mode;
 
-            this.readOnly = this.readOnly || this.params.readOnly || this.model.getFieldParam(this.name, 'readOnly');
+            this.readOnly = this.readOnly || this.params.readOnly || this.model.getFieldParam(this.name, 'readOnly') || this.model.getFieldParam(this.name, 'clientReadOnly');
             this.readOnlyLocked = this.options.readOnlyLocked || this.readOnly;
             this.inlineEditDisabled = this.options.inlineEditDisabled || this.params.inlineEditDisabled || this.inlineEditDisabled;
             this.readOnly = this.readOnlyLocked || this.options.readOnly || false;
+
+            this.tooltip = this.options.tooltip || this.params.tooltip || this.model.getFieldParam(this.name, 'tooltip');
 
             if (this.options.readOnlyDisabled) {
                 this.readOnly = false;
@@ -234,36 +312,23 @@ Espo.define('views/fields/base', 'view', function (Dep) {
                 });
             }, this);
 
-            if (this.mode == 'edit' && this.isRequired()) {
-                this.once('after:render', function () {
-                    this.getLabelElement().append(' *');
-                }, this);
-            }
-
-            if ((this.mode == 'detail' || this.mode == 'edit') && this.model.getFieldParam(this.name, 'tooltip')) {
-                var $a;
-                this.once('after:render', function () {
-                    $a = $('<a href="javascript:" class="text-muted"><span class="glyphicon glyphicon-info-sign"></span></a>');
-                    var $label = this.getLabelElement();
-                    $label.append(' ');
-                    this.getLabelElement().append($a);
-                    $a.popover({
-                        placement: 'bottom',
-                        container: 'body',
-                        html: true,
-                        content: this.translate(this.name, 'tooltips', this.model.name).replace(/\n/g, "<br />"),
-                        trigger: 'click',
-                    }).on('shown.bs.popover', function () {
-                        $('body').one('click', function () {
-                            $a.popover('hide');
-                        });
-                    });
-                }, this);
-                this.on('remove', function () {
-                    if ($a) {
-                        $a.popover('destroy')
+            this.on('after:render', function () {
+                if (this.mode === 'edit') {
+                    if (this.hasRequiredMarker()) {
+                        this.showRequiredSign();
+                    } else {
+                        this.hideRequiredSign();
                     }
-                }, this);
+                } else {
+                    if (this.hasRequiredMarker()) {
+                        this.hideRequiredSign();
+                    }
+                }
+
+            }, this);
+
+            if ((this.isDetailMode() || this.isEditMode()) && this.tooltip) {
+                this.initTooltip();
             }
 
             if (this.mode == 'detail') {
@@ -301,6 +366,60 @@ Espo.define('views/fields/base', 'view', function (Dep) {
             }
         },
 
+        initTooltip: function () {
+            var $a;
+            this.once('after:render', function () {
+                $a = $('<a href="javascript:" class="text-muted field-info"><span class="fas fa-info-circle"></span></a>');
+                var $label = this.getLabelElement();
+                $label.append(' ');
+                this.getLabelElement().append($a);
+
+                $a.popover({
+                    placement: 'bottom',
+                    container: 'body',
+                    html: true,
+                    content: (this.options.tooltipText || this.translate(this.name, 'tooltips', this.model.name)).replace(/\n/g, "<br />"),
+                }).on('shown.bs.popover', function () {
+                    $('body').off('click.popover-' + this.id);
+                    $('body').on('click.popover-' + this.id , function (e) {
+                        if (e.target.classList.contains('popover-content')) return;
+                        if ($.contains($a.get(0), e.target)) return;
+                        $('body').off('click.popover-' + this.id);
+                        $a.popover('hide');
+                    }.bind(this));
+                }.bind(this));
+
+                $a.on('click', function () {
+                    $(this).popover('toggle');
+                });
+            }, this);
+
+            this.on('remove', function () {
+                if ($a) {
+                    $a.popover('destroy')
+                }
+                $('body').off('click.popover-' + this.id);
+            }, this);
+        },
+
+        showRequiredSign: function () {
+            var $label = this.getLabelElement();
+            var $sign = $label.find('span.required-sign');
+
+            if ($label.length && !$sign.length) {
+                $text = $label.find('span.label-text');
+                $('<span class="required-sign"> *</span>').insertAfter($text);
+                $sign = $label.find('span.required-sign');
+            }
+            $sign.show();
+        },
+
+        hideRequiredSign: function () {
+            var $label = this.getLabelElement();
+            var $sign = $label.find('span.required-sign');
+            $sign.hide();
+        },
+
         getSearchParamsData: function () {
             return this.searchParams.data || {};
         },
@@ -319,9 +438,9 @@ Espo.define('views/fields/base', 'view', function (Dep) {
 
         initInlineEdit: function () {
             var $cell = this.getCellElement();
-            var $editLink = $('<a href="javascript:" class="pull-right inline-edit-link hidden"><span class="glyphicon glyphicon-pencil"></span></a>');
+            var $editLink = $('<a href="javascript:" class="pull-right inline-edit-link hidden"><span class="fas fa-pencil-alt fa-sm"></span></a>');
 
-            if ($cell.size() == 0) {
+            if ($cell.length == 0) {
                 this.listenToOnce(this, 'after:render', this.initInlineEdit, this);
                 return;
             }
@@ -349,7 +468,13 @@ Espo.define('views/fields/base', 'view', function (Dep) {
         },
 
         initElement: function () {
-            this.$element = this.$el.find('[name="' + this.name + '"]');
+            this.$element = this.$el.find('[data-name="' + this.name + '"]');
+            if (!this.$element.length) {
+                this.$element = this.$el.find('[name="' + this.name + '"]');
+            }
+            if (!this.$element.length) {
+                this.$element = this.$el.find('.main-element');
+            }
             if (this.mode == 'edit') {
                 this.$element.on('change', function () {
                     this.trigger('change');
@@ -427,7 +552,7 @@ Espo.define('views/fields/base', 'view', function (Dep) {
         addInlineEditLinks: function () {
             var $cell = this.getCellElement();
             var $saveLink = $('<a href="javascript:" class="pull-right inline-save-link">' + this.translate('Update') + '</a>');
-            var $cancelLink = $('<a href="javascript:" class="pull-right inline-cancel-link">' + this.translate('Cancel') + '</a>').css('margin-left', '8px');
+            var $cancelLink = $('<a href="javascript:" class="pull-right inline-cancel-link">' + this.translate('Cancel') + '</a>');
             $cell.prepend($saveLink);
             $cell.prepend($cancelLink);
             $cell.find('.inline-edit-link').addClass('hidden');
@@ -439,8 +564,14 @@ Espo.define('views/fields/base', 'view', function (Dep) {
             }.bind(this));
         },
 
+        setIsInlineEditMode: function (value) {
+            this._isInlineEditMode = value;
+        },
+
         inlineEditClose: function (dontReset) {
             this.trigger('inline-edit-off');
+            this._isInlineEditMode = false;
+
             if (this.mode != 'edit') {
                 return;
             }
@@ -454,7 +585,7 @@ Espo.define('views/fields/base', 'view', function (Dep) {
                 this.model.set(this.initialAttributes);
             }
 
-            this.render();
+            this.reRender(true);
         },
 
         inlineEdit: function () {
@@ -469,31 +600,46 @@ Espo.define('views/fields/base', 'view', function (Dep) {
                 this.addInlineEditLinks();
             }, this);
 
-            this.render();
+            this._isInlineEditMode = true;
+
+            this.reRender(true);
             this.trigger('inline-edit-on');
         },
 
-        showValidationMessage: function (message, selector) {
-            selector = selector || '.main-element';
+        showValidationMessage: function (message, target) {
+            var $el;
 
-            var $el = this.$el.find(selector);
-            if (!$el.size() && this.$element) {
+            target = target || '.main-element';
+
+            if (typeof target === 'string' || target instanceof String) {
+                $el = this.$el.find(target);
+            } else {
+                $el = $(target);
+            }
+
+            if (!$el.length && this.$element) {
                 $el = this.$element;
             }
             $el.popover({
                 placement: 'bottom',
                 container: 'body',
                 content: message,
-                trigger: 'manual',
+                trigger: 'manual'
             }).popover('show');
 
+            var isDestroyed = false;
+
             $el.closest('.field').one('mousedown click', function () {
+                if (isDestroyed) return;
                 $el.popover('destroy');
+                isDestroyed = true;
             });
 
             this.once('render remove', function () {
+                if (isDestroyed) return;
                 if ($el) {
                     $el.popover('destroy');
+                    isDestroyed = true;
                 }
             });
 
@@ -502,8 +648,10 @@ Espo.define('views/fields/base', 'view', function (Dep) {
             }
 
             this._timeout = setTimeout(function () {
+                if (isDestroyed) return;
                 $el.popover('destroy');
-            }, 3000);
+                isDestroyed = true;
+            }, this.VALIDATION_POPOVER_TIMEOUT);
         },
 
         validate: function () {
@@ -517,14 +665,22 @@ Espo.define('views/fields/base', 'view', function (Dep) {
             return false;
         },
 
+        getLabelText: function () {
+            return this.options.labelText || this.translate(this.name, 'fields', this.model.name);
+        },
+
         validateRequired: function () {
             if (this.isRequired()) {
-                if (this.model.get(this.name) === '') {
-                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.translate(this.name, 'fields', this.model.name));
+                if (this.model.get(this.name) === '' || this.model.get(this.name) === null) {
+                    var msg = this.translate('fieldIsRequired', 'messages').replace('{field}', this.getLabelText());
                     this.showValidationMessage(msg);
                     return true;
                 }
             }
+        },
+
+        hasRequiredMarker: function () {
+            return this.isRequired();
         },
 
         fetchToModel: function () {
@@ -548,6 +704,10 @@ Espo.define('views/fields/base', 'view', function (Dep) {
             }
             return false;
         },
+
+        fetchSearchType: function () {
+            return this.$el.find('select.search-type').val();
+        },
+
     });
 });
-

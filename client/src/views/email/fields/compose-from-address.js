@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,14 +42,17 @@ Espo.define('views/email/fields/compose-from-address', 'views/fields/base', func
             Dep.prototype.setup.call(this);
             this.list = [];
 
-            /*if (this.getUser().get('emailAddress') && this.getPreferences().get('smtpServer')) {
-                this.list.push(this.getUser().get('emailAddress'));
-            }*/
+            var primaryEmailAddress = this.getUser().get('emailAddress');
+            if (primaryEmailAddress) {
+                this.list.push(primaryEmailAddress);
+            }
 
             var emailAddressList = this.getUser().get('emailAddressList') || [];
             emailAddressList.forEach(function (item) {
                 this.list.push(item);
             }, this);
+
+            this.list = _.uniq(this.list);
 
             if (this.getConfig().get('outboundEmailIsShared') && this.getConfig().get('outboundEmailFromAddress')) {
                 var address = this.getConfig().get('outboundEmailFromAddress');

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 
 namespace tests\unit\Espo\Core\Htmlizer;
 
-class HtmlizerTest extends \PHPUnit_Framework_TestCase
+class HtmlizerTest extends \PHPUnit\Framework\TestCase
 {
     protected $htmlizer;
 
@@ -127,6 +127,45 @@ class HtmlizerTest extends \PHPUnit_Framework_TestCase
         $html = $this->htmlizer->render($entity, $template);
         $this->assertEquals('3,000', $html);
 
+        $template = "{{float_RAW}}";
+        $entity->set('float', 10000.50);
+        $html = $this->htmlizer->render($entity, $template);
+        $this->assertEquals('10000.5', $html);
+
+        $template = "{{numberFormat float_RAW}}";
+        $entity->set('float', 10000.60);
+        $html = $this->htmlizer->render($entity, $template);
+        $this->assertEquals('10,001', $html);
+
+        $template = "{{numberFormat float_RAW decimals=2}}";
+        $entity->set('float', 10000.601);
+        $html = $this->htmlizer->render($entity, $template);
+        $this->assertEquals('10,000.60', $html);
+
+        $template = "{{numberFormat float_RAW decimals=0}}";
+        $entity->set('float', 10000.1);
+        $html = $this->htmlizer->render($entity, $template);
+        $this->assertEquals('10,000', $html);
+
+        $template = "{{numberFormat float_RAW decimals=2 decimalPoint='.' thousandsSeparator=' '}}";
+        $entity->set('float', 10000.60);
+        $html = $this->htmlizer->render($entity, $template);
+        $this->assertEquals('10 000.60', $html);
+
+        $template = "{{file name}}";
+        $entity->set('name', '1');
+        $html = $this->htmlizer->render($entity, $template);
+        $this->assertEquals('?entryPoint=attachment&id=1', $html);
+
+        $template = "{{#ifEqual name '1'}}hello{{/ifEqual}}";
+        $entity->set('name', '1');
+        $html = $this->htmlizer->render($entity, $template);
+        $this->assertEquals('hello', $html);
+
+        $template = "{{#ifNotEqual name '1'}}hello{{else}}test{{/ifNotEqual}}";
+        $entity->set('name', '1');
+        $html = $this->htmlizer->render($entity, $template);
+        $this->assertEquals('test', $html);
     }
 }
 

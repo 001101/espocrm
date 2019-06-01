@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ namespace Espo\Entities;
 
 class Integration extends \Espo\Core\ORM\Entity
 {
-    public function get($name)
+    public function get($name, $params = array())
     {
         if ($name == 'id') {
             return $this->id;
@@ -54,7 +54,7 @@ class Integration extends \Espo\Core\ORM\Entity
         return null;
     }
 
-    public function clear($name)
+    public function clear($name = null)
     {
         parent::clear($name);
 
@@ -68,6 +68,10 @@ class Integration extends \Espo\Core\ORM\Entity
 
     public function set($p1, $p2 = null)
     {
+        if (is_object($p1)) {
+            $p1 = get_object_vars($p1);
+        }
+
         if (is_array($p1)) {
             if ($p2 === null) {
                 $p2 = false;
@@ -140,7 +144,6 @@ class Integration extends \Espo\Core\ORM\Entity
                     }
                 }
 
-
                 $this->set($field, $value);
             }
         }
@@ -175,5 +178,10 @@ class Integration extends \Espo\Core\ORM\Entity
         return $arr;
     }
 
-}
+    public function getValueMap()
+    {
+        $arr = $this->toArray();
 
+        return (object) $arr;
+    }
+}

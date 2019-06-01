@@ -12,10 +12,14 @@
     "isOverdue": "Просрочена",
     "account": "Контрагент",
     "dateCompleted": "Дата завершения",
-    "attachments": "Вложения"
+    "attachments": "Вложения",
+    "reminders": "Напоминания",
+    "contact": "Контакт"
   },
   "links": {
-    "attachments": "Вложения"
+    "attachments": "Вложения",
+    "account": "Контрагент",
+    "contact": "Контакт"
   },
   "options": {
     "status": {
@@ -40,6 +44,7 @@
     "actual": "Актуальные",
     "completed": "Завершенные",
     "todays": "На сегодня",
-    "overdue": "Просроченные"
+    "overdue": "Просроченные",
+    "deferred": "Отложенные"
   }
 }

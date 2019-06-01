@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,26 +25,12 @@
  * In accordance with Section 7(b) of the GNU General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
-var Espo = Espo || {};
 
-describe("Loader", function () {
-	var loader;
-
-	beforeEach(function () {
-		loader = new Espo.Loader();
-		Espo.Testing = 'test';
-	});
-
-	afterEach(function () {
-		delete Espo.Testing;
-	});
-
-
+describe('loader', function () {
 
 	it("should convert name to path", function () {
-		expect(loader._nameToPath('Views.Record.Edit')).toBe('client/src/views/record/edit.js');
-		expect(loader._nameToPath('Views.Home.DashletHeader')).toBe('client/src/views/home/dashlet-header.js');
+		expect(Espo.loader._nameToPath('views/record/edit')).toBe('../../client/src/views/record/edit.js');
+		expect(Espo.loader._nameToPath('views/home/dashlet-header')).toBe('../../client/src/views/home/dashlet-header.js');
 	});
-
 
 });

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,8 +32,6 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
 
         cssName: 'detail-modal',
 
-        header: false,
-
         template: 'modals/detail',
 
         editDisabled: false,
@@ -49,6 +47,12 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
         backdrop: true,
 
         fitHeight: true,
+
+        className: 'dialog dialog-record',
+
+        sideDisabled: false,
+
+        bottomDisabled: false,
 
         setup: function () {
 
@@ -68,12 +72,10 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
 
             this.layoutName = this.options.layoutName || this.layoutName;
 
-            if (!this.removeDisabled) {
-                this.addRemoveButton();
-            }
+            this.setupRecordButtons();
 
-            if (!this.editDisabled) {
-                this.addEditButton();
+            if (this.model) {
+                this.controlRecordButtonsVisibility();
             }
 
             if (!this.fullFormDisabled) {
@@ -91,16 +93,18 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
             if (this.model && this.model.collection && !this.navigateButtonsDisabled) {
                 this.buttonList.push({
                     name: 'previous',
-                    html: '<span class="glyphicon glyphicon-chevron-left"></span>',
+                    html: '<span class="fas fa-chevron-left"></span>',
                     title: this.translate('Previous Entry'),
                     pullLeft: true,
+                    className: 'btn-icon',
                     disabled: true
                 });
                 this.buttonList.push({
                     name: 'next',
-                    html: '<span class="glyphicon glyphicon-chevron-right"></span>',
+                    html: '<span class="fas fa-chevron-right"></span>',
                     title: this.translate('Next Entry'),
                     pullLeft: true,
+                    className: 'btn-icon',
                     disabled: true
                 });
                 this.indexOfRecord = this.model.collection.indexOf(this.model);
@@ -115,10 +119,14 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
 
             this.sourceModel = this.model;
 
-            this.getModelFactory().create(this.scope, function (model) {
+            this.getModelFactory().create(this.scope).then(function (model) {
                 if (!this.sourceModel) {
                     this.model = model;
                     this.model.id = this.id;
+
+                    this.setupAfterModelCreated();
+
+                    this.listenTo(this.model, 'sync', this.controlRecordButtonsVisibility, this);
 
                     this.listenToOnce(this.model, 'sync', function () {
                         this.createRecordView();
@@ -128,23 +136,57 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
                     this.model = this.sourceModel.clone();
                     this.model.collection = this.sourceModel.collection;
 
+                    this.setupAfterModelCreated();
+
                     this.listenTo(this.model, 'change', function () {
                         this.sourceModel.set(this.model.getClonedAttributes());
                     }, this);
+
+                    this.listenTo(this.model, 'sync', this.controlRecordButtonsVisibility, this);
 
                     this.once('after:render', function () {
                         this.model.fetch();
                     }, this);
                     this.createRecordView();
                 }
+            }.bind(this));
+
+            this.listenToOnce(this.getRouter(), 'routed', function () {
+                this.remove();
             }, this);
+        },
+
+        setupAfterModelCreated: function () {
+        },
+
+        setupRecordButtons: function () {
+            if (!this.removeDisabled) {
+                this.addRemoveButton();
+            }
+
+            if (!this.editDisabled) {
+                this.addEditButton();
+            }
+        },
+
+        controlRecordButtonsVisibility: function () {
+            if (this.getAcl().check(this.model, 'edit')) {
+                this.showButton('edit');
+            } else {
+                this.hideButton('edit');
+            }
+
+            if (this.getAcl().check(this.model, 'delete')) {
+                this.showButton('remove');
+            } else {
+                this.hideButton('remove');
+            }
         },
 
         addEditButton: function () {
             this.addButton({
                 name: 'edit',
                 label: 'Edit',
-                style: 'primary'
             }, true);
         },
 
@@ -153,27 +195,37 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
         },
 
         addRemoveButton: function () {
-            this.addButton({
+            this.addDropdownItem({
                 name: 'remove',
-                label: 'Remove',
-                style: 'danger'
-            }, true);
+                label: 'Remove'
+            });
         },
 
         removeRemoveButton: function () {
             this.removeButton('remove');
         },
 
+        getScope: function () {
+            return this.scope;
+        },
+
         createRecordView: function (callback) {
             var model = this.model;
-            this.header = this.getLanguage().translate(this.scope, 'scopeNames');
+            var scope = this.getScope();
+
+            this.headerHtml = '';
+            var iconHtml = this.getHelper().getScopeColorIconHtml(this.scope);
+
+            this.headerHtml += this.getLanguage().translate(scope, 'scopeNames');
 
             if (model.get('name')) {
-                this.header += ' &raquo; ' + model.get('name');
+                this.headerHtml += ' &raquo; ' + Handlebars.Utils.escapeExpression(model.get('name'));
             }
             if (!this.fullFormDisabled) {
-                this.header = '<a href="#' + this.scope + '/view/' + this.id+'" class="action" title="'+this.translate('Full Form')+'" data-action="fullForm">' + this.header + '</a>';
+                this.headerHtml = '<a href="#' + scope + '/view/' + this.id+'" class="action" title="'+this.translate('Full Form')+'" data-action="fullForm">' + this.headerHtml + '</a>';
             }
+
+            this.headerHtml = iconHtml + this.headerHtml;
 
             if (!this.editDisabled) {
                 var editAccess = this.getAcl().check(model, 'edit', true);
@@ -207,16 +259,23 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
                 }
             }
 
-            var viewName = this.detailViewName || this.detailView || this.getMetadata().get('clientDefs.' + model.name + '.recordViews.detailQuick') || 'views/record/detail-small'; 
+            var viewName =
+                this.detailViewName ||
+                this.detailView ||
+                this.getMetadata().get(['clientDefs', model.name, 'recordViews', 'detailSmall']) ||
+                this.getMetadata().get(['clientDefs', model.name, 'recordViews', 'detailQuick']) ||
+                'views/record/detail-small';
             var options = {
                 model: model,
                 el: this.containerSelector + ' .record-container',
                 type: 'detailSmall',
                 layoutName: this.layoutName || 'detailSmall',
                 columnCount: this.columnCount,
-                buttonsPosition: false,
+                buttonsDisabled: true,
                 inlineEditDisabled: true,
-                exit: function () {},
+                sideDisabled: this.sideDisabled,
+                bottomDisabled: this.bottomDisabled,
+                exit: function () {}
             };
             this.createView('record', viewName, options, callback);
         },
@@ -258,24 +317,23 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
                 }
             }
 
-            var $previous = this.$el.find('footer button[data-name="previous"]');
-            var $next = this.$el.find('footer button[data-name="next"]');
-
             if (previousButtonEnabled) {
-                $previous.removeClass('disabled');
+                this.enableButton('previous');
             } else {
-                $previous.addClass('disabled');
+                this.disableButton('previous');
             }
 
             if (nextButtonEnabled) {
-                $next.removeClass('disabled');
+                this.enableButton('next');
             } else {
-                $next.addClass('disabled');
+                 this.disableButton('next');
             }
         },
 
         switchToModelByIndex: function (indexOfRecord) {
             if (!this.model.collection) return;
+
+            var previousModel = this.model;
 
             this.sourceModel = this.model.collection.at(indexOfRecord);
 
@@ -295,6 +353,8 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
                 this.sourceModel.set(this.model.getClonedAttributes());
             }, this);
 
+            this.listenTo(this.model, 'sync', this.controlRecordButtonsVisibility, this);
+
             this.once('after:render', function () {
                 this.model.fetch();
             }, this);
@@ -304,6 +364,8 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
             }.bind(this));
 
             this.controlNavigationButtons();
+
+            this.trigger('switch-model', this.model, previousModel);
         },
 
         actionPrevious: function () {
@@ -341,9 +403,24 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
         },
 
         actionEdit: function () {
+            if (this.options.quickEditDisabled) {
+                var options = {
+                    id: this.id,
+                    model: this.model,
+                    returnUrl: this.getRouter().getCurrentUrl(),
+                };
+                if (this.options.rootUrl) {
+                    options.rootUrl = this.options.rootUrl;
+                }
+                this.getRouter().navigate('#' + this.scope + '/edit/' + this.id, {trigger: false});
+                this.getRouter().dispatch(this.scope, 'edit', options);
+                return;
+            }
+
             var viewName = this.getMetadata().get(['clientDefs', this.scope, 'modalViews', 'edit']) || 'views/modals/edit';
             this.createView('quickEdit', viewName, {
                 scope: this.scope,
+                entityType: this.model.entityType,
                 id: this.id,
                 fullFormDisabled: this.fullFormDisabled
             }, function (view) {
@@ -361,9 +438,11 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
                 }, this);
 
                 this.listenToOnce(view, 'after:save', function (model) {
+                    this.model.set(model.getClonedAttributes());
+
                     this.trigger('after:save', model);
 
-                    this.model.set(model.getClonedAttributes());
+                    this.controlRecordButtonsVisibility();
                 }, this);
 
                 view.render();
@@ -373,45 +452,50 @@ Espo.define('views/modals/detail', 'views/modal', function (Dep) {
         actionRemove: function () {
             var model = this.getView('record').model;
 
-            if (confirm(this.translate('removeRecordConfirmation', 'messages'))) {
+            this.confirm(this.translate('removeRecordConfirmation', 'messages'), function () {
                 var $buttons = this.dialog.$el.find('.modal-footer button');
-                $buttons.addClass('disabled');
+                $buttons.addClass('disabled').attr('disabled', 'disabled');
                 model.destroy({
                     success: function () {
                         this.trigger('after:destroy', model);
                         this.dialog.close();
                     }.bind(this),
                     error: function () {
-                        $buttons.removeClass('disabled');
+                        $buttons.removeClass('disabled').removeAttr('disabled');
                     }
                 });
-            }
+            }, this);
         },
 
         actionFullForm: function () {
             var url;
             var router = this.getRouter();
 
-            url = '#' + this.scope + '/view/' + this.id;
+            var scope = this.getScope();
+
+            url = '#' + scope + '/view/' + this.id;
 
             var attributes = this.getView('record').fetch();
             var model = this.getView('record').model;
             attributes = _.extend(attributes, model.getClonedAttributes());
 
+            var options = {
+                attributes: attributes,
+                returnUrl: Backbone.history.fragment,
+                model: this.sourceModel || this.model,
+                id: this.id
+            };
+            if (this.options.rootUrl) {
+                options.rootUrl = this.options.rootUrl;
+            }
+
             setTimeout(function () {
-                router.dispatch(this.scope, 'view', {
-                    attributes: attributes,
-                    returnUrl: Backbone.history.fragment,
-                    model: this.sourceModel || this.model,
-                    id: this.id
-                });
+                router.dispatch(scope, 'view', options);
                 router.navigate(url, {trigger: false});
             }.bind(this), 10);
-
 
             this.trigger('leave');
             this.dialog.close();
         }
     });
 });
-

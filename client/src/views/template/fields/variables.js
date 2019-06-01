@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,12 +44,18 @@ Espo.define('views/template/fields/variables', 'views/fields/base', function (De
         },
 
         events: {
-            'change [name="variables"]': function () {
-                var attribute = this.$el.find('[name="variables"]').val();
-                if (attribute != '') {
-                    this.$el.find('[name="copy"]').val('{{' + attribute + '}}');
+            'change [data-name="variables"]': function () {
+                var attribute = this.$el.find('[data-name="variables"]').val();
+
+                var $copy = this.$el.find('[data-name="copy"]');
+                if (attribute !== '') {
+                    if (this.textVariables[attribute]) {
+                        $copy.val('{{{' + attribute + '}}}');
+                    } else {
+                        $copy.val('{{' + attribute + '}}');
+                    }
                 } else {
-                    this.$el.find('[name="copy"]').val('');
+                    $copy.val('');
                 }
             }
         },
@@ -68,17 +74,48 @@ Espo.define('views/template/fields/variables', 'views/fields/base', function (De
         setupAttributeList: function () {
             var entityType = this.model.get('entityType');
 
-            var attributeList = this.getFieldManager().getEntityAttributes(entityType) || [];
+            var fieldList = this.getFieldManager().getEntityTypeFieldList(entityType);
 
-            var forbiddenList = this.getAcl().getScopeForbiddenAttributeList(entityType);
+            var ignoreFieldList = [];
+            fieldList.forEach(function (field) {
+                if (
+                    this.getMetadata().get(['entityAcl', entityType, 'fields', field, 'onlyAdmin'])
+                    ||
+                    this.getMetadata().get(['entityAcl', entityType, 'fields', field, 'forbidden'])
+                    ||
+                    this.getMetadata().get(['entityAcl', entityType, 'fields', field, 'internal'])
+                    ||
+                    this.getMetadata().get(['entityDefs', entityType, 'fields', field, 'disabled'])
+                    ||
+                    this.getMetadata().get(['entityDefs', entityType, 'fields', field, 'directAccessDisabled'])
+                ) ignoreFieldList.push(field);
+            }, this);
+
+            var attributeList = this.getFieldManager().getEntityTypeAttributeList(entityType) || [];
+
+            var forbiddenList = Espo.Utils.clone(this.getAcl().getScopeForbiddenAttributeList(entityType));
+
+            ignoreFieldList.forEach(function (field) {
+                this.getFieldManager().getEntityTypeFieldAttributeList(entityType, field).forEach(function (attribute) {
+                    forbiddenList.push(attribute);
+                });
+            }, this);
+
             attributeList = attributeList.filter(function (item) {
                 if (~forbiddenList.indexOf(item)) return;
+
+                var fieldType = this.getMetadata().get(['entityDefs', entityType, 'fields', item, 'type']);
+                if (fieldType === 'map') return;
+
                 return true;
             }, this);
 
+
             attributeList.push('id');
             if (this.getMetadata().get('entityDefs.' + entityType + '.fields.name.type') == 'personName') {
-                attributeList.unshift('name');
+                if (!~attributeList.indexOf('name')) {
+                    attributeList.unshift('name');
+                }
             };
             attributeList = attributeList.sort(function (v1, v2) {
                 return this.translate(v1, 'fields', entityType).localeCompare(this.translate(v2, 'fields', entityType));
@@ -86,12 +123,21 @@ Espo.define('views/template/fields/variables', 'views/fields/base', function (De
 
             this.attributeList = attributeList;
 
-            attributeList.unshift('');
+            this.textVariables = {};
 
-            this.translatedOptions = {};
-            attributeList.forEach(function (item) {
-                this.translatedOptions[item] = this.translate(item, 'fields', entityType);
+            this.attributeList.forEach(function (item) {
+                if (~['text', 'wysiwyg'].indexOf(this.getMetadata().get(['entityDefs', entityType, 'fields', item, 'type']))) {
+                    this.textVariables[item] = true;
+                }
             }, this);
+
+            if (!~this.attributeList.indexOf('now')) {
+                this.attributeList.unshift('now');
+            }
+
+            if (!~this.attributeList.indexOf('today')) {
+                this.attributeList.unshift('today');
+            }
 
             var links = this.getMetadata().get('entityDefs.' + entityType + '.links') || {};
 
@@ -105,11 +151,49 @@ Espo.define('views/template/fields/variables', 'views/fields/base', function (De
                 var scope = links[link].entity;
                 if (!scope) return;
 
-                var attributeList = this.getFieldManager().getEntityAttributes(scope) || [];
+                if (links[link].disabled) return;
 
-                var forbiddenList = this.getAcl().getScopeForbiddenAttributeList(scope);
+                if (
+                    this.getMetadata().get(['entityAcl', entityType, 'links', link, 'onlyAdmin'])
+                    ||
+                    this.getMetadata().get(['entityAcl', entityType, 'links', link, 'forbidden'])
+                    ||
+                    this.getMetadata().get(['entityAcl', entityType, 'links', link, 'internal'])
+                ) return;
+
+                var fieldList = this.getFieldManager().getEntityTypeFieldList(scope);
+
+                var ignoreFieldList = [];
+                fieldList.forEach(function (field) {
+                    if (
+                        this.getMetadata().get(['entityAcl', scope, 'fields', field, 'onlyAdmin'])
+                        ||
+                        this.getMetadata().get(['entityAcl', scope, 'fields', field, 'forbidden'])
+                        ||
+                        this.getMetadata().get(['entityAcl', scope, 'fields', field, 'internal'])
+                        ||
+                        this.getMetadata().get(['entityDefs', scope, 'fields', field, 'disabled'])
+                        ||
+                        this.getMetadata().get(['entityDefs', scope, 'fields', field, 'directAccessDisabled'])
+                    ) ignoreFieldList.push(field);
+                }, this);
+
+                var attributeList = this.getFieldManager().getEntityTypeAttributeList(scope) || [];
+
+                var forbiddenList = Espo.Utils.clone(this.getAcl().getScopeForbiddenAttributeList(scope));
+
+                ignoreFieldList.forEach(function (field) {
+                    this.getFieldManager().getEntityTypeFieldAttributeList(scope, field).forEach(function (attribute) {
+                        forbiddenList.push(attribute);
+                    });
+                }, this);
+
                 attributeList = attributeList.filter(function (item) {
                     if (~forbiddenList.indexOf(item)) return;
+
+                    var fieldType = this.getMetadata().get(['entityDefs', scope, 'fields', item, 'type']);
+                    if (fieldType === 'map') return;
+
                     return true;
                 }, this);
 
@@ -125,6 +209,14 @@ Espo.define('views/template/fields/variables', 'views/fields/base', function (De
                 attributeList.forEach(function (item) {
                     this.attributeList.push(link + '.' + item);
                 }, this);
+
+                attributeList.forEach(function (item) {
+                    var variable = link + '.' + item;
+                    if (~['text', 'wysiwyg'].indexOf(this.getMetadata().get(['entityDefs', scope, 'fields', item, 'type']))) {
+                        this.textVariables[variable] = true;
+                    }
+                }, this);
+
             }, this);
 
             return this.attributeList;
@@ -135,6 +227,12 @@ Espo.define('views/template/fields/variables', 'views/fields/base', function (De
 
             var entityType = this.model.get('entityType');
             this.attributeList.forEach(function (item) {
+                if (~['today', 'now'].indexOf(item)) {
+                    if (!this.getMetadata().get(['entityDefs', entityType, 'fields', item])) {
+                        this.translatedOptions[item] = this.getLanguage().translateOption(item, 'placeholders', 'Template');
+                        return;
+                    }
+                }
                 var field = item;
                 var scope = entityType;
                 var isForeign = false;
@@ -144,7 +242,45 @@ Espo.define('views/template/fields/variables', 'views/fields/base', function (De
                     var link = item.split('.')[0];
                     scope = this.getMetadata().get('entityDefs.' + entityType + '.links.' + link + '.entity');
                 }
+
                 this.translatedOptions[item] = this.translate(field, 'fields', scope);
+
+                if (field.indexOf('Id') === field.length - 2) {
+                    var baseField = field.substr(0, field.length - 2);
+                    if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
+                        this.translatedOptions[item] = this.translate(baseField, 'fields', scope) + ' (' + this.translate('id', 'fields') + ')';
+                    }
+                } else if (field.indexOf('Name') === field.length - 4) {
+                    var baseField = field.substr(0, field.length - 4);
+                    if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
+                        this.translatedOptions[item] = this.translate(baseField, 'fields', scope) + ' (' + this.translate('name', 'fields') + ')';
+                    }
+                } else if (field.indexOf('Type') === field.length - 4) {
+                    var baseField = field.substr(0, field.length - 4);
+                    if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
+                        this.translatedOptions[item] = this.translate(baseField, 'fields', scope) + ' (' + this.translate('type', 'fields') + ')';
+                    }
+                }
+
+                if (field.indexOf('Ids') === field.length - 3) {
+                    var baseField = field.substr(0, field.length - 3);
+                    if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
+                        this.translatedOptions[item] = this.translate(baseField, 'fields', scope) + ' (' + this.translate('ids', 'fields') + ')';
+                    }
+                } else if (field.indexOf('Names') === field.length - 5) {
+                    var baseField = field.substr(0, field.length - 5);
+                    if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
+                        this.translatedOptions[item] = this.translate(baseField, 'fields', scope) + ' (' + this.translate('names', 'fields') + ')';
+                    }
+                } else if (field.indexOf('Types') === field.length - 5) {
+                    var baseField = field.substr(0, field.length - 5);
+                    if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
+                        this.translatedOptions[item] = this.translate(baseField, 'fields', scope) + ' (' + this.translate('types', 'fields') + ')';
+                    }
+                }
+
+
+
                 if (isForeign) {
                     this.translatedOptions[item] =  this.translate(link, 'links', entityType) + '.' + this.translatedOptions[item];
                 }
@@ -153,7 +289,9 @@ Espo.define('views/template/fields/variables', 'views/fields/base', function (De
 
         afterRender: function () {
             Dep.prototype.afterRender.call(this);
-        }
+        },
+
+        fetch: function () {},
 
     });
 

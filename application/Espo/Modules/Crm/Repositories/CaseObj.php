@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,12 @@ use Espo\ORM\Entity;
 
 class CaseObj extends \Espo\Core\ORM\Repositories\RDB
 {
+    protected function init()
+    {
+        parent::init();
+        $this->addDependency('serviceFactory');
+    }
+
     public function afterSave(Entity $entity, array $options = array())
     {
         $result = parent::afterSave($entity, $options);
@@ -46,9 +52,30 @@ class CaseObj extends \Espo\Core\ORM\Repositories\RDB
 
         if ($contactIdChanged) {
             $contactId = $entity->get('contactId');
+
+            if ($entity->getFetched('contactId')) {
+                $previousPortalUser = $this->getEntityManager()->getRepository('User')->where([
+                    'contactId' => $entity->getFetched('contactId'),
+                    'type' => 'portal'
+                ])->findOne();
+                if ($previousPortalUser) {
+                    $this->getInjection('serviceFactory')->create('Stream')->unfollowEntity($entity, $previousPortalUser->id);
+                }
+            }
+
             if (empty($contactId)) {
                 $this->unrelate($entity, 'contacts', $entity->getFetched('contactId'));
                 return;
+            }
+
+            $portalUser = $this->getEntityManager()->getRepository('User')->where([
+                'contactId' => $contactId,
+                'type' => 'portal',
+                'isActive' => true
+            ])->findOne();
+
+            if ($portalUser) {
+                $this->getInjection('serviceFactory')->create('Stream')->followEntity($entity, $portalUser->id);
             }
         }
 
@@ -70,60 +97,4 @@ class CaseObj extends \Espo\Core\ORM\Repositories\RDB
             }
         }
     }
-
-    protected function afterRelateArticles(Entity $entity, $foreign)
-    {
-        $foreignEntity = null;
-        if ($foreign instanceof Entity) {
-            $foreignEntity = $foreign;
-        } else if (is_string($foreign)) {
-            $foreignEntity = $this->getEntityManager()->getEntity('KnowledgeBaseArticle', $foreign);
-        }
-        if (!$foreignEntity) return;
-
-        $n = $this->getEntityManager()->getRepository('Note')->where(array(
-            'type' => 'Relate',
-            'parentId' => $entity->id,
-            'parentType' => 'Case',
-            'relatedId' => $foreignEntity->id,
-            'relatedType' => $foreignEntity->getEntityType()
-        ))->findOne();
-        if ($n) {
-            return;
-        }
-
-        $note = $this->getEntityManager()->getEntity('Note');
-        $note->set(array(
-            'type' => 'Relate',
-            'parentId' => $entity->id,
-            'parentType' => 'Case',
-            'relatedId' => $foreignEntity->id,
-            'relatedType' => $foreignEntity->getEntityType()
-        ));
-        $this->getEntityManager()->saveEntity($note);
-    }
-
-    protected function afterUnrelateArticles(Entity $entity, $foreign)
-    {
-        $foreignEntity = null;
-        if ($foreign instanceof Entity) {
-            $foreignEntity = $foreign;
-        } else if (is_string($foreign)) {
-            $foreignEntity = $this->getEntityManager()->getEntity('KnowledgeBaseArticle', $foreign);
-        }
-        if (!$foreignEntity) return;
-
-        $note = $this->getEntityManager()->getRepository('Note')->where(array(
-            'type' => 'Relate',
-            'parentId' => $entity->id,
-            'parentType' => 'Case',
-            'relatedId' => $foreignEntity->id,
-            'relatedType' => $foreignEntity->getEntityType()
-        ))->findOne();
-        if (!$note) return;
-
-        $this->getEntityManager()->removeEntity($note);
-    }
-
 }
-

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,10 +48,42 @@ class TargetList extends \Espo\Services\Record
         'User' => 'users'
     );
 
+    protected $linkSelectParams = [
+        'accounts' => [
+            'additionalColumns' => [
+                'optedOut' => 'targetListIsOptedOut'
+            ]
+        ],
+        'contacts' => [
+            'additionalColumns' => [
+                'optedOut' => 'targetListIsOptedOut'
+            ]
+        ],
+        'leads' => [
+            'additionalColumns' => [
+                'optedOut' => 'targetListIsOptedOut'
+            ]
+        ],
+        'users' => [
+            'additionalColumns' => [
+                'optedOut' => 'targetListIsOptedOut'
+            ]
+        ]
+    ];
+
+    protected function init()
+    {
+        parent::init();
+        $this->addDependencyList([
+            'hookManager'
+        ]);
+    }
+
     public function loadAdditionalFields(Entity $entity)
     {
         parent::loadAdditionalFields($entity);
         $this->loadEntryCountField($entity);
+        $this->loadOptedOutCountField($entity);
     }
 
     public function loadAdditionalFieldsForList(Entity $entity)
@@ -70,14 +102,41 @@ class TargetList extends \Espo\Services\Record
         $entity->set('entryCount', $count);
     }
 
-    protected function afterCreate(Entity $entity, array $data = array())
+    protected function loadOptedOutCountField(Entity $entity)
     {
-        if (array_key_exists('sourceCampaignId', $data) && !empty($data['includingActionList'])) {
+        $count = 0;
+
+        $count += $this->getEntityManager()->getRepository('Contact')->join(['targetLists'])->where([
+            'targetListsMiddle.targetListId' => $entity->id,
+            'targetListsMiddle.optedOut' => 1
+        ])->count();
+
+        $count += $this->getEntityManager()->getRepository('Lead')->join(['targetLists'])->where([
+            'targetListsMiddle.targetListId' => $entity->id,
+            'targetListsMiddle.optedOut' => 1
+        ])->count();
+
+        $count += $this->getEntityManager()->getRepository('Account')->join(['targetLists'])->where([
+            'targetListsMiddle.targetListId' => $entity->id,
+            'targetListsMiddle.optedOut' => 1
+        ])->count();
+
+        $count += $this->getEntityManager()->getRepository('User')->join(['targetLists'])->where([
+            'targetListsMiddle.targetListId' => $entity->id,
+            'targetListsMiddle.optedOut' => 1
+        ])->count();
+
+        $entity->set('optedOutCount', $count);
+    }
+
+    protected function afterCreateEntity(Entity $entity, $data)
+    {
+        if (property_exists($data, 'sourceCampaignId') && !empty($data->includingActionList)) {
             $excludingActionList = [];
-            if (!empty($data['excludingActionList'])) {
-                $excludingActionList = $data['excludingActionList'];
+            if (!empty($data->excludingActionList)) {
+                $excludingActionList = $data->excludingActionList;
             }
-            $this->populateFromCampaignLog($entity, $data['sourceCampaignId'], $data['includingActionList'], $excludingActionList);
+            $this->populateFromCampaignLog($entity, $data->sourceCampaignId, $data->includingActionList, $excludingActionList);
         }
     }
 
@@ -112,7 +171,7 @@ class TargetList extends \Espo\Services\Record
         $selectParams['whereClause'][] = array(
             'action=' => $includingActionList
         );
-        $selectParams['groupBy'] = ['parentId', 'parentType'];
+        $selectParams['groupBy'] = ['parentId', 'parentType', 'id'];
 
         $notSelectParams['whereClause'][] = array(
             'action=' => $excludingActionList
@@ -178,12 +237,13 @@ class TargetList extends \Espo\Services\Record
         }
         if ($sql) {
             if ($pdo->query($sql)) {
+                $this->getInjection('hookManager')->process('TargetList', 'afterUnlinkAll', $entity, array(), array('link' => $link));
                 return true;
             }
         }
     }
 
-    protected function findLinkedEntitiesOptedOut($id, $params)
+    protected function findLinkedOptedOut($id, $params)
     {
         $pdo = $this->getEntityManager()->getPDO();
         $query = $this->getEntityManager()->getQuery();
@@ -231,6 +291,8 @@ class TargetList extends \Espo\Services\Record
             ORDER BY createdAt DESC
         ";
 
+        $sqlCount = "SELECT COUNT(*) AS 'count' FROM ({$sql}) AS c";
+
         $sql = $query->limit($sql, $params['offset'], $params['maxSize']);
 
         $sth = $pdo->prepare($sql);
@@ -240,7 +302,6 @@ class TargetList extends \Espo\Services\Record
             $arr[] = $row;
         }
 
-        $sqlCount = "SELECT COUNT(*) AS 'count' FROM ({$sql}) AS c";
         $sth = $pdo->prepare($sqlCount);
         $sth->execute();
 
@@ -275,9 +336,21 @@ class TargetList extends \Espo\Services\Record
         }
         $link = $map[$targetType];
 
-        return $this->getEntityManager()->getRepository('TargetList')->relate($targetList, $link, $targetId, array(
+        $result = $this->getEntityManager()->getRepository('TargetList')->relate($targetList, $link, $targetId, array(
             'optedOut' => true
         ));
+
+        if ($result) {
+            $hookData = [
+               'link' => $link,
+               'targetId' => $targetId,
+               'targetType' => $targetType
+            ];
+
+            $this->getInjection('hookManager')->process('TargetList', 'afterOptOut', $targetList, [], $hookData);
+            return true;
+        }
+        return false;
     }
 
     public function cancelOptOut($id, $targetType, $targetId)
@@ -302,9 +375,21 @@ class TargetList extends \Espo\Services\Record
         }
         $link = $map[$targetType];
 
-        return $this->getEntityManager()->getRepository('TargetList')->updateRelation($targetList, $link, $targetId, array(
+        $result = $this->getEntityManager()->getRepository('TargetList')->updateRelation($targetList, $link, $targetId, array(
             'optedOut' => false
         ));
+
+        if ($result) {
+            $hookData = [
+               'link' => $link,
+               'targetId' => $targetId,
+               'targetType' => $targetType
+            ];
+
+            $this->getInjection('hookManager')->process('TargetList', 'afterCancelOptOut', $targetList, [], $hookData);
+            return true;
+        }
+        return false;
     }
 
     protected function duplicateLinks(Entity $entity, Entity $duplicatingEntity)
@@ -325,4 +410,3 @@ class TargetList extends \Espo\Services\Record
         }
     }
 }
-

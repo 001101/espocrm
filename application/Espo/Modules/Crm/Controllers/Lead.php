@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,19 +34,28 @@ use \Espo\Core\Exceptions\BadRequest;
 
 class Lead extends \Espo\Core\Controllers\Record
 {
-    public function actionConvert($params, $data, $request)
+    public function postActionConvert($params, $data, $request)
     {
-        if (empty($data['id'])) {
+        if (empty($data->id)) {
             throw new BadRequest();
         }
-        if (!$request->isPost()) {
-            throw new BadRequest();
+        if (empty($data->records)) {
+            $data->records = (object) [];
         }
-        $entity = $this->getRecordService()->convert($data['id'], $data['records']);
+        $entity = $this->getRecordService()->convert($data->id, $data->records);
 
         if (!empty($entity)) {
             return $entity->toArray();
         }
         throw new Error();
+    }
+
+    public function postActionGetConvertAttributes($params, $data, $request)
+    {
+        if (empty($data->id)) {
+            throw new BadRequest();
+        }
+
+        return $this->getRecordService()->getConvertAttributes($data->id);
     }
 }

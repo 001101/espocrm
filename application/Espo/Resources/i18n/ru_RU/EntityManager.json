@@ -1,7 +1,10 @@
 {
   "labels": {
     "Fields": "Поля",
-    "Relationships": "Отношения"
+    "Relationships": "Отношения",
+    "Schedule": "График",
+    "Log": "Лог",
+    "Formula": "Формула"
   },
   "fields": {
     "name": "Название",
@@ -10,31 +13,33 @@
     "labelPlural": "Метка (множественное число)",
     "stream": "Лента",
     "label": "Метка",
-    "linkType": "Link Type",
-    "entityForeign": "Foreign Entity",
-    "linkForeign": "Foreign Link",
-    "link": "Link",
-    "labelForeign": "Foreign Label",
+    "linkType": "Тип ссылки",
+    "link": "Ссылка",
     "sortBy": "Сортировка (поле)",
     "sortDirection": "Сортировка (направление)",
-    "relationName": "Middle Table Name",
-    "linkMultipleField": "Link Multiple Field",
-    "linkMultipleFieldForeign": "Foreign Link Multiple Field",
-    "disabled": "Disabled"
+    "linkMultipleFieldForeign": "Поле Foreign Link Multiple",
+    "disabled": "Отключено",
+    "textFilterFields": "Поля текстовых фильтров",
+    "audited": "Проверено",
+    "statusField": "Поле статуса",
+    "color": "Цвет",
+    "kanbanStatusIgnoreList": "Группы, которые не отражаются в Kanban View",
+    "iconClass": "Значок",
+    "fullTextSearch": "Полнотекстовый поиск"
   },
   "options": {
     "type": {
       "": "Нет",
-      "Base": "Base",
-      "Person": "Person",
-      "CategoryTree": "Category Tree"
+      "Base": "База",
+      "Person": "Личность",
+      "Event": "Событие",
+      "Company": "Компания"
     },
     "linkType": {
-      "manyToMany": "Many-to-Many",
-      "oneToMany": "One-to-Many",
-      "manyToOne": "Many-to-One",
-      "parentToChildren": "Parent-to-Children",
-      "childrenToParent": "Children-to-Parent"
+      "manyToMany": "Многие-ко-многим",
+      "oneToMany": "Один-ко-многим",
+      "manyToOne": "Много-к-одному",
+      "childrenToParent": "От сына к отцу"
     },
     "sortDirection": {
       "asc": "По возрастанию",
@@ -45,5 +50,15 @@
     "entityCreated": "Объект был создан",
     "linkAlreadyExists": "Конфликт названий связей (link).",
     "linkConflict": "Связь (link) с таким названием уже существует."
+  },
+  "tooltips": {
+    "statusField": "Обновления этого поля записываются в ленту.",
+    "textFilterFields": "Поля, используемые для текстового поиска.",
+    "stream": "Есть ли у объекта Лента.",
+    "disabled": "Отметьте, если вам не нужна эта сущность в вашей системе.",
+    "linkAudited": "Создание связанной записи и привязка к существующей записи будет регистрироваться в Ленте.",
+    "linkMultipleField": "Link Multiple field предоставляет удобный способ редактирования отношений. Не используйте его, если у вас может быть большое количество связанных записей.",
+    "entityType": "\nEvent - available in Calendar and Activities panel.",
+    "fullTextSearch": "Требуется выполнить перестройку."
   }
 }

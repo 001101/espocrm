@@ -12,9 +12,10 @@
     "Create": "Crear",
     "Shared": "Compartido",
     "Add User": "Agregar usuario",
-    "current": "corriente",
-    "time": "Tiempo",
+    "current": "actual",
+    "time": "hora",
     "User List": "Lista de usuarios",
-    "Manage Users": "Administrar usuarios"
+    "Manage Users": "Administrar usuarios",
+    "View Calendar": "Ver calendario"
   }
 }

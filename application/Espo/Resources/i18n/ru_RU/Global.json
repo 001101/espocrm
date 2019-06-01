@@ -20,7 +20,34 @@
     "EmailFilter": "Фильтр эл. почты",
     "Portal": "Портал",
     "PortalRole": "Роли портала",
-    "Attachment": "Вложение"
+    "Attachment": "Вложение",
+    "EmailFolder": "Папка с эл. письмами",
+    "PortalUser": "Пользователь портала",
+    "ScheduledJobLogRecord": "Запись журнала запланированных работ",
+    "PasswordChangeRequest": "Запрос на изменение пароля",
+    "ActionHistoryRecord": "Запись истории действий",
+    "AuthToken": "Токен аутентификации",
+    "UniqueId": "Уникальный ID",
+    "LastViewed": "Последние просмотренные",
+    "Settings": "Настройки",
+    "FieldManager": "Управление полями",
+    "Integration": "Интеграция",
+    "LayoutManager": "Управление макетами",
+    "EntityManager": "Управление объектами",
+    "Export": "Экспорт",
+    "DynamicLogic": "Динамическая логика",
+    "DashletOptions": "Настройки панели",
+    "Admin": "Админ",
+    "Global": "Глобальный",
+    "Preferences": "Настройки",
+    "EmailAddress": "Адрес эл. почты",
+    "PhoneNumber": "Номер телефона",
+    "AuthLogRecord": "Запись Лога Аутентификации",
+    "AuthFailLogRecord": "Запись Сбоя Лога Аутентификации",
+    "EmailTemplateCategory": "Категории шаблонов эл. писем",
+    "LeadCapture": "Точка входа захвата кандидата",
+    "LeadCaptureLogRecord": "Запись лога захвата кандидата",
+    "ArrayValue": "Значение массива"
   },
   "scopeNamesPlural": {
     "Email": "Эл. письма",
@@ -37,19 +64,33 @@
     "Dashboard": "Панели виджетов",
     "InboundEmail": "Учетные записи эл. почты групп",
     "Stream": "Ленты",
-    "Import": "Импортировать результаты",
     "Template": "Шаблоны",
     "Job": "Задания",
     "EmailFilter": "Фильтры эл. почты",
     "Portal": "Порталы",
     "PortalRole": "Роли порталов",
-    "Attachment": "Вложения"
+    "Attachment": "Вложения",
+    "EmailFolder": "Папки Эл.почты",
+    "PortalUser": "Пользователи портала",
+    "ScheduledJobLogRecord": "Записи журнала запланированных работ",
+    "PasswordChangeRequest": "Запросы смены пароля",
+    "ActionHistoryRecord": "История действий",
+    "AuthToken": "Токены сессий аутентификации",
+    "UniqueId": "Уникальные IDs",
+    "LastViewed": "Последние просмотренные",
+    "AuthLogRecord": "Лог Аутентификации",
+    "AuthFailLogRecord": "Сбой Лога Аутентификации",
+    "EmailTemplateCategory": "Категории шаблонов эл. писем",
+    "Import": "Импорт",
+    "LeadCapture": "Захват кандидата",
+    "LeadCaptureLogRecord": "Лог захвата кандидата",
+    "ArrayValue": "Значения массива"
   },
   "labels": {
     "Misc": "Разное",
     "Merge": "Объединить",
     "None": "Нет",
-    "Home": "Home",
+    "Home": "Главная",
     "by": "по",
     "Saved": "Сохранено",
     "Error": "Ошибка",
@@ -165,7 +206,6 @@
     "Close": "Закрыть",
     "Yes": "Да",
     "No": "Нет",
-    "Select All Result": "Выбрать все результаты",
     "Value": "Значение",
     "Current version": "Текущая версия",
     "List View": "Отображать в виде списка",
@@ -181,25 +221,33 @@
     "Previous Entry": "Предыдущая запись",
     "Next Entry": "Следующая запись",
     "View List": "Просмотреть список",
-    "Attach File": "Прикрепить файл"
+    "Attach File": "Прикрепить файл",
+    "Skip": "Пропустить",
+    "Attribute": "Атрибут",
+    "Function": "Функция",
+    "Self-Assign": "Назначить на себя",
+    "Self-Assigned": "Назначен на себя",
+    "Return to Application": "Вернуться к приложению",
+    "Select All Results": "Выбрать все результати",
+    "Expand": "Развернуть",
+    "Collapse": "Свернуть",
+    "New notifications": "Новые уведомления",
+    "Manage Categories": "Управление категориями",
+    "Manage Folders": "Управление папками",
+    "Convert to": "Конвертировать в",
+    "View Personal Data": "Просмотреть личные данные",
+    "Personal Data": "Личные данные",
+    "Erase": "Стереть"
   },
   "messages": {
     "pleaseWait": "Пожалуйста, подождите...",
     "posting": "Размещается...",
     "confirmLeaveOutMessage": "Вы действительно хотите покинуть эту форму?",
     "notModified": "Вы не внесли изменения в запись",
-    "duplicate": "Создаваемая запись является дубликатом уже существующей",
     "fieldIsRequired": "{field} обязательно",
-    "fieldShouldBeEmail": "{field} должно быть адресом эл. почты",
-    "fieldShouldBeFloat": "{field} должно быть дробным числом",
-    "fieldShouldBeInt": "{field} должно быть целым числом",
-    "fieldShouldBeDate": "{field} должно быть датой",
-    "fieldShouldBeDatetime": "{field} должно быть датой/временем",
     "fieldShouldAfter": "{field} должно быть после {otherField}",
     "fieldShouldBefore": "{field} должно быть до {otherField}",
     "fieldShouldBeBetween": "{field} должно быть между {min} и {max}",
-    "fieldShouldBeLess": "{field} должно быть меньше чем {value}",
-    "fieldShouldBeGreater": "{field} должно быть больше чем {value}",
     "fieldBadPasswordConfirm": "{field} подтверждено неверно",
     "resetPreferencesDone": "Были восстановлены значения по умолчанию",
     "confirmation": "Вы уверены?",
@@ -215,13 +263,30 @@
     "massRemoveResultSingle": "{count} запись была удалена",
     "noRecordsRemoved": "Записи не были удалены",
     "clickToRefresh": "Нажмите для обновления",
-    "streamPostInfo": "Введите <strong>@username</strong> чтобы упомянуть пользователей в сообщении.\n\nДоступный синтаксис разметки:\n`<code>код</code>`\n**<strong>важный текст</strong>**\n*<em>эмоционально выделенный текст</em>*\n~<del>удаленный текст</del>~\n> цитата\n[текст ссылки](URL)",
     "writeYourCommentHere": "Оставьте свою заметку здесь",
     "writeMessageToUser": "Оставить сообщение для {user}",
-    "writeMessageToSelf": "Оставить сообщение для себя",
     "typeAndPressEnter": "Введите и нажмите enter",
     "checkForNewNotifications": "Проверить новые оповещения",
-    "checkForNewNotes": "Проверить новые события в Ленте"
+    "duplicate": "Создаваемая запись является дубликатом уже существующей",
+    "dropToAttach": "Перетащите чтоб прикрепить",
+    "writeMessageToSelf": "Оставить сообщение для себя",
+    "checkForNewNotes": "Проверить новые события в Ленте",
+    "internalPost": "Сообщение будет видно только внутренним пользователям",
+    "done": "Готово",
+    "confirmMassFollow": "Вы уверены, что хотите подписаться на выбранные записи?",
+    "confirmMassUnfollow": "Вы уверены, что хотите отписаться от выбранных записей?",
+    "massFollowZeroResult": "Не на что подписываться",
+    "massUnfollowZeroResult": "Не от чего отписываться",
+    "internalPostTitle": "Сообщение видно только внутренним пользователям",
+    "loading": "Загрузка ...",
+    "saving": "Сохраняется ...",
+    "fieldMaxFileSizeError": "Размер файла не должен превышать {max} Мб.",
+    "fieldShouldBeLess": "{field} должно быть меньше чем {value}",
+    "fieldShouldBeGreater": "{field} должно быть больше чем {value}",
+    "fieldIsUploading": "Выполняется загрузка",
+    "streamPostInfo": "Введите <strong>@username</strong> чтобы упомянуть пользователей в сообщении.\n\nДоступный синтаксис разметки:\n`<code>код</code>`\n**<strong>важный текст</strong>**\n*<em>эмоционально выделенный текст</em>*\n~<del>удаленный текст</del>~\n> цитата\n[текст ссылки](URL)",
+    "erasePersonalDataConfirmation": "Отмеченные поля будут стерты навсегда. Вы уверены?",
+    "massPrintPdfMaxCountError": "Невозможно напечатать больше {maxCount} записей."
   },
   "boolFilters": {
     "onlyMy": "Только мои",
@@ -235,7 +300,11 @@
     "remove": "Удалить",
     "merge": "Объединить",
     "massUpdate": "Обновить все",
-    "export": "Экспортировать"
+    "export": "Экспортировать",
+    "follow": "Подписаться",
+    "unfollow": "Вы уверены, что хотите отписаться от выбранных записей?",
+    "convertCurrency": "Конвертировать валюту",
+    "printPdf": "Распечатать в PDF"
   },
   "fields": {
     "name": "Название",
@@ -261,7 +330,13 @@
     "phoneNumberOther": "Телефон (Дополнительно)",
     "order": "Порядок",
     "parent": "Источник",
-    "children": "Потомок"
+    "children": "Потомок",
+    "emailAddressData": "Данные адреса эл. почты",
+    "phoneNumberData": "Данные телефонного номера",
+    "names": "Названия",
+    "emailAddressIsOptedOut": "Эл. адрес не участвует в рассылке массовых сообщений",
+    "targetListIsOptedOut": "Отписалось (Списки целей)",
+    "type": "Тип"
   },
   "links": {
     "assignedUser": "Ответственный",
@@ -275,7 +350,9 @@
     "children": "Потомок"
   },
   "dashlets": {
-    "Stream": "Лента"
+    "Stream": "Лента",
+    "Emails": "Моя почта",
+    "Records": "Список записей"
   },
   "notificationMessages": {
     "assign": "Вам было назначено {entityType} {entity}",
@@ -295,7 +372,6 @@
     "postTargetYou": "{user} оставил сообщение для Вас",
     "postTargetYouAndOthers": "{user} оставил сообщение для {target} и для Вас",
     "postTargetAll": "{user} оставил сообщение для всех",
-    "postTargetSelf": "{user} оставил сообщение для себя",
     "mentionInPost": "{user} упомянул {mentioned} в {entityType} {entity}",
     "mentionYouInPost": "{user} упомянул Вас в {entityType} {entity}",
     "mentionInPostTarget": "{user} упомянул {mentioned} в сообщении",
@@ -306,9 +382,7 @@
     "createThis": "{user} создал {entityType}",
     "createAssignedThis": "{user} создал {entityType} назначил {assignee}",
     "createAssigned": "{user} создал {entityType} {entity} (кому) {assignee}",
-    "createAssignedYou": "{user} создал {entityType} {entity} Вам",
     "assign": "{user} назначил {entityType} {entity} (кому) {assignee}",
-    "assignYou": "{user} назначил {entityType} {entity} Вам",
     "assignThis": "{user} назначил {entityType} {assignee}",
     "postThis": "{user} оставил сообщение",
     "attachThis": "{user} прикрепил",
@@ -329,59 +403,14 @@
     "emailReceivedInitial": "Получено эл. письмо: {entityType} {entity} создано",
     "emailSent": "{by} отправил эл. письмо относящееся к {entityType} {entity}",
     "emailSentThis": "{by} отправил эл. письмо",
-    "postTargetSelf": "{user} отсавил сообщение у себя на ленте",
+    "postTargetSelf": "{user} оставил сообщение у себя на ленте",
+    "postTargetSelfAndOthers": "{user} оставил сообщение для {target} и для себя",
+    "createAssignedYou": "{user} создал {entityType} {entity} Вам",
+    "createAssignedThisSelf": "{user} создал этот {entityType} self-assigned",
+    "createAssignedSelf": "{user} создал {entityType} {entity} self-assigned",
+    "assignYou": "{user} назначил {entityType} {entity} Вам",
     "assignThisSelf": "{user} назначил {entityType} на себя",
-    "assignSelf": "{user} назначил {entityType} {entity} на себя",
-    "postTargetSelfAndOthers": "{user} оставил сообщение для {target} и для себя"
-  },
-  "streamMessagesMale": {
-    "postTargetSelf": "{user} отсавил сообщение у себя на ленте",
-    "assignThisSelf": "{user} назначил {entityType} на себя",
-    "assignSelf": "{user} назначил {entityType} {entity} на себя",
-    "postTargetSelfAndOthers": "{user} оставил сообщение для {target} и для себя"
-  },
-  "streamMessagesFemale": {
-    "post": "{user} оставила примечание к {entityType} {entity}",
-    "attach": "{user} прикрепила к {entityType} {entity}",
-    "status": "{user} обновила {field} (чего) {entityType} {entity}",
-    "update": "{user} обновила {entityType} {entity}",
-    "postTargetTeam": "{user} оставила сообщение для группы {target}",
-    "postTargetTeams": "{user} оставила сообщение для групп {target}",
-    "postTargetPortal": "{user} оставила сообщение для портала {target}",
-    "postTargetPortals": "{user} оставила сообщение для порталов {target}",
-    "postTarget": "{user} оставила сообщение для {target}",
-    "postTargetYou": "{user} оставила сообщение для Вас",
-    "postTargetYouAndOthers": "{user} оставила сообщение для {target} и для Вас",
-    "postTargetAll": "{user} оставила сообщение для всех",
-    "postTargetSelf": "{user} оставила сообщение для себя",
-    "postTargetSelfAndOthers": "{user} оставила сообщение для {target} и для себя",
-    "mentionInPost": "{user} упомянул {mentioned} в {entityType} {entity}",
-    "mentionYouInPost": "{user} упомянула Вас в {entityType} {entity}",
-    "mentionInPostTarget": "{user} упомянула {mentioned} в сообщении",
-    "mentionYouInPostTarget": "{user} упомянула Вас в сообщении для {target}",
-    "mentionYouInPostTargetAll": "{user} упомянула Вас в сообщении для всех",
-    "mentionYouInPostTargetNoTarget": "{user} упомянула Вас в сообщении",
-    "create": "{user} создала {entityType} {entity}",
-    "createThis": "{user} создала {entityType}",
-    "createAssignedThis": "{user} создала {entityType} назначил {assignee}",
-    "createAssigned": "{user} создала {entityType} {entity} (кому) {assignee}",
-    "createAssignedYou": "{user} создала {entityType} {entity} Вам",
-    "assign": "{user} назначила {entityType} {entity} (кому) {assignee}",
-    "assignYou": "{user} назначила {entityType} {entity} Вам",
-    "assignThis": "{user} назначила {entityType} {assignee}",
-    "postThis": "{user} оставил сообщение",
-    "attachThis": "{user} прикрепила",
-    "statusThis": "{user} обновила {field}",
-    "updateThis": "{user} обновила {entityType}",
-    "createRelatedThis": "{user} создала {relatedEntityType} {relatedEntity} относящееся к {entityType}",
-    "createRelated": "{user} создала {relatedEntityType} {relatedEntity} относящееся к {entityType} {entity}",
-    "relate": "{user} связала {relatedEntityType} {relatedEntity} с {entityType} {entity}",
-    "relateThis": "{user} связала {relatedEntityType} {relatedEntity} с этим {entityType}",
-    "emailSent": "{by} отправила эл. письмо относящееся к {entityType} {entity}",
-    "emailSentThis": "{by} отправила эл. письмо",
-    "postTargetSelf": "{user} отсавила сообщение у себя на ленте",
-    "assignThisSelf": "{user} назначила {entityType} на себя",
-    "assignSelf": "{user} назначила {entityType} {entity} на себя"
+    "assignSelf": "{user} назначил {entityType} {entity} на себя"
   },
   "lists": {
     "monthNames": [
@@ -444,7 +473,7 @@
     "salutationName": {
       "Mr.": "Г-н.",
       "Mrs.": "Г-жа.",
-      "Ms.": "Г-жа.",
+      "Ms.": "Мисс.",
       "Dr.": "Д-р."
     },
     "language": {
@@ -518,7 +547,8 @@
       "vi_VN": "Вьетнамский",
       "zh_CN": "Упрощенный китайский (Китай)",
       "zh_HK": "Традиционный китайский (Гонконг)",
-      "zh_TW": "Традиционный китайский (Тайвань)"
+      "zh_TW": "Традиционный китайский (Тайвань)",
+      "es_MX": "Испанский (Мексика)"
     },
     "dateSearchRanges": {
       "on": "На",
@@ -538,21 +568,34 @@
       "lastSevenDays": "Последние 7 дней",
       "lastXDays": "Последние X дней",
       "nextXDays": "Следующие X дней",
-      "ever": "Ever"
+      "ever": "Когда-нибудь",
+      "isEmpty": "Пусто",
+      "olderThanXDays": "Более давний чем Х дней",
+      "afterXDays": "После X дней",
+      "nextMonth": "Следующий месяц"
     },
     "searchRanges": {
       "is": "Является",
       "isEmpty": "Пусто",
       "isNotEmpty": "Не пусто",
-      "isOneOf": "Один из",
-      "isFromTeams": "Из группы"
+      "isFromTeams": "Из группы",
+      "isOneOf": "Любой из",
+      "anyOf": "Любой из",
+      "isNot": "Не",
+      "isNotOneOf": "Ни один из",
+      "noneOf": "Ни один из"
     },
     "varcharSearchRanges": {
       "equals": "Равняется",
+      "like": "Как (%)",
       "startsWith": "Начинается с",
+      "endsWith": "Заканчивается",
       "contains": "Содержит",
       "isEmpty": "Пусто",
-      "isNotEmpty": "Не пусто"
+      "isNotEmpty": "Не пусто",
+      "notLike": "не как (%)",
+      "notContains": "Не включает в себя",
+      "notEquals": "Не равен"
     },
     "intSearchRanges": {
       "equals": "Равняется",
@@ -561,7 +604,9 @@
       "lessThan": "Меньше чем",
       "greaterThanOrEquals": "Больше чем или равняется",
       "lessThanOrEquals": "Меньше чем или равняется",
-      "between": "Между"
+      "between": "Между",
+      "isEmpty": "Пусто",
+      "isNotEmpty": "Не пусто"
     },
     "autorefreshInterval": {
       "0": "Нет",
@@ -581,7 +626,7 @@
   },
   "sets": {
     "summernote": {
-      "NOTICE": "You can find translation here: https://github.com/HackerWins/summernote/tree/master/lang",
+      "NOTICE": "Вы можете найти перевод здесь: https://github.com/HackerWins/summernote/tree/master/lang",
       "font": {
         "bold": "Полужирный",
         "italic": "Курсив",
@@ -682,12 +727,19 @@
       }
     }
   },
-  "themes": {
-    "Espo": "Espo",
-    "Sakura": "Sakura",
-    "EspoVertical": "Espo (вертикальная)",
-    "SakuraVertical": "Sakura (вертикальная)",
-    "Violet": "Violet",
-    "VioletVertical": "Violet (вертикальная)"
+  "streamMessagesMale": {
+    "postTargetSelfAndOthers": "{user} оставил сообщение для {target} и для себя"
+  },
+  "streamMessagesFemale": {
+    "postTargetSelfAndOthers": "{user} оставила сообщение для {target} и для себя"
+  },
+  "durationUnits": {
+    "d": "д",
+    "h": "ч",
+    "m": "м",
+    "s": "с"
+  },
+  "listViewModes": {
+    "list": "Список"
   }
 }

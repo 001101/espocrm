@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,19 +28,29 @@
  ************************************************************************/
 
 namespace Espo\Core\Utils\Database\Schema;
-use Espo\Core\Utils\Util,
-    Espo\ORM\Entity,
-    Espo\Core\Exceptions\Error;
 
+use Espo\Core\Utils\Util;
+use Espo\ORM\Entity;
+use Espo\Core\Exceptions\Error;
+use Espo\Core\Utils\Database\Schema\Utils as SchemaUtils;
 
 class Converter
 {
     private $dbalSchema;
+
+    private $databaseSchema;
+
     private $fileManager;
+
+    private $metadata;
 
     private $ormMeta = null;
 
-    private $customTablePath = 'application/Espo/Core/Utils/Database/Schema/tables';
+    protected $tablePaths = array(
+        'corePath' => 'application/Espo/Core/Utils/Database/Schema/tables',
+        'modulePath' => 'application/Espo/Modules/{*}/Core/Utils/Database/Schema/tables',
+        'customPath' => 'custom/Espo/Custom/Core/Utils/Database/Schema/tables',
+    );
 
     protected $typeList;
 
@@ -69,16 +79,31 @@ class Converter
         'foreign'
     );
 
-    public function __construct(\Espo\Core\Utils\File\Manager $fileManager)
+    protected $maxIndexLength;
+
+    public function __construct(\Espo\Core\Utils\Metadata $metadata, \Espo\Core\Utils\File\Manager $fileManager, \Espo\Core\Utils\Database\Schema\Schema $databaseSchema, \Espo\Core\Utils\Config $config = null)
     {
+        $this->metadata = $metadata;
         $this->fileManager = $fileManager;
+        $this->databaseSchema = $databaseSchema;
+        $this->config = $config;
 
         $this->typeList = array_keys(\Doctrine\DBAL\Types\Type::getTypesMap());
+    }
+
+    protected function getMetadata()
+    {
+        return $this->metadata;
     }
 
     protected function getFileManager()
     {
         return $this->fileManager;
+    }
+
+    protected function getConfig()
+    {
+        return $this->config;
     }
 
     /**
@@ -97,6 +122,20 @@ class Converter
         return $this->dbalSchema;
     }
 
+    protected function getDatabaseSchema()
+    {
+        return $this->databaseSchema;
+    }
+
+    protected function getMaxIndexLength()
+    {
+        if (!isset($this->maxIndexLength)) {
+            $this->maxIndexLength = $this->getDatabaseSchema()->getDatabaseHelper()->getMaxIndexLength();
+        }
+
+        return $this->maxIndexLength;
+    }
+
     /**
      * Schema convertation process
      *
@@ -112,11 +151,23 @@ class Converter
         //check if exist files in "Tables" directory and merge with ormMetadata
         $ormMeta = Util::merge($ormMeta, $this->getCustomTables($ormMeta));
 
+        if (isset($ormMeta['unsetIgnore'])) {
+            $protectedOrmMeta = array();
+            foreach ($ormMeta['unsetIgnore'] as $protectedKey) {
+                $protectedOrmMeta = Util::merge( $protectedOrmMeta, Util::fillArrayKeys($protectedKey, Util::getValueByKey($ormMeta, $protectedKey)) );
+            }
+            unset($ormMeta['unsetIgnore']);
+        }
+
         //unset some keys in orm
         if (isset($ormMeta['unset'])) {
             $ormMeta = Util::unsetInArray($ormMeta, $ormMeta['unset']);
             unset($ormMeta['unset']);
         } //END: unset some keys in orm
+
+        if (isset($protectedOrmMeta)) {
+            $ormMeta = Util::merge($ormMeta, $protectedOrmMeta);
+        }
 
         if (isset($entityList)) {
             $entityList = is_string($entityList) ? (array) $entityList : $entityList;
@@ -128,6 +179,9 @@ class Converter
         }
 
         $schema = $this->getSchema(true);
+
+        $indexList = SchemaUtils::getIndexList($ormMeta);
+        $fieldListExceededIndexMaxLength = SchemaUtils::getFieldListExceededIndexMaxLength($ormMeta, $this->getMaxIndexLength());
 
         $tables = array();
         foreach ($ormMeta as $entityName => $entityParams) {
@@ -144,9 +198,14 @@ class Converter
 
             $tables[$entityName] = $schema->createTable($tableName);
 
+            if (isset($entityParams['params']) && is_array($entityParams['params'])) {
+                foreach ($entityParams['params'] as $paramName => $paramValue) {
+                    $tables[$entityName]->addOption($paramName, $paramValue);
+                }
+            }
+
             $primaryColumns = array();
-            $uniqueColumns = array();
-            $indexList = array(); //list of indexes like array( array(comlumn1, column2), array(column3))
+
             foreach ($entityParams['fields'] as $fieldName => $fieldParams) {
 
                 if ((isset($fieldParams['notStorable']) && $fieldParams['notStorable']) || in_array($fieldParams['type'], $this->notStorableTypes)) {
@@ -166,43 +225,32 @@ class Converter
                     continue;
                 }
 
+                if (isset($fieldListExceededIndexMaxLength[$entityName]) && in_array($fieldName, $fieldListExceededIndexMaxLength[$entityName])) {
+                    $fieldParams['utf8mb3'] = true;
+                }
+
                 $columnName = Util::toUnderScore($fieldName);
                 if (!$tables[$entityName]->hasColumn($columnName)) {
                     $tables[$entityName]->addColumn($columnName, $fieldType, $this->getDbFieldParams($fieldParams));
                 }
-
-                //add unique
-                if ($fieldParams['type']!= 'id' && isset($fieldParams['unique'])) {
-                    $uniqueColumns = $this->getKeyList($columnName, $fieldParams['unique'], $uniqueColumns);
-                } //END: add unique
-
-                //add index. It can be defined in entityDefs as "index"
-                if (isset($fieldParams['index'])) {
-                    $indexList = $this->getKeyList($columnName, $fieldParams['index'], $indexList);
-                } //END: add index
             }
 
             $tables[$entityName]->setPrimaryKey($primaryColumns);
 
-            //add indexes
-            if (isset($entityParams['indexes']) && is_array($entityParams['indexes'])) {
-                foreach ($entityParams['indexes'] as $indexName => $indexParams) {
-                    if (is_array($indexParams['columns'])) {
-                        $tableIndexName = $this->generateIndexName($indexName, $entityName);
-                        $indexList[$tableIndexName] = Util::toUnderScore($indexParams['columns']);
-                    }
-                }
-            }
-            if (!empty($indexList)) {
-                foreach($indexList as $indexName => $indexItem) {
-                    $tableIndexName = is_string($indexName) ? $indexName : null;
-                    $tables[$entityName]->addIndex($indexItem, $tableIndexName);
-                }
-            }
+            if (!empty($indexList[$entityName])) {
+                foreach($indexList[$entityName] as $indexName => $indexParams) {
 
-            if (!empty($uniqueColumns)) {
-                foreach($uniqueColumns as $uniqueItem) {
-                    $tables[$entityName]->addUniqueIndex($uniqueItem);
+                    switch ($indexParams['type']) {
+                        case 'index':
+                        case 'fulltext':
+                            $indexFlagList = isset($indexParams['flags']) ? $indexParams['flags'] : array();
+                            $tables[$entityName]->addIndex($indexParams['columns'], $indexName, $indexFlagList);
+                            break;
+
+                        case 'unique':
+                            $tables[$entityName]->addUniqueIndex($indexParams['columns'], $indexName);
+                            break;
+                    }
                 }
             }
         }
@@ -220,15 +268,10 @@ class Converter
                     case 'manyMany':
                         $tableName = $relationParams['relationName'];
 
-                        //check for duplication tables
+                        //check for duplicate tables
                         if (!isset($tables[$tableName])) { //no needs to create the table if it already exists
                             $tables[$tableName] = $this->prepareManyMany($entityName, $relationParams, $tables);
                         }
-                        break;
-
-                    case 'belongsTo':
-                        $columnName = Util::toUnderScore($relationParams['key']);
-                        $tables[$entityName]->addIndex(array($columnName));
                         break;
                 }
             }
@@ -259,15 +302,22 @@ class Converter
         }
 
         $table = $this->getSchema()->createTable($tableName);
-        $table->addColumn('id', 'int', array('length'=>$this->defaultLength['int'], 'autoincrement' => true, 'notnull' => true,));  //'unique' => true,
+        $table->addColumn('id', 'int', $this->getDbFieldParams(array(
+            'type' => 'id',
+            'len' => $this->defaultLength['int'],
+            'autoincrement' => true,
+        )));
 
         //add midKeys to a schema
         $uniqueIndex = array();
         foreach($relationParams['midKeys'] as $index => $midKey) {
 
             $columnName = Util::toUnderScore($midKey);
-            $table->addColumn($columnName, $this->idParams['dbType'], array('length'=>$this->idParams['len']));
-            $table->addIndex(array($columnName));
+            $table->addColumn($columnName, $this->idParams['dbType'], $this->getDbFieldParams(array(
+                'type' => 'foreignId',
+                'len' => $this->idParams['len'],
+            )));
+            $table->addIndex(array($columnName), SchemaUtils::generateIndexName($columnName));
 
             $uniqueIndex[] = $columnName;
         }
@@ -280,7 +330,7 @@ class Converter
                 if (!isset($fieldParams['type'])) {
                     $fieldParams = array_merge($fieldParams, array(
                         'type' => 'varchar',
-                        'length' => $this->defaultLength['varchar'],
+                        'len' => $this->defaultLength['varchar'],
                     ));
                 }
 
@@ -296,11 +346,15 @@ class Converter
         }
 
         if (!empty($uniqueIndex)) {
-            $table->addUniqueIndex($uniqueIndex);
+            $table->addUniqueIndex($uniqueIndex, SchemaUtils::generateIndexName($columnName, 'unique'));
         }
         //END: add unique indexes
 
-        $table->addColumn('deleted', 'bool', array('default' => 0));
+        $table->addColumn('deleted', 'bool', $this->getDbFieldParams(array(
+            'type' => 'bool',
+            'default' => false,
+        )));
+
         $table->setPrimaryKey(array("id"));
 
         return $table;
@@ -311,13 +365,27 @@ class Converter
         $dbFieldParams = array();
 
         foreach($this->allowedDbFieldParams as $espoName => $dbalName) {
-
             if (isset($fieldParams[$espoName])) {
                 $dbFieldParams[$dbalName] = $fieldParams[$espoName];
             }
         }
 
+        $databaseParams = $this->getConfig()->get('database');
+        if (!isset($databaseParams['charset']) || $databaseParams['charset'] == 'utf8mb4') {
+            $dbFieldParams['platformOptions'] = array(
+                'collation' => 'utf8mb4_unicode_ci',
+            );
+        }
+
         switch ($fieldParams['type']) {
+            case 'id':
+            case 'foreignId':
+            case 'foreignType':
+                if ($this->getMaxIndexLength() < 3072) {
+                    $fieldParams['utf8mb3'] = true;
+                }
+                break;
+
             case 'array':
             case 'jsonArray':
             case 'text':
@@ -334,34 +402,23 @@ class Converter
                 break;
         }
 
-
-        if ( isset($fieldParams['autoincrement']) && $fieldParams['autoincrement'] ) {
+        if ($fieldParams['type'] != 'id' && isset($fieldParams['autoincrement']) && $fieldParams['autoincrement']) {
             $dbFieldParams['unique'] = true;
             $dbFieldParams['notnull'] = true;
+            $dbFieldParams['unsigned'] = true;
+        }
+
+        if (isset($fieldParams['utf8mb3']) && $fieldParams['utf8mb3']) {
+            $dbFieldParams['platformOptions'] = array(
+                'collation' => 'utf8_unicode_ci',
+            );
         }
 
         return $dbFieldParams;
     }
 
     /**
-     * Get key list (index, unique). Ex. index => true OR index => 'somename'
-     * @param  string $columnName Column name (underscore field name)
-     * @param  bool | string $keyValue
-     * @return array
-     */
-    protected function getKeyList($columnName, $keyValue, array $keyList)
-    {
-        if ($keyValue === true) {
-            $keyList[] = array($columnName);
-        } else if (is_string($keyValue)) {
-            $keyList[$keyValue][] = $columnName;
-        }
-
-        return $keyList;
-    }
-
-    /**
-     * Get custom table defenition in "application/Espo/Core/Utils/Database/Schema/tables/" and in metadata 'additionalTables'
+     * Get custom table definition in "application/Espo/Core/Utils/Database/Schema/tables/" and in metadata 'additionalTables'
      *
      * @param  array  $ormMeta
      *
@@ -369,15 +426,20 @@ class Converter
      */
     protected function getCustomTables(array $ormMeta)
     {
-        $customTables = array();
+        $customTables = $this->loadData($this->tablePaths['corePath']);
 
-        $fileList = $this->getFileManager()->getFileList($this->customTablePath, false, '\.php$', true);
+        if (!empty($this->tablePaths['modulePath'])) {
+            $moduleDir = strstr($this->tablePaths['modulePath'], '{*}', true);
+            $moduleList = isset($this->metadata) ? $this->getMetadata()->getModuleList() : $this->getFileManager()->getFileList($moduleDir, false, '', false);
 
-        foreach($fileList as $fileName) {
-            $fileData = $this->getFileManager()->getPhpContents( array($this->customTablePath, $fileName) );
-            if (is_array($fileData)) {
-                $customTables = Util::merge($customTables, $fileData);
+            foreach ($moduleList as $moduleName) {
+                $modulePath = str_replace('{*}', $moduleName, $this->tablePaths['modulePath']);
+                $customTables = Util::merge($customTables, $this->loadData($modulePath));
             }
+        }
+
+        if (!empty($this->tablePaths['customPath'])) {
+            $customTables = Util::merge($customTables, $this->loadData($this->tablePaths['customPath']));
         }
 
         //get custom tables from metdata 'additionalTables'
@@ -404,13 +466,13 @@ class Converter
 
             $dependentEntities[] = $entityName;
 
-            foreach ($ormMeta[$entityName]['relations'] as $relationName => $relationParams) {
-
-                if (isset($relationParams['entity'])) {
-                    $relationEntity = $relationParams['entity'];
-
-                    if (!in_array($relationEntity, $dependentEntities)) {
-                        $dependentEntities = $this->getDependentEntities($relationEntity, $ormMeta, $dependentEntities);
+            if (array_key_exists('relations', $ormMeta[$entityName])) {
+                foreach ($ormMeta[$entityName]['relations'] as $relationName => $relationParams) {
+                    if (isset($relationParams['entity'])) {
+                        $relationEntity = $relationParams['entity'];
+                        if (!in_array($relationEntity, $dependentEntities)) {
+                            $dependentEntities = $this->getDependentEntities($relationEntity, $ormMeta, $dependentEntities);
+                        }
                     }
                 }
             }
@@ -420,21 +482,23 @@ class Converter
         return $dependentEntities;
     }
 
-    /**
-     * Generate index name
-     *
-     * @return string
-     */
-    protected function generateIndexName($name, $entityName)
+    protected function loadData($path)
     {
-        $names = array(
-            'IDX',
-        );
+        $tables = array();
 
-        $names[] = strtoupper( Util::toUnderScore($entityName) );
-        $names[] = strtoupper( Util::toUnderScore($name) );
+        if (!file_exists($path)) {
+            return $tables;
+        }
 
-        return implode('_', $names);
+        $fileList = $this->getFileManager()->getFileList($path, false, '\.php$', true);
+
+        foreach($fileList as $fileName) {
+            $fileData = $this->getFileManager()->getPhpContents( array($path, $fileName) );
+            if (is_array($fileData)) {
+                $tables = Util::merge($tables, $fileData);
+            }
+        }
+
+        return $tables;
     }
-
 }

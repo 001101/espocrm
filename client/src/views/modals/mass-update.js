@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,8 +32,6 @@ Espo.define('views/modals/mass-update', 'views/modal', function (Dep) {
 
         cssName: 'mass-update',
 
-        header: false,
-
         template: 'modals/mass-update',
 
         data: function () {
@@ -49,13 +47,11 @@ Espo.define('views/modals/mass-update', 'views/modal', function (Dep) {
             },
             'click a[data-action="add-field"]': function (e) {
                 var field = $(e.currentTarget).data('name');
-                var $ul = $(e.currentTarget).closest('ul');
-                $(e.currentTarget).parent().remove();
-                if ($ul.children().size() == 0) {
-                    $ul.parent().find('button').addClass('disabled');
-                }
                 this.addField(field);
             },
+            'click button[data-action="reset"]': function (e) {
+                this.reset();
+            }
         },
 
         setup: function () {
@@ -63,7 +59,8 @@ Espo.define('views/modals/mass-update', 'views/modal', function (Dep) {
                 {
                     name: 'update',
                     label: 'Update',
-                    style: 'danger'
+                    style: 'danger',
+                    disabled: true
                 },
                 {
                     name: 'cancel',
@@ -77,7 +74,7 @@ Espo.define('views/modals/mass-update', 'views/modal', function (Dep) {
             this.selectData = this.options.selectData;
             this.byWhere = this.options.byWhere;
 
-            this.header = this.translate(this.scope, 'scopeNamesPlural') + ' &raquo ' + this.translate('Mass Update');
+            this.headerHtml = this.translate(this.scope, 'scopeNamesPlural') + ' &raquo ' + this.translate('Mass Update');
 
             this.wait(true);
             this.getModelFactory().create(this.scope, function (model) {
@@ -95,22 +92,26 @@ Espo.define('views/modals/mass-update', 'views/modal', function (Dep) {
                 }.bind(this));
             }.bind(this));
 
-            this.fieldsToUpdate = [];
-        },
-
-        afterRender: function () {
-            $(this.containerSelector + ' button[data-name="update"]').addClass('disabled');
+            this.fieldList = [];
         },
 
         addField: function (name) {
-            $(this.containerSelector + ' button[data-name="update"]').removeClass('disabled');
+            this.enableButton('update');
+
+            this.$el.find('[data-action="reset"]').removeClass('hidden');
+
+            this.$el.find('ul.filter-list li[data-name="'+name+'"]').addClass('hidden');
+
+            if (this.$el.find('ul.filter-list li:not(.hidden)').length == 0) {
+                this.$el.find('button.select-field').addClass('disabled').attr('disabled', 'disabled');
+            }
 
             this.notify('Loading...');
             var label = this.translate(name, 'fields', this.scope);
-            var html = '<div class="cell form-group col-sm-6"><label class="control-label">'+label+'</label><div class="field" data-name="'+name+'" /></div>';
+            var html = '<div class="cell form-group col-sm-6" data-name="'+name+'"><label class="control-label">'+label+'</label><div class="field" data-name="'+name+'" /></div>';
             this.$el.find('.fields-container').append(html);
 
-            var type = Espo.Utils.upperCaseFirst(this.model.getFieldParam(name, 'type'));
+            var type = this.model.getFieldType(name);
 
             var viewName = this.model.getFieldParam(name, 'view') || this.getFieldManager().getViewName(type);
 
@@ -122,17 +123,19 @@ Espo.define('views/modals/mass-update', 'views/modal', function (Dep) {
                 },
                 mode: 'edit'
             }, function (view) {
-                this.fieldsToUpdate.push(name);
+                this.fieldList.push(name);
                 view.render();
                 view.notify(false);
             }.bind(this));
         },
 
         actionUpdate: function () {
+            this.disableButton('update');
+
             var self = this;
 
             var attributes = {};
-            this.fieldsToUpdate.forEach(function (field) {
+            this.fieldList.forEach(function (field) {
                 var view = self.getView(field);
                 _.extend(attributes, view.fetch());
             });
@@ -140,7 +143,7 @@ Espo.define('views/modals/mass-update', 'views/modal', function (Dep) {
             this.model.set(attributes);
 
             var notValid = false;
-            this.fieldsToUpdate.forEach(function (field) {
+            this.fieldList.forEach(function (field) {
                 var view = self.getView(field);
                 notValid = view.validate() || notValid;
             });
@@ -165,12 +168,31 @@ Espo.define('views/modals/mass-update', 'views/modal', function (Dep) {
                     },
                     error: function () {
                         self.notify('Error occurred', 'error');
-                    },
+                        self.enableButton('update');
+                    }
                 });
             } else {
                 this.notify('Not valid', 'error');
+                this.enableButton('update');
             }
         },
+
+        reset: function () {
+            this.fieldList.forEach(function (field) {
+                this.clearView(field);
+                this.$el.find('.cell[data-name="'+field+'"]').remove();
+            }, this);
+
+            this.fieldList = [];
+
+            this.model.clear();
+
+            this.$el.find('[data-action="reset"]').addClass('hidden');
+
+            this.$el.find('button.select-field').removeClass('disabled').removeAttr('disabled');
+            this.$el.find('ul.filter-list').find('li').removeClass('hidden');
+
+            this.disableButton('update');
+        }
     });
 });
-

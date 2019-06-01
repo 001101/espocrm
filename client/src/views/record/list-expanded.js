@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('views/record/list-expanded', 'views/record/list', function (Dep) {
+define('views/record/list-expanded', 'views/record/list', function (Dep) {
 
     return Dep.extend({
 
@@ -86,7 +86,8 @@ Espo.define('views/record/list-expanded', 'views/record/list', function (Dep) {
                     var type = e.type || model.getFieldType(e.name) || 'base';
 
                     var item = {
-                        name: e.name,
+                        name: e.name + 'Field',
+                        field: e.name,
                         view: e.view || model.getFieldParam(e.name, 'view') || this.getFieldManager().getViewName(type),
                         options: {
                             defs: {
@@ -106,8 +107,10 @@ Espo.define('views/record/list-expanded', 'views/record/list', function (Dep) {
 
             if ('right' in listLayout) {
                 if (listLayout.right != false) {
+                    var name = listLayout.right.name || 'right';
                     layout.right = {
-                        name: listLayout.right.name || 'right',
+                        field: name,
+                        name: name,
                         view: listLayout.right.view,
                         options: {
                             defs: {
@@ -131,7 +134,7 @@ Espo.define('views/record/list-expanded', 'views/record/list', function (Dep) {
         },
 
         getItemEl: function (model, item) {
-            return this.options.el + ' li[data-id="' + model.id + '"] .cell[data-name="' + item.name + '"]';
+            return this.options.el + ' li[data-id="' + model.id + '"] .cell[data-name="' + item.field + '"]';
         },
 
         getRowContainerHtml: function (id) {
@@ -150,7 +153,23 @@ Espo.define('views/record/list-expanded', 'views/record/list', function (Dep) {
             }
         },
 
+        fetchAttributeListFromLayout: function () {
+            var list = [];
+            if (this.listLayout.rows) {
+                this.listLayout.rows.forEach(function (row) {
+                    row.forEach(function (item) {
+                        if (!item.name) return;
+                        var field = item.name;
+                        var fieldType = this.getMetadata().get(['entityDefs', this.scope, 'fields', field, 'type']);
+                        if (!fieldType) return;
+                        this.getFieldManager().getEntityTypeFieldAttributeList(this.scope, field).forEach(function (attribute) {
+                            list.push(attribute);
+                        }, this);
+                    }, this);
+                }, this);
+            }
+            return list;
+        }
+
     });
 });
-
-

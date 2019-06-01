@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,9 +26,13 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('cache', [], function () {
+define('cache', [], function () {
 
-    var Cache = function () {
+    var Cache = function (cacheTimestamp) {
+        this.basePrefix = this.prefix;
+        if (cacheTimestamp) {
+            this.prefix =  this.basePrefix + '-' + cacheTimestamp;
+        }
         if (!this.get('app', 'timestamp')) {
             this.storeTimestamp();
         }
@@ -36,13 +40,14 @@ Espo.define('cache', [], function () {
 
     _.extend(Cache.prototype, {
 
-        _prefix: 'cache',
+        prefix: 'cache',
 
         handleActuality: function (cacheTimestamp) {
             var stored = parseInt(this.get('app', 'cacheTimestamp'));
             if (stored) {
                 if (stored !== cacheTimestamp) {
                     this.clear();
+                    this.set('app', 'cacheTimestamp', cacheTimestamp);
                     this.storeTimestamp();
                 }
             } else {
@@ -57,59 +62,71 @@ Espo.define('cache', [], function () {
             this.set('app', 'timestamp', frontendCacheTimestamp);
         },
 
-        _composeFullPrefix: function (type) {
-            return this._prefix + '-' + type;
+        composeFullPrefix: function (type) {
+            return this.prefix + '-' + type;
         },
 
-        _composeKey: function (type, name) {
-            return this._composeFullPrefix(type) + '-' + name;
+        composeKey: function (type, name) {
+            return this.composeFullPrefix(type) + '-' + name;
         },
 
-        _checkType: function (type) {
+        checkType: function (type) {
             if (typeof type === 'undefined' && toString.call(type) != '[object String]') {
-                throw new TypeError("Bad type \"" + type + "\" passed to Bull.Cacher().");
+                throw new TypeError("Bad type \"" + type + "\" passed to Cache().");
             }
         },
 
         get: function (type, name) {
-            this._checkType(type);
+            this.checkType(type);
 
-            var key = this._composeKey(type, name);
-            var stored = localStorage.getItem(key);
+            var key = this.composeKey(type, name);
+
+            try {
+                var stored = localStorage.getItem(key);
+            } catch (error) {
+                console.error(error);
+                return null;
+            }
+
             if (stored) {
-                var str = stored;
-                if (stored[0] == "{" || stored[0] == "[") {
-                    try    {
-                        str = JSON.parse(stored);
+                var result = stored;
+
+                if (stored.length > 9 && stored.substr(0, 9) === '__JSON__:') {
+                    var jsonString = stored.substr(9);
+                    try {
+                        result = JSON.parse(jsonString);
                     } catch (error) {
-                        str = stored;
+                        result = stored;
                     }
-                    stored = str;
                 }
-                return stored;
+                return result;
             }
             return null;
         },
 
         set: function (type, name, value) {
-            this._checkType(type);
-                var key = this._composeKey(type, name);
-            if (value instanceof Object) {
-                value = JSON.stringify(value);
+            this.checkType(type);
+            var key = this.composeKey(type, name);
+            if (value instanceof Object || Array.isArray(value)) {
+                value = '__JSON__:' + JSON.stringify(value);
             }
-            localStorage.setItem(key, value);
+            try {
+                localStorage.setItem(key, value);
+            } catch (error) {
+                console.error(error);
+            }
         },
 
         clear: function (type, name) {
             var reText;
             if (typeof type !== 'undefined') {
                 if (typeof name === 'undefined') {
-                    reText = '^' + this._composeFullPrefix(type);
+                    reText = '^' + this.composeFullPrefix(type);
                 } else {
-                    reText = '^' + this._composeKey(type, name);
+                    reText = '^' + this.composeKey(type, name);
                 }
             } else {
-                reText = '^' + this._prefix + '-';
+                reText = '^' + this.basePrefix + '-';
             }
             var re = new RegExp(reText);
             for (var i in localStorage) {
@@ -124,7 +141,3 @@ Espo.define('cache', [], function () {
     return Cache;
 
 });
-
-
-
-

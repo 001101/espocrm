@@ -1,9 +1,10 @@
 [
     "teams",
     "createdAt",
+    "createdBy",
     "emailAddress",
     "title",
-    "isAdmin",
+    "type",
     "isActive",
     "position",
     "portals",

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,28 @@ Espo.define('crm:views/mass-email/record/edit', 'views/record/edit', function (D
 
     return Dep.extend({
 
+        setup: function () {
+            Dep.prototype.setup.call(this);
+            this.initFieldsControl();
+        },
+
+        initFieldsControl: function () {
+            this.listenTo(this.model, 'change:smtpAccount', function (model, value, o) {
+                if (!o.ui) return;
+
+                if (!value || value === 'system') {
+                    this.model.set('fromAddress', this.getConfig().get('outboundEmailFromAddress') || '');
+                    this.model.set('fromName', this.getConfig().get('outboundEmailFromName') || '');
+                    return;
+                }
+                var smtpAccountView = this.getFieldView('smtpAccount');
+                if (!smtpAccountView) return;
+                if (!smtpAccountView.loadedOptionAddresses) return;
+                if (!smtpAccountView.loadedOptionAddresses[value]) return;
+                this.model.set('fromAddress', smtpAccountView.loadedOptionAddresses[value]);
+                this.model.set('fromName', smtpAccountView.loadedOptionFromNames[value]);
+            }, this);
+        }
+
     });
 });
-

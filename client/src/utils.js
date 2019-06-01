@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,10 +26,30 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('utils', [], function () {
+define('utils', [], function () {
+
     var Utils = Espo.utils = Espo.Utils = {
 
-        checkActionAccess: function (acl, obj, item) {
+        handleAction: function (viewObject, e) {
+            var $target = $(e.currentTarget);
+            var action = $target.data('action');
+            if (action) {
+                var data = $target.data();
+                var method = 'action' + Espo.Utils.upperCaseFirst(action);
+                if (typeof viewObject[method] == 'function') {
+                    viewObject[method].call(viewObject, data, e);
+                    e.preventDefault();
+                } else if (data.handler) {
+                    e.preventDefault();
+                    require(data.handler, function (Handler) {
+                        var handler = new Handler(viewObject);
+                        handler[method].call(handler, data, e);
+                    });
+                }
+            }
+        },
+
+        checkActionAccess: function (acl, obj, item, isPrecise) {
             var hasAccess = true;
             if (item.acl) {
                 if (!item.aclScope) {
@@ -37,7 +57,7 @@ Espo.define('utils', [], function () {
                         if (typeof obj == 'string' || obj instanceof String) {
                             hasAccess = acl.check(obj, item.acl);
                         } else {
-                            hasAccess = acl.checkModel(obj, item.acl);
+                            hasAccess = acl.checkModel(obj, item.acl, isPrecise);
                         }
                     } else {
                         hasAccess = acl.check(item.scope, item.acl);
@@ -45,8 +65,81 @@ Espo.define('utils', [], function () {
                 } else {
                     hasAccess = acl.check(item.aclScope, item.acl);
                 }
+            } else if (item.aclScope) {
+                hasAccess = acl.checkScope(item.aclScope);
             }
             return hasAccess;
+        },
+
+        checkAccessDataList: function (dataList, acl, user, entity, allowAllForAdmin) {
+            if (!dataList || !dataList.length) {
+                return true;
+            }
+
+            for (var i in dataList) {
+                var item = dataList[i];
+                if (item.scope) {
+                    if (item.action) {
+                        if (!acl.check(item.scope, item.action)) {
+                            return false;
+                        }
+                    } else {
+                        if (!acl.checkScope(item.scope)) {
+                            return false;
+                        }
+                    }
+                } else if (item.action) {
+                    if (entity) {
+                        if (!acl.check(entity, item.action)) {
+                            return false;
+                        }
+                    }
+                }
+                if (item.teamIdList) {
+                    if (user && !(allowAllForAdmin && user.isAdmin())) {
+                        var inTeam = false;
+                        user.getLinkMultipleIdList('teams').forEach(function (teamId) {
+                            if (~item.teamIdList.indexOf(teamId)) {
+                                inTeam = true;
+                            }
+                        });
+                        if (!inTeam) return false;
+                    }
+                }
+                if (item.portalIdList) {
+                    if (user && !(allowAllForAdmin && user.isAdmin())) {
+                        var inPortal = false;
+                        user.getLinkMultipleIdList('portals').forEach(function (portalId) {
+                            if (~item.portalIdList.indexOf(portalId)) {
+                                inPortal = true;
+                            }
+                        });
+                        if (!inPortal) return false;
+                    }
+                }
+                if (item.isPortalOnly) {
+                    if (user && !(allowAllForAdmin && user.isAdmin())) {
+                        if (!user.isPortal()) {
+                            return false;
+                        }
+                    }
+                } else if (item.inPortalDisabled) {
+                    if (user && !(allowAllForAdmin && user.isAdmin())) {
+                        if (user.isPortal()) {
+                            return false;
+                        }
+                    }
+                }
+
+                if (item.isAdminOnly) {
+                    if (user) {
+                        if (!user.isAdmin()) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
         },
 
         convert: function (string, p) {
@@ -183,4 +276,3 @@ Espo.define('utils', [], function () {
     return Utils;
 
 });
-

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@ use \Espo\Core\Exceptions\Forbidden;
 use \Espo\Core\Exceptions\NotFound;
 use \Espo\Core\Exceptions\BadRequest;
 
-
 class Email extends Record
 {
     protected function init()
@@ -48,7 +47,8 @@ class Email extends Record
             'preferences',
             'fileManager',
             'crypt',
-            'serviceFactory'
+            'serviceFactory',
+            'fileStorageManager'
         ]);
     }
 
@@ -56,13 +56,42 @@ class Email extends Record
 
     protected $getEntityBeforeUpdate = true;
 
+    protected $skipSelectTextAttributes = true;
+
     protected $allowedForUpdateAttributeList = [
         'parentType', 'parentId', 'parentName', 'teamsIds', 'teamsNames', 'assignedUserId', 'assignedUserName'
     ];
 
+    protected $mandatorySelectAttributeList = [
+        'name',
+        'createdById',
+        'dateSent',
+        'fromString',
+        'fromEmailAddressId',
+        'fromEmailAddressName',
+        'parentId',
+        'parentType',
+        'isHtml',
+        'isReplied',
+        'status',
+        'accountId',
+        'folderId',
+        'messageId',
+        'sentById',
+        'replyToString',
+        'hasAttachment'
+    ];
+
+    private $fromEmailAddressNameCache = [];
+
     protected function getFileManager()
     {
         return $this->getInjection('fileManager');
+    }
+
+    protected function getFileStorageManager()
+    {
+        return $this->getInjection('fileStorageManager');
     }
 
     protected function getMailSender()
@@ -85,6 +114,45 @@ class Email extends Record
         return $this->injections['serviceFactory'];
     }
 
+    public function getUserSmtpParams(string $userId)
+    {
+        $user = $this->getEntityManager()->getEntity('User', $userId);
+        if (!$user) return;
+
+        $fromAddress = $user->get('emailAddress');
+        if ($fromAddress)
+            $fromAddress = strtolower($fromAddress);
+
+        $preferences = $this->getEntityManager()->getEntity('Preferences', $user->id);
+        if (!$preferences) return;
+
+        $smtpParams = $preferences->getSmtpParams();
+        if ($smtpParams) {
+            if (array_key_exists('password', $smtpParams)) {
+                $smtpParams['password'] = $this->getCrypt()->decrypt($smtpParams['password']);
+            }
+        }
+
+        if (!$smtpParams && $fromAddress) {
+            $emailAccountService = $this->getServiceFactory()->create('EmailAccount');
+            $emailAccount = $emailAccountService->findAccountForUser($user, $fromAddress);
+
+            if ($emailAccount && $emailAccount->get('useSmtp')) {
+                $smtpParams = $emailAccountService->getSmtpParamsFromAccount($emailAccount);
+            }
+        }
+
+        if ($smtpParams) {
+            $smtpParams['fromName'] = $user->get('name');
+
+            if ($fromAddress) {
+                $this->applySmtpHandler($user->id, $fromAddress, $smtpParams);
+            }
+        }
+
+        return $smtpParams;
+    }
+
     protected function send(Entities\Email $entity)
     {
         $emailSender = $this->getMailSender();
@@ -96,39 +164,79 @@ class Email extends Record
 
         $primaryUserAddress = strtolower($this->getUser()->get('emailAddress'));
         $fromAddress = strtolower($entity->get('from'));
+        $originalFromAddress = $entity->get('from');
 
         if (empty($fromAddress)) {
-            throw new Error();
+            throw new Error("Can't send with empty from address.");
         }
+
+        $inboundEmail = null;
+        $emailAccount = null;
 
         $smtpParams = null;
         if (in_array($fromAddress, $userAddressList)) {
             if ($primaryUserAddress === $fromAddress) {
                 $smtpParams = $this->getPreferences()->getSmtpParams();
-            }
-            if (!$smtpParams) {
-                $smtpParams = $this->getSmtpParamsFromEmailAccount($entity->get('from'), $this->getUser()->id);
+                if ($smtpParams) {
+                    if (array_key_exists('password', $smtpParams)) {
+                        $smtpParams['password'] = $this->getCrypt()->decrypt($smtpParams['password']);
+                    }
+                }
             }
 
-            if ($smtpParams) {
-                if (array_key_exists('password', $smtpParams)) {
-                    $smtpParams['password'] = $this->getCrypt()->decrypt($smtpParams['password']);
+            $emailAccountService = $this->getServiceFactory()->create('EmailAccount');
+            $emailAccount = $emailAccountService->findAccountForUser($this->getUser(), $originalFromAddress);
+
+            if (!$smtpParams) {
+                if ($emailAccount && $emailAccount->get('useSmtp')) {
+                    $smtpParams = $emailAccountService->getSmtpParamsFromAccount($emailAccount);
                 }
+            }
+            if ($smtpParams) {
                 $smtpParams['fromName'] = $this->getUser()->get('name');
+            }
+        }
+
+        if ($smtpParams) {
+            if ($emailAddress) {
+                $this->applySmtpHandler($this->getUser()->id, $emailAddress, $smtpParams);
+            }
+            $emailSender->useSmtp($smtpParams);
+        }
+
+        if (!$smtpParams) {
+            $inboundEmailService = $this->getServiceFactory()->create('InboundEmail');
+            $inboundEmail = $inboundEmailService->findSharedAccountForUser($this->getUser(), $originalFromAddress);
+            if ($inboundEmail) {
+                $smtpParams = $inboundEmailService->getSmtpParamsFromAccount($inboundEmail);
+            }
+            if ($smtpParams) {
                 $emailSender->useSmtp($smtpParams);
             }
         }
 
         if (!$smtpParams && $fromAddress === strtolower($this->getConfig()->get('outboundEmailFromAddress'))) {
             if (!$this->getConfig()->get('outboundEmailIsShared')) {
-                throw new Error('Can not use system smtp. System SMTP is not shared.');
+                throw new Error('Can not use system SMTP. System account is not shared.');
             }
-            $emailSender->setParams(array(
-                'fromName' => $this->getUser()->get('name')
-            ));
+            $emailSender->setParams([
+                'fromName' => $this->getConfig()->get('outboundEmailFromName')
+            ]);
         }
 
-        $params = array();
+        if (!$smtpParams && !$this->getConfig()->get('outboundEmailIsShared')) {
+            throw new Error('No SMTP params found for '.$fromAddress.'.');
+        }
+
+        if (!$smtpParams) {
+            if (in_array($fromAddress, $userAddressList)) {
+                $emailSender->setParams([
+                    'fromName' => $this->getUser()->get('name')
+                ]);
+            }
+        }
+
+        $params = [];
 
         $parent = null;
         if ($entity->get('parentType') && $entity->get('parentId')) {
@@ -147,6 +255,8 @@ class Email extends Record
 
         $message = null;
 
+        $this->validateEmailAddresses($entity);
+
         try {
             $emailSender->send($entity, $params, $message);
         } catch (\Exception $e) {
@@ -157,18 +267,27 @@ class Email extends Record
             throw new Error($e->getMessage(), $e->getCode());
         }
 
-        if ($entity->get('from') && $message) {
-            $emailAccount = $this->getEntityManager()->getRepository('EmailAccount')->where(array(
-                'storeSentEmails' => true,
-                'emailAddress' => $entity->get('from'),
-                'assignedUserId' => $this->getUser()->id
-            ))->findOne();
-            if ($emailAccount) {
-                try {
-                    $emailAccountService = $this->getServiceFactory()->create('EmailAccount');
-                    $emailAccountService->storeSentMessage($emailAccount, $message);
-                } catch (\Exception $e) {
-                    $GLOBALS['log']->error("Could not store sent email (Email Account {$emailAccount->id}): " . $e->getMessage());
+        if ($message) {
+            if ($inboundEmail) {
+                $entity->addLinkMultipleId('inboundEmails', $inboundEmail->id);
+
+                if ($inboundEmail->get('storeSentEmails')) {
+                    try {
+                        $inboundEmailService = $this->getServiceFactory()->create('InboundEmail');
+                        $inboundEmailService->storeSentMessage($inboundEmail, $message);
+                    } catch (\Exception $e) {
+                        $GLOBALS['log']->error("Could not store sent email (Group Email Account {$inboundEmail->id}): " . $e->getMessage());
+                    }
+                }
+            } else if ($emailAccount) {
+                $entity->addLinkMultipleId('emailAccounts', $emailAccount->id);
+                if ($emailAccount->get('storeSentEmails')) {
+                    try {
+                        $emailAccountService = $this->getServiceFactory()->create('EmailAccount');
+                        $emailAccountService->storeSentMessage($emailAccount, $message);
+                    } catch (\Exception $e) {
+                        $GLOBALS['log']->error("Could not store sent email (Email Account {$emailAccount->id}): " . $e->getMessage());
+                    }
                 }
             }
         }
@@ -182,29 +301,53 @@ class Email extends Record
         $this->getEntityManager()->saveEntity($entity);
     }
 
-    protected function getSmtpParamsFromEmailAccount($address, $userId)
+    protected function applySmtpHandler(string $userId, string $emailAddress, array &$params)
     {
-        $emailAccount = $this->getEntityManager()->getRepository('EmailAccount')->where([
-            'emailAddress' => $address,
-            'assignedUserId' => $userId,
-            'active' => true,
-            'useSmtp' => true
-        ])->findOne();
+        $userData = $this->getEntityManager()->getRepository('UserData')->getByUserId($userId);
+        if ($userData) {
+            $smtpHandlers = $userData->get('smtpHandlers') ?? (object) [];
+            if (is_object($smtpHandlers)) {
+                if (isset($smtpHandlers->$emailAddress)) {
+                    $handlerClassName = $smtpHandlers->$emailAddress;
+                    try {
+                        $handler = $this->getInjection('injectableFactory')->createByClassName($handlerClassName);
+                    } catch (\Throwable $e) {
+                        $GLOBALS['log']->error("Send Email: Could not create Smtp Handler for {$emailAddress}. Error: " . $e->getMessage());
+                    }
+                    if (method_exists($handler, 'applyParams')) {
+                        $handler->applyParams($userId, $emailAddress, $params);
+                    }
+                }
+            }
+        }
+    }
 
-        if (!$emailAccount) return;
-
-        $smtpParams = array();
-        $smtpParams['server'] = $emailAccount->get('smtpHost');
-        if ($smtpParams['server']) {
-            $smtpParams['port'] = $emailAccount->get('smtpPort');
-            $smtpParams['auth'] = $emailAccount->get('smtpAuth');
-            $smtpParams['security'] = $emailAccount->get('smtpSecurity');
-            $smtpParams['username'] = $emailAccount->get('smtpUsername');
-            $smtpParams['password'] = $emailAccount->get('smtpPassword');
-            return $smtpParams;
+    public function validateEmailAddresses(\Espo\Entities\Email $entity)
+    {
+        $from = $entity->get('from');
+        if ($from) {
+            if (!filter_var($from, \FILTER_VALIDATE_EMAIL)) {
+                throw new Error('From email address is not valid.');
+            }
         }
 
-        return;
+        foreach ($entity->getToList() as $address) {
+            if (!filter_var($address, \FILTER_VALIDATE_EMAIL)) {
+                throw new Error('To email address is not valid.');
+            }
+        }
+
+        foreach ($entity->getCcList() as $address) {
+            if (!filter_var($address, \FILTER_VALIDATE_EMAIL)) {
+                throw new Error('CC email address is not valid.');
+            }
+        }
+
+        foreach ($entity->getBccList() as $address) {
+            if (!filter_var($address, \FILTER_VALIDATE_EMAIL)) {
+                throw new Error('BCC email address is not valid.');
+            }
+        }
     }
 
     protected function getStreamService()
@@ -215,9 +358,9 @@ class Email extends Record
         return $this->streamService;
     }
 
-    public function createEntity($data)
+    public function create($data)
     {
-        $entity = parent::createEntity($data);
+        $entity = parent::create($data);
 
         if ($entity && $entity->get('status') == 'Sending') {
             $this->send($entity);
@@ -226,7 +369,7 @@ class Email extends Record
         return $entity;
     }
 
-    protected function beforeCreate(Entity $entity, array $data = array())
+    protected function beforeCreateEntity(Entity $entity, $data)
     {
         if ($entity->get('status') == 'Sending') {
             $messageId = \Espo\Core\Mail\Sender::generateMessageId($entity);
@@ -234,7 +377,7 @@ class Email extends Record
         }
     }
 
-    protected function afterUpdate(Entity $entity, array $data = array())
+    protected function afterUpdateEntity(Entity $entity, $data)
     {
         if ($entity && $entity->get('status') == 'Sending') {
             $this->send($entity);
@@ -263,23 +406,19 @@ class Email extends Record
         $this->getEntityManager()->getRepository('Email')->loadBccField($entity);
     }
 
+    public function loadReplyToField(Entity $entity)
+    {
+        $this->getEntityManager()->getRepository('Email')->loadReplyToField($entity);
+    }
+
     public function getEntity($id = null)
     {
-        $entity = $this->getRepository()->get($id);
-        if (!empty($entity) && !empty($id)) {
-            $this->loadAdditionalFields($entity);
+        $entity = parent::getEntity($id);
 
-            if (!$this->getAcl()->check($entity, 'read')) {
-                throw new Forbidden();
-            }
-        }
-        if (!empty($entity)) {
-            $this->prepareEntityForOutput($entity);
-        }
-
-        if (!empty($entity) && !empty($id)) {
+        if (!empty($entity) && !empty($id) && !$entity->get('isRead')) {
             $this->markAsRead($entity->id);
         }
+
         return $entity;
     }
 
@@ -291,6 +430,7 @@ class Email extends Record
         $this->loadToField($entity);
         $this->loadCcField($entity);
         $this->loadBccField($entity);
+        $this->loadReplyToField($entity);
 
         $this->loadNameHash($entity);
 
@@ -366,6 +506,18 @@ class Email extends Record
                 user_id = " . $pdo->quote($userId) . "
         ";
         $pdo->query($sql);
+
+        $sql = "
+            UPDATE notification SET `read` = 1
+            WHERE
+                `deleted` = 0 AND
+                `type` = 'EmailReceived' AND
+                `related_type` = 'Email' AND
+                `read` = 0 AND
+                `user_id` = " . $pdo->quote($userId) . "
+        ";
+        $pdo->query($sql);
+
         return true;
     }
 
@@ -383,6 +535,9 @@ class Email extends Record
                 email_id = " . $pdo->quote($id) . "
         ";
         $pdo->query($sql);
+
+        $this->markNotificationAsRead($id, $userId);
+
         return true;
     }
 
@@ -451,7 +606,27 @@ class Email extends Record
                 email_id = " . $pdo->quote($id) . "
         ";
         $pdo->query($sql);
+
+        $this->markNotificationAsRead($id, $userId);
+
         return true;
+    }
+
+    public function markNotificationAsRead($id, $userId)
+    {
+        $pdo = $this->getEntityManager()->getPDO();
+
+        $sql = "
+            UPDATE notification SET `read` = 1
+            WHERE
+                `deleted` = 0 AND
+                `type` = 'EmailReceived' AND
+                `related_type` = 'Email' AND
+                `related_id` = " . $pdo->quote($id) ." AND
+                `read` = 0 AND
+                `user_id` = " . $pdo->quote($userId) . "
+        ";
+        $pdo->query($sql);
     }
 
     public function retrieveFromTrash($id, $userId = null)
@@ -502,6 +677,21 @@ class Email extends Record
         return $fromName;
     }
 
+    static public function parseFromAddress($string)
+    {
+        $fromAddress = '';
+        if ($string) {
+            if (stripos($string, '<') !== false) {
+                if (preg_match('/<(.*)>/', $string, $matches)) {
+                    $fromAddress = trim($matches[1]);
+                }
+            } else {
+                $fromAddress = $string;
+            }
+        }
+        return $fromAddress;
+    }
+
     public function loadAdditionalFieldsForList(Entity $entity)
     {
         parent::loadAdditionalFieldsForList($entity);
@@ -512,7 +702,7 @@ class Email extends Record
         }
 
         $status = $entity->get('status');
-        if (in_array($entity->get('fromEmailAddressId'), $userEmailAdddressIdList)) {
+        if (in_array($entity->get('fromEmailAddressId'), $userEmailAdddressIdList) || $entity->get('createdById') === $this->getUser()->id) {
             $entity->loadLinkMultipleField('toEmailAddresses');
             $idList = $entity->get('toEmailAddressesIds');
             $names = $entity->get('toEmailAddressesNames');
@@ -520,7 +710,7 @@ class Email extends Record
             if (!empty($idList)) {
                 $arr = [];
                 foreach ($idList as $emailAddressId) {
-                    $person = $this->getEntityManager()->getRepository('EmailAddress')->getEntityByAddressId($emailAddressId);
+                    $person = $this->getEntityManager()->getRepository('EmailAddress')->getEntityByAddressId($emailAddressId, null, true);
                     if ($person) {
                         $arr[] = $person->get('name');
                     } else {
@@ -532,17 +722,25 @@ class Email extends Record
         } else {
             $fromEmailAddressId = $entity->get('fromEmailAddressId');
             if (!empty($fromEmailAddressId)) {
-                $person = $this->getEntityManager()->getRepository('EmailAddress')->getEntityByAddressId($fromEmailAddressId);
-                if ($person) {
-                    $entity->set('personStringData', $person->get('name'));
-                } else {
-                    $fromName = self::parseFromName($entity->get('fromString'));
-                    if (!empty($fromName)) {
-                        $entity->set('personStringData', $fromName);
+                if (!array_key_exists($fromEmailAddressId, $this->fromEmailAddressNameCache)) {
+                    $person = $this->getEntityManager()->getRepository('EmailAddress')->getEntityByAddressId($fromEmailAddressId, null, true);
+                    if ($person) {
+                        $fromName = $person->get('name');
                     } else {
-                        $entity->set('personStringData', $entity->get('fromEmailAddressName'));
+                        $fromName = null;
+                    }
+                    $this->fromEmailAddressNameCache[$fromEmailAddressId] = $fromName;
+                }
+                $fromName = $this->fromEmailAddressNameCache[$fromEmailAddressId];
+
+                if (!$fromName) {
+                    $fromName = $entity->get('fromName');
+                    if (!$fromName) {
+                        $fromName = $entity->get('fromEmailAddressName');
                     }
                 }
+
+                $entity->set('personStringData', $fromName);
             }
         }
     }
@@ -576,7 +774,7 @@ class Email extends Record
         }
     }
 
-    public function loadNameHash(Entity $entity, array $fieldList = ['from', 'to', 'cc'])
+    public function loadNameHash(Entity $entity, array $fieldList = ['from', 'to', 'cc', 'bcc', 'replyTo'])
     {
         $this->getEntityManager()->getRepository('Email')->loadNameHash($entity, $fieldList);
     }
@@ -586,7 +784,7 @@ class Email extends Record
         $searchByEmailAddress = false;
         if (!empty($params['where']) && is_array($params['where'])) {
             foreach ($params['where'] as $i => $p) {
-                if (!empty($p['field']) && $p['field'] == 'emailAddress') {
+                if (!empty($p['attribute']) && $p['attribute'] == 'emailAddress') {
                     $searchByEmailAddress = true;
                     $emailAddress = $p['value'];
                     unset($params['where'][$i]);
@@ -639,45 +837,68 @@ class Email extends Record
                 $attachment->set('global', $source->get('global'));
                 $attachment->set('name', $source->get('name'));
                 $attachment->set('sourceId', $source->getSourceId());
+                $attachment->set('storage', $source->get('storage'));
 
                 if (!empty($parentType) && !empty($parentId)) {
                     $attachment->set('parentType', $parentType);
                     $attachment->set('parentId', $parentId);
                 }
 
-                if ($this->getFileManager()->isFile('data/upload/' . $source->getSourceId())) {
+                if ($this->getFileStorageManager()->isFile($source)) {
                     $this->getEntityManager()->saveEntity($attachment);
-
-                    $this->getFileManager()->putContents('data/upload/' . $attachment->id, $contents);
+                    $contents = $this->getFileStorageManager()->getContents($source);
+                    $this->getFileStorageManager()->putContents($attachment, $contents);
                     $ids[] = $attachment->id;
                     $names->{$attachment->id} = $attachment->get('name');
                 }
             }
         }
 
-        return array(
+        return [
             'ids' => $ids,
             'names' => $names
-        );
+        ];
     }
 
     public function sendTestEmail($data)
     {
+        $smtpParams = $data;
+
+        if (empty($smtpParams['auth'])) {
+            unset($smtpParams['username']);
+            unset($smtpParams['password']);
+        }
+
+        $userId = $data['userId'] ?? null;
+        $fromAddress = $data['fromAddress'] ?? null;
+
+        if ($userId) {
+            if ($userId !== $this->getUser()->id && !$this->getUser()->isAdmin()) {
+                throw new Forbidden();
+            }
+        }
+
         $email = $this->getEntityManager()->getEntity('Email');
 
-        $email->set(array(
+        $email->set([
             'subject' => 'EspoCRM: Test Email',
             'isHtml' => false,
-            'to' => $data['emailAddress']
-        ));
+            'to' => $data['emailAddress'],
+        ]);
+
+        if ($userId) {
+            if ($fromAddress) {
+                $this->applySmtpHandler($userId, $fromAddress, $smtpParams);
+            }
+        }
 
         $emailSender = $this->getMailSender();
-        $emailSender->useSmtp($data)->send($email);
+        $emailSender->useSmtp($smtpParams)->send($email);
 
         return true;
     }
 
-    protected function beforeUpdate(Entity $entity, array $data = array())
+    protected function beforeUpdateEntity(Entity $entity, $data)
     {
         $skipFilter = false;
 
@@ -687,6 +908,10 @@ class Email extends Record
 
         if ($entity->isManuallyArchived()) {
             $skipFilter = true;
+        } else {
+            if ($entity->isAttributeChanged('dateSent')) {
+                $entity->set('dateSent', $entity->getFetched('dateSent'));
+            }
         }
 
         if ($entity->get('status') === 'Draft') {
@@ -695,6 +920,10 @@ class Email extends Record
 
         if ($entity->get('status') === 'Sending' && $entity->getFetched('status') === 'Draft') {
             $skipFilter = true;
+        }
+
+        if ($entity->isAttributeChanged('status') && $entity->getFetched('status') === 'Archived') {
+            $entity->set('status', 'Archived');
         }
 
         if (!$skipFilter) {
@@ -718,9 +947,11 @@ class Email extends Record
         $selectParams = $selectManager->getEmptySelectParams();
         $selectManager->applyAccess($selectParams);
 
+        $draftsSelectParams = $selectParams;
+
         $selectParams['whereClause'][] = $selectManager->getWherePartIsNotReadIsTrue();
 
-        $folderIdList = ['inbox'];
+        $folderIdList = ['inbox', 'drafts'];
 
         $emailFolderList = $this->getEntityManager()->getRepository('EmailFolder')->where(['assignedUserId' => $this->getUser()->id])->find();
         foreach ($emailFolderList as $folder) {
@@ -728,7 +959,11 @@ class Email extends Record
         }
 
         foreach ($folderIdList as $folderId) {
-            $folderSelectParams = $selectParams;
+            if ($folderId === 'drafts') {
+                $folderSelectParams = $draftsSelectParams;
+            } else {
+                $folderSelectParams = $selectParams;
+            }
             $selectManager->applyFolder($folderId, $folderSelectParams);
             $selectManager->addUsersJoin($folderSelectParams);
             $data[$folderId] = $this->getEntityManager()->getRepository('Email')->count($folderSelectParams);
@@ -736,5 +971,14 @@ class Email extends Record
 
         return $data;
     }
-}
 
+    public function isPermittedAssignedUser(Entity $entity)
+    {
+        return true;
+    }
+
+    public function isPermittedAssignedUsers(Entity $entity)
+    {
+        return true;
+    }
+}

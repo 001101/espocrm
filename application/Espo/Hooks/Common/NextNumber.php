@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ use Espo\Core\Utils\Util;
 
 class NextNumber extends \Espo\Core\Hooks\Base
 {
-    public static $order = 10;
+    public static $order = 9;
 
     protected function init()
     {
@@ -64,35 +64,28 @@ class NextNumber extends \Espo\Core\Hooks\Base
 
         foreach ($fieldDefs as $fieldName => $defs) {
             if (isset($defs['type']) && $defs['type'] === 'number') {
+                if (!empty($options['import'])) {
+                    if ($entity->has($fieldName)) {
+                        continue;
+                    }
+                }
                 if (!$entity->isNew()) {
                     if ($entity->isAttributeChanged($fieldName)) {
                         $entity->set($fieldName, $entity->getFetched($fieldName));
                     }
                     continue;
                 }
+                $this->getEntityManager()->getPdo()->query('LOCK TABLES `next_number` WRITE');
                 $nextNumber = $this->getEntityManager()->getRepository('NextNumber')->where(array(
                     'fieldName' => $fieldName,
                     'entityType' => $entity->getEntityType()
                 ))->findOne();
-                if (!$nextNumber) continue;
+                if (!$nextNumber) {
+                    $nextNumber = $this->getEntityManager()->getEntity('NextNumber');
+                    $nextNumber->set('entityType', $entity->getEntityType());
+                    $nextNumber->set('fieldName', $fieldName);
+                }
                 $entity->set($fieldName, $this->composeNumberAttribute($nextNumber));
-            }
-        }
-    }
-
-    public function afterSave(Entity $entity, array $options = array())
-    {
-        if (!$entity->isNew()) return;
-
-        $fieldDefs = $this->getMetadata()->get(['entityDefs', $entity->getEntityType(), 'fields'], array());
-
-        foreach ($fieldDefs as $fieldName => $defs) {
-            if (isset($defs['type']) && $defs['type'] === 'number') {
-                $nextNumber = $this->getEntityManager()->getRepository('NextNumber')->where(array(
-                    'fieldName' => $fieldName,
-                    'entityType' => $entity->getEntityType()
-                ))->findOne();
-                if (!$nextNumber) continue;
 
                 $value = $nextNumber->get('value');
                 if (!$value) {
@@ -102,10 +95,11 @@ class NextNumber extends \Espo\Core\Hooks\Base
 
                 $nextNumber->set('value', $value);
                 $this->getEntityManager()->saveEntity($nextNumber);
+
+                $this->getEntityManager()->getPdo()->query('UNLOCK TABLES');
             }
         }
     }
-
 
 }
 

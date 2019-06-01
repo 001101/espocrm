@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,11 +26,13 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('crm:views/dashlets/sales-by-month', 'crm:views/dashlets/abstract/chart', function (Dep) {
+define('crm:views/dashlets/sales-by-month', 'crm:views/dashlets/abstract/chart', function (Dep) {
 
     return Dep.extend({
 
         name: 'SalesByMonth',
+
+        columnWidth: 50,
 
         setupDefaultOptions: function () {
             this.defaultOptions['dateFrom'] = this.defaultOptions['dateFrom'] || moment().format('YYYY') + '-01-01';
@@ -38,19 +40,36 @@ Espo.define('crm:views/dashlets/sales-by-month', 'crm:views/dashlets/abstract/ch
         },
 
         url: function () {
-            return 'Opportunity/action/reportSalesByMonth?dateFrom=' + this.getOption('dateFrom') + '&dateTo=' + this.getOption('dateTo');
+            var url = 'Opportunity/action/reportSalesByMonth?dateFilter='+ this.getDateFilter();
+
+            if (this.getDateFilter() === 'between') {
+                url += '&dateFrom=' + this.getOption('dateFrom') + '&dateTo=' + this.getOption('dateTo');
+            }
+            return url;
+        },
+
+        getLegendHeight: function () {
+            return 0;
+        },
+
+        isNoData: function () {
+            return this.isEmpty;
         },
 
         prepareData: function (response) {
-            var months = this.months = Object.keys(response).sort();
+            var monthList = this.monthList = response.keyList;
+
+            var dataMap = response.dataMap || {};
 
             var values = [];
 
-            for (var month in response) {
-                values.push(response[month]);
-            }
+            monthList.forEach(function (month) {
+                values.push(dataMap[month]);
+            }, this);
 
             this.chartData = [];
+
+            this.isEmpty = true;
 
             var mid = 0;
             if (values.length) {
@@ -59,25 +78,42 @@ Espo.define('crm:views/dashlets/sales-by-month', 'crm:views/dashlets/abstract/ch
 
             var data = [];
 
+            var max = 0;
+
             values.forEach(function (value, i) {
+                if (value) this.isEmpty = false;
+                if (value && value > max) {
+                    max = value;
+                }
                 data.push({
                     data: [[i, value]],
                     color: (value >= mid) ? this.successColor : this.colorBad
                 });
             }, this);
 
+            this.max = max;
+
             return data;
         },
 
         setup: function () {
             this.currency = this.getConfig().get('defaultCurrency');
-            this.currencySymbol = '';
+            this.currencySymbol = this.getMetadata().get(['app', 'currency', 'symbolMap', this.currency]) || '';
 
             this.colorBad = this.successColor;
         },
 
-        drow: function () {
+        getTickNumber: function () {
+            var containerWidth = this.$container.width();
+            var tickNumber = Math.floor(containerWidth / this.columnWidth);
+
+            return tickNumber;
+        },
+
+        draw: function () {
             var self = this;
+            var tickNumber = this.getTickNumber();
+
             this.flotr.draw(this.$container.get(0), this.chartData, {
                 shadowSize: false,
                 bars: {
@@ -86,31 +122,42 @@ Espo.define('crm:views/dashlets/sales-by-month', 'crm:views/dashlets/abstract/ch
                     shadowSize: 0,
                     lineWidth: 1,
                     fillOpacity: 1,
-                    barWidth: 0.5,
+                    barWidth: 0.5
                 },
                 grid: {
                     horizontalLines: true,
                     verticalLines: false,
                     outline: 'sw',
-                    color: this.outlineColor
+                    color: this.gridColor,
+                    tickColor: this.tickColor
                 },
                 yaxis: {
                     min: 0,
                     showLabels: true,
+                    color: this.textColor,
+                    max: this.max + 0.08 * this.max,
                     tickFormatter: function (value) {
                         if (value == 0) {
                             return '';
                         }
-                        return self.formatNumber(value) + ' ' + self.currency;
-                    },
+                        if (value % 1 == 0) {
+                            return self.currencySymbol + self.formatNumber(Math.floor(value), false, true).toString();
+                        }
+                        return '';
+                    }
                 },
                 xaxis: {
                     min: 0,
+                    color: this.textColor,
+                    noTicks: tickNumber,
                     tickFormatter: function (value) {
                         if (value % 1 == 0) {
                             var i = parseInt(value);
-                            if (i in self.months) {
-                                return moment(self.months[i] + '-01').format('MMM YYYY');
+                            if (i in self.monthList) {
+                                if (self.monthList.length - tickNumber > 5 && i === self.monthList.length - 1) {
+                                    return '';
+                                }
+                                return moment(self.monthList[i] + '-01').format('MMM YYYY');
                             }
                         }
                         return '';
@@ -119,13 +166,19 @@ Espo.define('crm:views/dashlets/sales-by-month', 'crm:views/dashlets/abstract/ch
                 mouse: {
                     track: true,
                     relative: true,
+                    lineColor: this.hoverColor,
+                    position: 's',
+                    autoPositionVertical: true,
                     trackFormatter: function (obj) {
-                        return self.formatNumber(obj.y) + ' ' + self.currency;
-                    },
+                        var i = parseInt(obj.x);
+                        var value = '';
+                        if (i in self.monthList) {
+                            value += moment(self.monthList[i] + '-01').format('MMM YYYY') + '<br>';
+                        }
+                        return value + self.currencySymbol + self.formatNumber(obj.y, true);
+                    }
                 }
-            });
-        },
+            })
+        }
     });
 });
-
-

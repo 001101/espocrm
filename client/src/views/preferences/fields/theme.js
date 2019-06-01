@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ Espo.define('views/preferences/fields/theme', 'views/fields/enum', function (Dep
 
         setup: function () {
             this.params.options = Object.keys(this.getMetadata().get('themes')).sort(function (v1, v2) {
-                return this.translate(v1, 'theme').localeCompare(this.translate(v2, 'theme'));
+                return this.translate(v1, 'themes').localeCompare(this.translate(v2, 'themes'));
             }.bind(this));
 
             this.params.options.unshift('');

@@ -8,11 +8,12 @@
       {
          "name":"options",
          "type":"array",
-         "view": "views/admin/field-manager/fields/options"
+         "view": "views/admin/field-manager/fields/options-with-style"
       },
       {
          "name":"default",
-         "type":"varchar"
+         "type":"enum",
+         "view": "views/admin/field-manager/fields/options/default"
       },
       {
          "name":"isSorted",
@@ -24,13 +25,30 @@
          "hidden": true
       },
       {
+         "name":"style",
+         "type":"jsonObject",
+         "hidden": true
+      },
+      {
+         "name":"displayAsLabel",
+         "type":"bool"
+      },
+      {
          "name":"audited",
          "type":"bool"
+      },
+      {
+         "name":"readOnly",
+         "type":"bool"
       }
+   ],
+   "validationList": [
+      "required"
    ],
    "filter": true,
    "fieldDefs":{
       "type":"varchar"
    },
-   "translatedOptions": true
+   "translatedOptions": true,
+   "personalData": true
 }

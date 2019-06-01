@@ -3,12 +3,28 @@
     "recordViews": {
         "detail": "crm:views/case/record/detail"
     },
-    "bottomPanels":{
-        "detail":[
-        ]
-    },
     "sidePanels":{
         "detail":[
+             {
+                "name":"activities",
+                "label":"Activities",
+                "view":"crm:views/case/record/panels/activities",
+                "aclScope": "Activities"
+             },
+             {
+                "name":"history",
+                "label":"History",
+                "view":"crm:views/record/panels/history",
+                "aclScope": "Activities"
+             },
+             {
+                "name":"tasks",
+                "label":"Tasks",
+                "view":"crm:views/record/panels/tasks",
+                "aclScope": "Task"
+             }
+        ],
+        "detailSmall":[
              {
                 "name":"activities",
                 "label":"Activities",
@@ -49,5 +65,31 @@
     "selectDefaultFilters": {
         "filter": "open"
     },
-    "allowInternalNotes": true
+    "allowInternalNotes": true,
+    "dynamicLogic": {
+        "fields": {
+            "number": {
+                "visible": {
+                    "conditionGroup": [
+                        {
+                            "type": "isNotEmpty",
+                            "attribute": "id"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "additionalLayouts": {
+        "detailPortal": {
+            "type": "detail"
+        },
+        "detailSmallPortal": {
+            "type": "detail"
+        },
+        "listPortal": {
+            "type": "list"
+        }
+    },
+    "iconClass": "fas fa-briefcase"
 }

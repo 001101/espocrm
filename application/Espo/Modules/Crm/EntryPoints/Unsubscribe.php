@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,11 @@ use \Espo\Core\Exceptions\Error;
 class Unsubscribe extends \Espo\Core\EntryPoints\Base
 {
     public static $authRequired = false;
+
+    private function getHookManager()
+    {
+        return $this->getContainer()->get('hookManager');
+    }
 
     public function run()
     {
@@ -96,13 +101,31 @@ class Unsubscribe extends \Espo\Core\EntryPoints\Base
                         $targetListList = $massEmail->get('targetLists');
 
                         foreach ($targetListList as $targetList) {
-                            $this->getEntityManager()->getRepository('TargetList')->updateRelation($targetList, $link, $target->id, array(
+                            $optedOutResult = $this->getEntityManager()->getRepository('TargetList')->updateRelation($targetList, $link, $target->id, array(
                                 'optedOut' => true
                             ));
+                            if ($optedOutResult) {
+                                $hookData = [
+                                   'link' => $link,
+                                   'targetId' => $targetId,
+                                   'targetType' => $targetType
+                                ];
+                                $this->getHookManager()->process('TargetList', 'afterOptOut', $targetList, [], $hookData);
+                            }
                         }
-                        echo $this->getLanguage()->translate('unsubscribed', 'messages', 'Campaign');
-                        echo '<br><br>';
-                        echo '<a href="?entryPoint=subscribeAgain&id='.$queueItemId.'">' . $this->getLanguage()->translate('Subscribe again', 'labels', 'Campaign') . '</a>';
+
+                        $data = [
+                            'queueItemId' => $queueItemId
+                        ];
+
+                        $runScript = "
+                            Espo.require('crm:controllers/unsubscribe', function (Controller) {
+                                var controller = new Controller(app.baseController.params, app.getControllerInjection());
+                                controller.masterView = app.masterView;
+                                controller.doAction('unsubscribe', ".json_encode($data).");
+                            });
+                        ";
+                        $this->getClientManager()->display($runScript);
                     }
                 }
             }

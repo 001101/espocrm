@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2016 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 
 namespace tests\integration\Core;
 
-abstract class BaseTestCase extends \PHPUnit_Framework_TestCase
+abstract class BaseTestCase extends \PHPUnit\Framework\TestCase
 {
     protected $espoTester;
 
@@ -63,13 +63,25 @@ abstract class BaseTestCase extends \PHPUnit_Framework_TestCase
      */
     protected $password = null;
 
-    protected function createApplication($userName = null, $password = null)
-    {
-        if (isset($userName) && isset($password)) {
-            return $this->espoTester->getApplication(true, $userName, $password);
-        }
+    protected $portalId = null;
 
-        return $this->espoTester->getApplication(true);
+    protected $initData = null;
+
+    protected function createApplication($clearCache = true)
+    {
+        return $this->espoTester->getApplication(true, $clearCache);
+    }
+
+    protected function auth($userName, $password = null, $portalId = null, $authenticationMethod = null)
+    {
+        $this->userName = $userName;
+        $this->password = $password;
+        $this->portalId = $portalId;
+        $this->authenticationMethod = $authenticationMethod;
+
+        if (isset($this->espoTester)) {
+            $this->espoTester->auth($userName, $password, $portalId, $authenticationMethod);
+        }
     }
 
     /**
@@ -92,17 +104,34 @@ abstract class BaseTestCase extends \PHPUnit_Framework_TestCase
         return $this->getApplication()->getContainer();
     }
 
+    protected function normalizePath($path)
+    {
+        return $this->espoTester->normalizePath($path);
+    }
+
+    protected function sendRequest($method, $action, $data = null)
+    {
+        return $this->espoTester->sendRequest($method, $action, $data);
+    }
+
     protected function setUp()
     {
+        $this->beforeSetUp();
+
         $params = array(
+            'className' => get_class($this),
             'dataFile' => $this->dataFile,
             'pathToFiles' => $this->pathToFiles,
-            'className' => get_class($this),
+            'initData' => $this->initData,
         );
 
         $this->espoTester = new Tester($params);
         $this->espoTester->initialize();
-        $this->espoApplication = $this->createApplication($this->userName, $this->password);
+        $this->auth($this->userName, $this->password, null, $this->authenticationMethod);
+
+        $this->beforeStartApplication();
+        $this->espoApplication = $this->createApplication();
+        $this->afterStartApplication();
     }
 
     protected function tearDown()
@@ -110,5 +139,54 @@ abstract class BaseTestCase extends \PHPUnit_Framework_TestCase
         $this->espoTester->terminate();
         $this->espoTester = NULL;
         $this->espoApplication = NULL;
+    }
+
+    protected function createUser($userData, array $role = null, $isPortal = false)
+    {
+        return $this->espoTester->createUser($userData, $role, $isPortal);
+    }
+
+    protected function beforeSetUp()
+    {
+
+    }
+
+    protected function beforeStartApplication()
+    {
+
+    }
+
+    protected function afterStartApplication()
+    {
+
+    }
+
+    /**
+     * Create Slim request object
+     *
+     * @param  string $method
+     * @param  array  $params
+     * @param  array  $envParams  E.g. 'REQUEST_METHOD' => 'GET', 'QUERY_STRING' => 'name=John&age=30'. More details \Slim\Environment::mock()
+     *
+     * @return \Slim\Http\Request
+     */
+    protected function createRequest($method, array $params = array(), array $envParams = array())
+    {
+        if (!isset($envParams['REQUEST_METHOD'])) {
+            $envParams['REQUEST_METHOD'] = strtoupper($method);
+        }
+
+        if (!isset($envParams['QUERY_STRING'])) {
+            $envParams['QUERY_STRING'] = http_build_query($params);
+        }
+
+        $slimEnvironment = \Slim\Environment::mock($envParams);
+
+        return new \Slim\Http\Request($slimEnvironment);
+    }
+
+    protected function setData(array $data)
+    {
+        $this->espoTester->setData($data);
     }
 }

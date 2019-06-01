@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,16 +55,24 @@ Espo.define('views/stream/notes/assign', 'views/stream/note', function (Dep) {
             this.messageData['assignee'] = '<a href="#User/view/' + data.assignedUserId + '">' + data.assignedUserName + '</a>';
 
             if (this.isUserStream) {
-                if (this.assignedUserId == this.model.get('createdById')) {
-                    this.messageName += 'Self';
-                } else {
-                    if (this.assignedUserId == this.getUser().id) {
-                        this.messageName += 'You';
+                if (this.assignedUserId) {
+                    if (this.assignedUserId == this.model.get('createdById')) {
+                        this.messageName += 'Self';
+                    } else {
+                        if (this.assignedUserId == this.getUser().id) {
+                            this.messageName += 'You';
+                        }
                     }
+                } else {
+                    this.messageName += 'Void';
                 }
             } else {
-                if (this.assignedUserId == this.model.get('createdById')) {
-                    this.messageName += 'Self';
+                if (this.assignedUserId) {
+                    if (this.assignedUserId == this.model.get('createdById')) {
+                        this.messageName += 'Self';
+                    }
+                } else {
+                    this.messageName += 'Void';
                 }
             }
 

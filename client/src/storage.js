@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,78 +26,108 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('storage', [], function () {
+define('storage', [], function () {
 
     var Storage = function () {
     };
 
     _.extend(Storage.prototype, {
 
-        _prefix: 'espo',
+        prefix: 'espo',
 
-        _composeFullPrefix: function (type) {
-            return this._prefix + '-' + type;
+        storageObject: localStorage,
+
+        composeFullPrefix: function (type) {
+            return this.prefix + '-' + type;
         },
 
-        _composeKey: function (type, name) {
-            return this._composeFullPrefix(type) + '-' + name;
+        composeKey: function (type, name) {
+            return this.composeFullPrefix(type) + '-' + name;
         },
 
-        _checkType: function (type) {
+        checkType: function (type) {
             if (typeof type === 'undefined' && toString.call(type) != '[object String]' || type == 'cache') {
                 throw new TypeError("Bad type \"" + type + "\" passed to Espo.Storage.");
             }
         },
 
-        get: function (type, name) {
-            this._checkType(type);
+        has: function (type, name) {
+            this.checkType(type);
+            var key = this.composeKey(type, name);
 
-            var key = this._composeKey(type, name);
-            var stored = localStorage.getItem(key);
+            return this.storageObject.getItem(key) !== null;
+        },
+
+        get: function (type, name) {
+            this.checkType(type);
+
+            var key = this.composeKey(type, name);
+
+            try {
+                var stored = this.storageObject.getItem(key);
+            } catch (error) {
+                console.error(error);
+                return null;
+            }
+
             if (stored) {
-                var str = stored;
-                if (stored[0] == "{" || stored[0] == "[") {
-                    try    {
-                        str = JSON.parse(stored);
+                var result = stored;
+
+                if (stored.length > 9 && stored.substr(0, 9) === '__JSON__:') {
+                    var jsonString = stored.substr(9);
+                    try {
+                        result = JSON.parse(jsonString);
                     } catch (error) {
-                        str = stored;
+                        result = stored;
                     }
-                    stored = str;
+                } else if (stored[0] == "{" || stored[0] == "[") { // for backward compatibility
+                    try {
+                        result = JSON.parse(stored);
+                    } catch (error) {
+                        result = stored;
+                    }
                 }
-                return stored;
+                return result;
             }
             return null;
         },
 
         set: function (type, name, value) {
-            this._checkType(type);
+            this.checkType(type);
 
-            var key = this._composeKey(type, name);
-            if (value instanceof Object) {
-                value = JSON.stringify(value);
+            var key = this.composeKey(type, name);
+            if (value instanceof Object || Array.isArray(value) || value === true || value === false) {
+                value = '__JSON__:' + JSON.stringify(value);
             }
-            localStorage.setItem(key, value);
+            try {
+                this.storageObject.setItem(key, value);
+            } catch (error) {
+                console.error(error);
+                return null;
+            }
         },
 
         clear: function (type, name) {
             var reText;
             if (typeof type !== 'undefined') {
                 if (typeof name === 'undefined') {
-                    reText = '^' + this._composeFullPrefix(type);
+                    reText = '^' + this.composeFullPrefix(type);
                 } else {
-                    reText = '^' + this._composeKey(type, name);
+                    reText = '^' + this.composeKey(type, name);
                 }
             } else {
-                reText = '^' + this._prefix + '-';
+                reText = '^' + this.prefix + '-';
             }
             var re = new RegExp(reText);
-            for (var i in localStorage) {
+            for (var i in this.storageObject) {
                 if (re.test(i)) {
-                    delete localStorage[i];
+                    delete this.storageObject[i];
                 }
             }
         }
     });
+
+    Storage.extend = Backbone.Router.extend;
 
     return Storage;
 });

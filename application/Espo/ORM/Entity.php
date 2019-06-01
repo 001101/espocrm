@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,33 +37,22 @@ abstract class Entity implements IEntity
 
     private $isSaved = false;
 
-    /**
-     * Entity type.
-     * @var string
-     */
     protected $entityType;
 
-    /**
-     * @var array Defenition of fields.
-     * @todo make protected
-     */
-    public $fields = array();
+    public $fields = [];
 
-    /**
-     * @var array Defenition of relations.
-     * @todo make protected
-     */
-    public $relations = array();
+
+    public $relations = [];
 
     /**
      * @var array Field-Value pairs.
      */
-    protected $valuesContainer = array();
+    protected $valuesContainer = [];
 
     /**
      * @var array Field-Value pairs of initial values (fetched from DB).
      */
-    protected $fetchedValuesContainer = array();
+    protected $fetchedValuesContainer = [];
 
     /**
      * @var EntityManager Entity Manager.
@@ -72,7 +61,9 @@ abstract class Entity implements IEntity
 
     protected $isFetched = false;
 
-    public function __construct($defs = array(), EntityManager $entityManager = null)
+    protected $isBeingSaved = false;
+
+    public function __construct($defs = [], ?EntityManager $entityManager = null)
     {
         if (empty($this->entityType)) {
             $classNames = explode('\\', get_class($this));
@@ -100,7 +91,7 @@ abstract class Entity implements IEntity
 
     public function reset()
     {
-        $this->valuesContainer = array();
+        $this->valuesContainer = [];
     }
 
     protected function setValue($name, $value)
@@ -110,12 +101,15 @@ abstract class Entity implements IEntity
 
     public function set($p1, $p2 = null)
     {
-        if (is_array($p1)) {
+        if (is_array($p1) || is_object($p1)) {
+            if (is_object($p1)) {
+                $p1 = get_object_vars($p1);
+            }
             if ($p2 === null) {
                 $p2 = false;
             }
             $this->populateFromArray($p1, $p2);
-        } else {
+        } else if (is_string($p1)) {
             $name = $p1;
             $value = $p2;
             if ($name == 'id') {
@@ -132,7 +126,7 @@ abstract class Entity implements IEntity
         }
     }
 
-    public function get($name, $params = array())
+    public function get($name, $params = [])
     {
         if ($name == 'id') {
             return $this->id;
@@ -170,28 +164,39 @@ abstract class Entity implements IEntity
         return false;
     }
 
-    public function populateFromArray(array $arr, $onlyAccessible = true, $reset = false)
+    public function populateFromArray(array $data, $onlyAccessible = true, $reset = false)
     {
         if ($reset) {
             $this->reset();
         }
 
-        foreach ($this->getAttributes() as $field => $fieldDefs) {
-            if (array_key_exists($field, $arr)) {
-                if ($field == 'id') {
-                    $this->id = $arr[$field];
+        foreach ($this->getAttributes() as $attribute => $defs) {
+            if (array_key_exists($attribute, $data)) {
+                if ($attribute == 'id') {
+                    $this->id = $data[$attribute];
                     continue;
                 }
                 if ($onlyAccessible) {
-                    if (isset($fieldDefs['notAccessible']) && $fieldDefs['notAccessible'] == true) {
+                    if (isset($defs['notAccessible']) && $defs['notAccessible'] == true) {
                         continue;
                     }
                 }
 
-                $value = $arr[$field];
+                $value = $data[$attribute];
 
                 if (!is_null($value)) {
-                    switch ($fieldDefs['type']) {
+                    $valueType = $defs['type'];
+                    if ($valueType === self::FOREIGN) {
+                        $relation = $this->getAttributeParam($attribute, 'relation');
+                        $foreign = $this->getAttributeParam($attribute, 'foreign');
+                        if (is_string($foreign)) {
+                            $foreignEntityType = $this->getRelationParam($relation, 'entity');
+                            if ($foreignEntityType) {
+                                $valueType = $this->entityManager->getMetadata()->get($foreignEntityType, ['fields', $foreign, 'type']);
+                            }
+                        }
+                    }
+                    switch ($valueType) {
                         case self::VARCHAR:
                             break;
                         case self::BOOL:
@@ -220,11 +225,11 @@ abstract class Entity implements IEntity
                     }
                 }
 
-                $method = '_set' . ucfirst($field);
+                $method = '_set' . ucfirst($attribute);
                 if (method_exists($this, $method)) {
                     $this->$method($value);
                 } else {
-                    $this->valuesContainer[$field] = $value;
+                    $this->valuesContainer[$attribute] = $value;
                 }
             }
         }
@@ -292,7 +297,7 @@ abstract class Entity implements IEntity
 
     public function toArray()
     {
-        $arr = array();
+        $arr = [];
         if (isset($this->id)) {
             $arr['id'] = $this->id;
         }
@@ -306,6 +311,12 @@ abstract class Entity implements IEntity
 
         }
         return $arr;
+    }
+
+    public function getValueMap()
+    {
+        $array = $this->toArray();
+        return (object) $array;
     }
 
     public function getFields()
@@ -360,32 +371,108 @@ abstract class Entity implements IEntity
         return $this->isFetched;
     }
 
-    public function isFieldChanged($fieldName)
+    public function isFieldChanged($name)
     {
-        return $this->has($fieldName) && ($this->get($fieldName) != $this->getFetched($fieldName));
+        return $this->has($name) && ($this->get($name) != $this->getFetched($name));
     }
 
-    public function isAttributeChanged($fieldName)
+    public function isAttributeChanged($name)
     {
-        return $this->has($fieldName) && ($this->get($fieldName) != $this->getFetched($fieldName));
+        if (!$this->has($name)) return false;
+
+        if (!$this->hasFetched($name)) {
+            return true;
+        }
+        return !self::areValuesEqual(
+            $this->getAttributeType($name),
+            $this->get($name),
+            $this->getFetched($name),
+            $this->getAttributeParam($name, 'isUnordered')
+        );
     }
 
-    public function setFetched($fieldName, $value)
+    public static function areValuesEqual($type, $v1, $v2, $isUnordered = false)
     {
-        $this->fetchedValuesContainer[$fieldName] = $value;
+        if ($type === self::JSON_ARRAY) {
+            if (is_array($v1) && is_array($v2)) {
+                if ($isUnordered) {
+                    sort($v1);
+                    sort($v2);
+                }
+                if ($v1 != $v2) {
+                    return false;
+                }
+                foreach ($v1 as $i => $itemValue) {
+                    if (is_object($v1[$i]) && is_object($v2[$i])) {
+                        if (!self::areValuesEqual(self::JSON_OBJECT, $v1[$i], $v2[$i])) {
+                            return false;
+                        }
+                        continue;
+                    }
+                    if ($v1[$i] !== $v2[$i]) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        } else if ($type === self::JSON_OBJECT) {
+            if (is_object($v1) && is_object($v2)) {
+                if ($v1 != $v2) {
+                    return false;
+                }
+                $a1 = get_object_vars($v1);
+                $a2 = get_object_vars($v2);
+                foreach ($v1 as $key => $itemValue) {
+                    if (is_object($a1[$key]) && is_object($a2[$key])) {
+                        if (!self::areValuesEqual(self::JSON_OBJECT, $a1[$key], $a2[$key])) {
+                            return false;
+                        }
+                        continue;
+                    }
+                    if (is_array($a1[$key]) && is_array($a2[$key])) {
+                        if (!self::areValuesEqual(self::JSON_ARRAY, $a1[$key], $a2[$key])) {
+                            return false;
+                        }
+                        continue;
+                    }
+                    if ($a1[$key] !== $a2[$key]) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+
+        return $v1 === $v2;
     }
 
-    public function getFetched($fieldName)
+    public function setFetched($name, $value)
     {
-        if (isset($this->fetchedValuesContainer[$fieldName])) {
-            return $this->fetchedValuesContainer[$fieldName];
+        $this->fetchedValuesContainer[$name] = $value;
+    }
+
+    public function getFetched($name)
+    {
+        if ($name === 'id') {
+            return $this->id;
+        }
+        if (isset($this->fetchedValuesContainer[$name])) {
+            return $this->fetchedValuesContainer[$name];
         }
         return null;
     }
 
+    public function hasFetched($name)
+    {
+        if ($name === 'id') {
+            return !!$this->id;
+        }
+        return array_key_exists($name, $this->fetchedValuesContainer);
+    }
+
     public function resetFetchedValues()
     {
-        $this->fetchedValuesContainer = array();
+        $this->fetchedValuesContainer = [];
     }
 
     public function updateFetchedValues()
@@ -397,6 +484,27 @@ abstract class Entity implements IEntity
     {
         $this->isFetched = true;
         $this->fetchedValuesContainer = $this->valuesContainer;
+    }
+
+    public function setAsNotFetched()
+    {
+        $this->isFetched = false;
+        $this->resetFetchedValues();
+    }
+
+    public function isBeingSaved()
+    {
+        return $this->isBeingSaved;
+    }
+
+    public function setAsBeingSaved()
+    {
+        $this->isBeingSaved = true;
+    }
+
+    public function setAsNotBeingSaved()
+    {
+        $this->isBeingSaved = false;
     }
 
     public function populateDefaults()
@@ -413,4 +521,3 @@ abstract class Entity implements IEntity
         return $this->entityManager;
     }
 }
-

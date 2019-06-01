@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ use \Espo\Core\Exceptions\Error;
 
 class Avatar extends Image
 {
-    public static $authRequired = false;
+    public static $authRequired = true;
 
     public static $notStrictAuth = true;
 
@@ -77,17 +77,18 @@ class Avatar extends Image
 
         $user = $this->getEntityManager()->getEntity('User', $userId);
         if (!$user) {
-            throw new NotFound();
+            header('Content-Type: image/png');
+            $img  = imagecreatetruecolor(14, 14);
+            imagesavealpha($img, true);
+            $color = imagecolorallocatealpha($img, 127, 127, 127, 127);
+            imagefill($img, 0, 0, $color);
+            imagepng($img);
+            imagecolordeallocate($img, $color);
+            imagedestroy($img);
+            exit;
         }
 
-        if (isset($_GET['attachmentId'])) {
-            $id = $_GET['attachmentId'];
-            if ($id == 'false') {
-                $id = false;
-            }
-        } else {
-            $id = $user->get('avatarId');
-        }
+        $id = $user->get('avatarId');
 
         $size = null;
         if (!empty($_GET['size'])) {
@@ -95,7 +96,7 @@ class Avatar extends Image
         }
 
         if (!empty($id)) {
-            $this->show($id, $size);
+            $this->show($id, $size, true);
         } else {
             $identicon = new \Identicon\Identicon();
             if (empty($size)) {

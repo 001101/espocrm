@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,14 +44,21 @@ Espo.define('crm:views/meeting/popup-notification', 'views/popup-notification', 
             if (this.notificationData.entityType) {
                 this.getModelFactory().create(this.notificationData.entityType, function (model) {
 
-                    model.set('dateStart', this.notificationData.dateStart);
+                    var dateAttribute = 'dateStart';
+                    if (this.notificationData.entityType === 'Task') {
+                        dateAttribute = 'dateEnd';
+                    }
 
-                    this.createView('dateStart', 'views/fields/datetime', {
+                    this.dateAttribute = dateAttribute;
+
+                    model.set(dateAttribute, this.notificationData[dateAttribute]);
+
+                    this.createView('dateField', 'views/fields/datetime', {
                         model: model,
                         mode: 'detail',
-                        el: this.options.el + ' .field[data-name="dateStart"]',
+                        el: this.options.el + ' .field[data-name="'+dateAttribute+'"]',
                         defs: {
-                            name: 'dateStart'
+                            name: dateAttribute
                         },
                         readOnly: true
                     });
@@ -63,7 +70,8 @@ Espo.define('crm:views/meeting/popup-notification', 'views/popup-notification', 
 
         data: function () {
             return _.extend({
-                header: this.translate(this.notificationData.entityType, 'scopeNames')
+                header: this.translate(this.notificationData.entityType, 'scopeNames'),
+                dateAttribute: this.dateAttribute
             }, Dep.prototype.data.call(this));
         },
 
@@ -79,4 +87,3 @@ Espo.define('crm:views/meeting/popup-notification', 'views/popup-notification', 
 
     });
 });
-

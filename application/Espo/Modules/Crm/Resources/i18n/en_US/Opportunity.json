@@ -13,7 +13,10 @@
         "amountConverted": "Amount (converted)",
         "amountWeightedConverted": "Amount Weighted",
         "campaign": "Campaign",
-        "originalLead": "Original Lead"
+        "originalLead": "Original Lead",
+        "amountCurrency": "Amount Currency",
+        "contactRole": "Contact Role",
+        "lastStage": "Last Stage"
     },
     "links": {
         "contacts": "Contacts",
@@ -25,6 +28,8 @@
         "stage": {
             "Prospecting": "Prospecting",
             "Qualification": "Qualification",
+            "Proposal": "Proposal",
+            "Negotiation": "Negotiation",
             "Needs Analysis": "Needs Analysis",
             "Value Proposition": "Value Proposition",
             "Id. Decision Makers": "Id. Decision Makers",

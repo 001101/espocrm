@@ -1,13 +1,7 @@
 {
   "fields": {
     "enabled": "Abilitato",
-    "clientId": "Client ID",
-    "clientSecret": "Client Secret",
-    "redirectUri": "Reindirizzare URI",
-    "apiKey": "API Key"
-  },
-  "titles": {
-    "GoogleMaps": "Google Maps"
+    "redirectUri": "Reindirizzare URI"
   },
   "messages": {
     "selectIntegration": "Selezionare una integrazione dal menù.",

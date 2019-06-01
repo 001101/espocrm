@@ -49,6 +49,12 @@
                 "delete": "own",
                 "create": "no"
             },
+            "ActionHistoryRecord": {
+                "read": "no",
+                "edit": "no",
+                "delete": "no",
+                "create": "no"
+            },
             "Role": false,
             "PortalRole": false
         },
@@ -58,26 +64,92 @@
             "Attachment": {
                 "parent": false
             },
-            "User": {
-                "gender": false
-            },
             "EmailFolder": {
                 "assignedUser": false
             },
             "Email": {
                 "inboundEmails": false,
                 "emailAccounts": false
+            },
+            "User": {
+                "password": false,
+                "passwordConfirm": false,
+                "authMethod": false,
+                "apiKey": false,
+                "secretKey": false,
+                "token": false
             }
         }
     },
     "default": {
         "scopeLevel": {
+            "User": {
+                "read": "all",
+                "edit": "no"
+            },
+            "Import": false,
+            "Webhook": false
         },
         "fieldLevel": {
         },
+        "scopeFieldLevel": {
+            "User": {
+                "gender": false
+            }
+        }
+    },
+    "strictDefault": {
+        "scopeLevel": {
+            "User": {
+                "read": "own",
+                "edit": "no"
+            },
+            "Import": false,
+            "Webhook": false
+        },
+        "fieldLevel": {
+        },
+        "scopeFieldLevel": {
+            "User": {
+                "gender": false
+            }
+        }
+    },
+    "valuePermissionList": [
+        "assignmentPermission",
+        "userPermission",
+        "portalPermission",
+        "groupEmailAccountPermission",
+        "exportPermission",
+        "massUpdatePermission",
+        "dataPrivacyPermission"
+    ],
+    "valuePermissionHighestLevels": {
         "assignmentPermission": "all",
+        "userPermission": "all",
+        "portalPermission": "yes",
+        "groupEmailAccountPermission": "all",
+        "exportPermission": "yes",
+        "massUpdatePermission": "yes",
+        "dataPrivacyPermission": "yes"
+    },
+    "permissionsDefaults": {
+        "assignmentPermission": "all",
+        "userPermission": "all",
+        "portalPermission": "no",
+        "groupEmailAccountPermission": "no",
+        "exportPermission": "yes",
+        "massUpdatePermission": "yes",
+        "dataPrivacyPermission": "no"
+    },
+    "permissionsStrictDefaults": {
+        "assignmentPermission": "no",
         "userPermission": "no",
-        "portalPermission": "no"
+        "portalPermission": "no",
+        "groupEmailAccountPermission": "no",
+        "exportPermission": "no",
+        "massUpdatePermission": "no",
+        "dataPrivacyPermission": "no"
     },
     "scopeLevelTypesDefaults": {
         "boolean": true,
@@ -88,5 +160,9 @@
             "delete": "no",
             "create": "yes"
         }
+    },
+    "scopeLevelTypesStrictDefaults": {
+        "boolean": false,
+        "record": false
     }
 }

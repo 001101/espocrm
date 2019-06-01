@@ -8,7 +8,17 @@
         "entryCount": {
             "type": "int",
             "readOnly": true,
-            "notStorable": true
+            "notStorable": true,
+            "layoutFiltersDisabled": true,
+            "layoutMassUpdateDisabled": true
+        },
+        "optedOutCount": {
+            "type": "int",
+            "readOnly": true,
+            "notStorable": true,
+            "layoutListDisabled": true,
+            "layoutFiltersDisabled": true,
+            "layoutMassUpdateDisabled": true
         },
         "description": {
             "type": "text"
@@ -49,7 +59,7 @@
             "layoutFiltersDisabled": true,
             "layoutLinkDisabled": true,
             "notStorable": true,
-            "required": true
+            "disabled": true
         },
         "excludingActionList": {
             "type": "multiEnum",
@@ -57,7 +67,30 @@
             "layoutDetailDisabled": true,
             "layoutFiltersDisabled": true,
             "layoutLinkDisabled": true,
-            "notStorable": true
+            "notStorable": true,
+            "disabled": true
+        },
+        "targetStatus": {
+            "type": "enum",
+            "options": ["Listed", "Opted Out"],
+            "notStorable": true,
+            "readOnly": true,
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "exportDisabled": true,
+            "importDisabled": true,
+            "view": "crm:views/target-list/fields/target-status"
+        },
+        "isOptedOut": {
+            "type": "bool",
+            "notStorable": true,
+            "readOnly": true,
+            "layoutListDisabled": true,
+            "layoutDetailDisabled": true,
+            "layoutMassUpdateDisabled": true,
+            "exportDisabled": true,
+            "importDisabled": true
         }
     },
     "links": {
@@ -141,8 +174,8 @@
         }
     },
     "collection": {
-        "sortBy": "createdAt",
-        "asc": false
+        "orderBy": "createdAt",
+        "order": "desc"
     },
     "indexes": {
         "createdAt": {

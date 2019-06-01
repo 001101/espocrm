@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,44 +26,40 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
- Espo.define('crm:views/call/detail', 'views/detail', function (Dep) {
+ Espo.define('crm:views/call/detail', ['views/detail', 'crm:views/meeting/detail'], function (Dep, MeetingDetail) {
 
     return Dep.extend({
 
         setup: function () {
             Dep.prototype.setup.call(this);
-            if (['Held', 'Not Held'].indexOf(this.model.get('status')) == -1) {
-                if (this.getAcl().checkModel(this.model, 'edit') && this.getAcl().checkScope('Email', 'create')) {
-                    this.menu.buttons.push({
-                        'label': 'Send Invitations',
-                        'action': 'sendInvitations',
-                        'acl': 'edit',
-                    });
-                }
-            }
+
+            this.controlSendInvitationsButton();
+            this.controlAcceptanceStatusButton();
+
+            this.listenTo(this.model, 'sync', function () {
+                this.controlSendInvitationsButton();
+            }, this);
+
+            this.listenTo(this.model, 'sync', function () {
+                this.controlAcceptanceStatusButton();
+            }, this);
         },
 
         actionSendInvitations: function () {
-            if (confirm(this.translate('confirmation', 'messages'))) {
-                this.$el.find('[data-action="sendInvitations"]').addClass('disabled');
-                this.notify('Sending...');
-                $.ajax({
-                    url: 'Call/action/sendInvitations',
-                    type: 'POST',
-                    data: JSON.stringify({
-                        id: this.model.id
-                    }),
-                    success: function () {
-                        this.notify('Sent', 'success');
-                        this.$el.find('[data-action="sendInvitations"]').removeClass('disabled');
-                    }.bind(this),
-                    error: function () {
-                        this.$el.find('[data-action="sendInvitations"]').removeClass('disabled');
-                    }.bind(this),
-                });
-            }
-        }
+            MeetingDetail.prototype.actionSendInvitations.call(this);
+        },
+
+        actionSetAcceptanceStatus: function () {
+            MeetingDetail.prototype.actionSetAcceptanceStatus.call(this);
+        },
+
+        controlSendInvitationsButton: function () {
+            MeetingDetail.prototype.controlSendInvitationsButton.call(this);
+        },
+
+        controlAcceptanceStatusButton: function () {
+            MeetingDetail.prototype.controlAcceptanceStatusButton.call(this);
+        },
 
     });
 });
-

@@ -1,12 +1,14 @@
 {
   "labels": {
     "Create KnowledgeBaseArticle": "Artikel erstellen",
-    "Any": "Irgendein(e)",
-    "Send in Email": "In E-Mail senden"
+    "Any": "Beliebig",
+    "Send in Email": "In E-Mail senden",
+    "Move Up": "Aufwärts",
+    "Move Down": "Abwärts",
+    "Move to Top": "zu Anfang",
+    "Move to Bottom": "zum Ende"
   },
   "fields": {
-    "name": "Betreff",
-    "status": "Status",
     "type": "Typ",
     "attachments": "Anhänge",
     "publishDate": "Veröffentlichungsdatum",
@@ -25,19 +27,19 @@
   },
   "options": {
     "status": {
-      "In Review": "In Durchsicht",
+      "In Review": "In Prüfung",
       "Draft": "Entwurf",
       "Archived": "Archiviert",
-      "Published": "Publiziert"
+      "Published": "Veröffentlicht"
     },
     "type": {
       "Article": "Artikel"
     }
   },
-  "tooltips": {
-    "portals": "Wenn nicht leer dann ist dieser Artikel nur in den gewählten Portalen verfügbar. Andernfalls in allen Portalen."
-  },
   "presetFilters": {
     "published": "Publiziert"
+  },
+  "tooltips": {
+    "portals": "Artikel wird nur in bestimmten Portalen verfügbar sein."
   }
 }

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,7 +65,6 @@ class ExternalAccount extends \Espo\Core\Controllers\Record
         $id = $request->get('id');
         list($integration, $userId) = explode('__', $id);
 
-
         if ($this->getUser()->id != $userId) {
             throw new Forbidden();
         }
@@ -109,8 +108,8 @@ class ExternalAccount extends \Espo\Core\Controllers\Record
             throw new Forbidden();
         }
 
-        if (isset($data['enabled']) && !$data['enabled']) {
-            $data['data'] = null;
+        if (isset($data->enabled) && !$data->enabled) {
+            $data->data = null;
         }
 
         $entity = $this->getEntityManager()->getEntity('ExternalAccount', $params['id']);
@@ -126,8 +125,8 @@ class ExternalAccount extends \Espo\Core\Controllers\Record
             throw new Error('Bad HTTP method type.');
         }
 
-        $id = $data['id'];
-        $code = $data['code'];
+        $id = $data->id;
+        $code = $data->code;
 
         list($integration, $userId) = explode('__', $id);
 
@@ -139,4 +138,3 @@ class ExternalAccount extends \Espo\Core\Controllers\Record
         return $service->authorizationCode($integration, $userId, $code);
     }
 }
-

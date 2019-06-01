@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-Espo.define('collection', [], function () {
+define('collection', [], function () {
 
     var Collection = Backbone.Collection.extend({
 
@@ -38,13 +38,15 @@ Espo.define('collection', [], function () {
 
         maxSize: 20,
 
-        sortBy: 'id',
+        order: null,
 
-        asc: false,
+        orderBy: null,
 
         where: null,
 
         whereAdditional: null,
+
+        lengthCorrection: 0,
 
         _user: null,
 
@@ -54,8 +56,12 @@ Espo.define('collection', [], function () {
             this.urlRoot = this.urlRoot || this.name;
             this.url = this.url || this.urlRoot;
 
-            this.sortBy = options.sortBy || this.sortBy;
-            this.asc = ('asc' in options) ? options.asc : this.asc;
+            this.orderBy = this.sortBy = options.orderBy || options.sortBy || this.orderBy || this.sortBy;
+            this.order = options.order || this.order;
+
+            this.defaultOrder = this.order;
+            this.defaultOrderBy = this.orderBy;
+
             this.data = {};
 
             Backbone.Collection.prototype.initialize.call(this);
@@ -66,9 +72,26 @@ Espo.define('collection', [], function () {
             Backbone.Collection.prototype._onModelEvent.apply(this, arguments);
         },
 
-        sort: function (field, asc) {
-            this.sortBy = field;
-            this.asc = asc;
+        reset: function (models, options) {
+            this.lengthCorrection = 0;
+            Backbone.Collection.prototype.reset.call(this, models, options);
+        },
+
+        sort: function (orderBy, order) {
+            this.orderBy = orderBy;
+
+            if (order === true) {
+                order = 'desc';
+            } else if (order === false) {
+                order = 'asc';
+            }
+            this.order = order || 'asc';
+
+            if (typeof this.asc !== 'undefined') { // TODO remove in 5.7
+                this.asc = this.order === 'asc';
+                this.sortBy = orderBy;
+            }
+
             this.fetch();
         },
 
@@ -104,6 +127,13 @@ Espo.define('collection', [], function () {
 
         parse: function (response) {
             this.total = response.total;
+
+            if ('additionalData' in response) {
+                this.dataAdditional = response.additionalData;
+            } else {
+                this.dataAdditional = null;
+            }
+
             return response.list;
         },
 
@@ -112,8 +142,9 @@ Espo.define('collection', [], function () {
             options.data = _.extend(options.data || {}, this.data);
 
             this.offset = options.offset || this.offset;
-            this.sortBy = options.sortBy || this.sortBy;
-            this.asc = options.asc || this.asc;
+            this.orderBy = options.orderBy || options.sortBy || this.orderBy;
+            this.order = options.order || this.order;
+
             this.where = options.where || this.where;
 
             if (!('maxSize' in options)) {
@@ -122,12 +153,28 @@ Espo.define('collection', [], function () {
                 options.data.maxSize = options.maxSize;
             }
 
-            options.data.offset = options.more ? this.length : this.offset;
-            options.data.sortBy = this.sortBy;
-            options.data.asc = this.asc;
+            options.data.offset = options.more ? this.length + this.lengthCorrection : this.offset;
+            options.data.orderBy = this.orderBy;
+            options.data.order = this.order;
             options.data.where = this.getWhere();
 
-            return Backbone.Collection.prototype.fetch.call(this, options);
+            if (typeof this.asc !== 'undefined') { // TODO remove in 5.7
+                options.data.asc = this.asc;
+                options.data.sortBy = this.sortBy;
+
+                delete options.data.orderBy;
+                delete options.data.order;
+            }
+
+            this.lastXhr = Backbone.Collection.prototype.fetch.call(this, options);
+
+            return this.lastXhr;
+        },
+
+        abortLastFetch: function () {
+            if (this.lastXhr && this.lastXhr.readyState < 4) {
+                this.lastXhr.abort();
+            }
         },
 
         getWhere: function () {
@@ -136,6 +183,10 @@ Espo.define('collection', [], function () {
 
         getUser: function () {
             return this._user;
+        },
+
+        getEntityType: function () {
+            return this.name;
         }
 
     });
@@ -143,5 +194,3 @@ Espo.define('collection', [], function () {
     return Collection;
 
 });
-
-

@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,8 +30,6 @@ Espo.define('views/admin/field-manager/fields/foreign/field', 'views/fields/enum
 
     return Dep.extend({
 
-        typeList: ['varchar', 'enum', 'enumInt', 'enumFloat', 'int', 'float', 'website'],
-
         setup: function () {
             Dep.prototype.setup.call(this);
             if (!this.model.isNew()) {
@@ -53,6 +51,8 @@ Espo.define('views/admin/field-manager/fields/foreign/field', 'views/fields/enum
         },
 
         setupOptionsByLink: function () {
+            this.typeList = this.getMetadata().get(['fields', 'foreign', 'fieldTypeList']);
+
             var link = this.model.get('link');
 
             if (!link) {
@@ -100,21 +100,7 @@ Espo.define('views/admin/field-manager/fields/foreign/field', 'views/fields/enum
             }
             var type = this.getMetadata().get(['entityDefs', scope, 'fields', field, 'type']);
 
-            if (type == 'enum') {
-                this.viewValue = 'views/fields/foreign-enum';
-            } else if (type == 'enumInt') {
-                this.viewValue = 'views/fields/foreign-int';
-            } else if (type == 'enumFloat') {
-                this.viewValue = 'views/fields/foreign-float';
-            } else if (type == 'varchar') {
-                this.viewValue = 'views/fields/foreign-varchar';
-            } else if (type == 'int') {
-                this.viewValue = 'views/fields/foreign-int';
-            } else if (type == 'float') {
-                this.viewValue = 'views/fields/foreign-float';
-            } else {
-                this.viewValue = null;
-            }
+            this.viewValue = this.getMetadata().get(['fields', 'foreign', 'fieldTypeViewMap', type]);
         },
 
         fetch: function () {

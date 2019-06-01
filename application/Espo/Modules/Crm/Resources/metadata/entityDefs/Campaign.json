@@ -61,6 +61,7 @@
         "sentCount": {
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
@@ -68,6 +69,7 @@
             "view": "crm:views/campaign/fields/int-with-percentage",
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
@@ -75,6 +77,14 @@
             "view": "crm:views/campaign/fields/int-with-percentage",
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
+            "readOnly": true,
+            "disabled": true
+        },
+        "optedInCount": {
+            "type": "int",
+            "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
@@ -82,6 +92,7 @@
             "view": "crm:views/campaign/fields/int-with-percentage",
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
@@ -89,59 +100,92 @@
             "view": "crm:views/campaign/fields/int-with-percentage",
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
         "hardBouncedCount": {
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
         "softBouncedCount": {
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
         "leadCreatedCount": {
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
         "openedPercentage": {
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
         "clickedPercentage": {
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
         "optedOutPercentage": {
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
         "bouncedPercentage": {
             "type": "int",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
         "revenue": {
             "type": "currency",
             "notStorable": true,
+            "directAccessDisabled": true,
             "readOnly": true,
             "disabled": true
         },
         "budget": {
             "type": "currency"
+        },
+        "contactsTemplate": {
+            "type": "link",
+            "view": "crm:views/campaign/fields/template",
+            "targetEntityType": "Contact"
+        },
+        "leadsTemplate": {
+            "type": "link",
+            "view": "crm:views/campaign/fields/template",
+            "targetEntityType": "Lead"
+        },
+        "accountsTemplate": {
+            "type": "link",
+            "view": "crm:views/campaign/fields/template",
+            "targetEntityType": "Account"
+        },
+        "usersTemplate": {
+            "type": "link",
+            "view": "crm:views/campaign/fields/template",
+            "targetEntityType": "User"
+        },
+        "mailMergeOnlyWithAddress": {
+            "type": "bool",
+            "default": true
         }
     },
     "links": {
@@ -209,11 +253,31 @@
             "entity": "MassEmail",
             "foreign": "campaign",
             "layoutRelationshipsDisabled": true
+        },
+        "contactsTemplate": {
+            "type": "belongsTo",
+            "entity": "Template",
+            "noJoin": true
+        },
+        "leadsTemplate": {
+            "type": "belongsTo",
+            "entity": "Template",
+            "noJoin": true
+        },
+        "accountsTemplate": {
+            "type": "belongsTo",
+            "entity": "Template",
+            "noJoin": true
+        },
+        "usersTemplate": {
+            "type": "belongsTo",
+            "entity": "Template",
+            "noJoin": true
         }
     },
     "collection": {
-        "sortBy": "createdAt",
-        "asc": false
+        "orderBy": "createdAt",
+        "order": "desc"
     },
     "indexes": {
         "createdAt": {

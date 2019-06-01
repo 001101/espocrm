@@ -10,6 +10,10 @@
          "type": "bool",
          "default": false,
          "hidden": true
+      },
+      {
+         "name":"readOnly",
+         "type":"bool"
       }
    ],
    "actualFields":[
@@ -18,9 +22,10 @@
    "notActualFields":[
       "names"
    ],
+   "validationList": [
+      "required"
+   ],
    "notCreatable": true,
-   "filter": true,
-   "fieldDefs": {
-      "layoutListDisabled": true
-   }
+   "notSortable": true,
+   "filter": true
 }

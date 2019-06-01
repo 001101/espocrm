@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ Espo.define('views/role/modals/add-field', 'views/modal', function (Dep) {
         },
 
         setup: function () {
-            this.header = this.translate('Add Field');
+            this.headerHtml = this.translate('Add Field');
 
             var scope = this.scope = this.options.scope;
 
@@ -67,7 +67,9 @@ Espo.define('views/role/modals/add-field', 'views/modal', function (Dep) {
                 var d = fields[field];
                 if (field in this.options.ignoreFieldList) return;
                 if (d.disabled) return;
-
+                if (this.getMetadata().get(['app', this.options.type, 'mandatory', 'scopeFieldLevel', this.scope, field]) !== null) {
+                    return;
+                }
                 fieldList.push(field);
             }, this);
 

@@ -3,8 +3,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
  ************************************************************************/
 
 namespace Espo\Core\Utils;
+
 use Espo\Core\Exceptions\NotFound;
 
 class ScheduledJob
@@ -45,6 +46,13 @@ class ScheduledJob
     protected $allowedMethod = 'run';
 
     /**
+     * Period to check if crontab is configured properly
+     *
+     * @var string
+     */
+    protected $checkingCronPeriod = '25 hours';
+
+    /**
      * @var array - path to cron job files
      */
     private $paths = array(
@@ -54,10 +62,10 @@ class ScheduledJob
     );
 
     protected $cronSetup = array(
-        'linux' => '* * * * * {PHP-BIN-DIR} -f {CRON-FILE} > /dev/null 2>&1',
-        'windows' => '{PHP-BIN-DIR}.exe -f {CRON-FILE}',
-        'mac' => '* * * * * {PHP-BIN-DIR} -f {CRON-FILE} > /dev/null 2>&1',
-        'default' => '* * * * * {PHP-BIN-DIR} -f {CRON-FILE}',
+        'linux' => '* * * * * cd {DOCUMENT_ROOT}; {PHP-BIN-DIR} -f {CRON-FILE} > /dev/null 2>&1',
+        'windows' => '{PHP-BINARY} -f {FULL-CRON-PATH}',
+        'mac' => '* * * * * cd {DOCUMENT_ROOT}; {PHP-BIN-DIR} -f {CRON-FILE} > /dev/null 2>&1',
+        'default' => '* * * * * cd {DOCUMENT_ROOT}; {PHP-BIN-DIR} -f {CRON-FILE} > /dev/null 2>&1',
     );
 
     public function __construct(\Espo\Core\Container $container)
@@ -111,6 +119,15 @@ class ScheduledJob
         return $this->getClassName($name);
     }
 
+    public function getAvailableList()
+    {
+        $data = $this->getAll();
+
+        $list = array_keys($data);
+
+        return $list;
+    }
+
     /**
      * Get list of all job names
      *
@@ -161,14 +178,22 @@ class ScheduledJob
         $language = $this->getContainer()->get('language');
 
         $OS = $this->getSystemUtil()->getOS();
-        $phpBin = $this->getSystemUtil()->getPhpBin();
-        $cronFile = Util::concatPath($this->getSystemUtil()->getRootDir(), $this->cronFile);
         $desc = $language->translate('cronSetup', 'options', 'ScheduledJob');
 
-        $message = isset($desc[$OS]) ? $desc[$OS] : $desc['default'];
+        $data = array(
+            'PHP-BIN-DIR' => $this->getSystemUtil()->getPhpBin(),
+            'PHP-BINARY' => $this->getSystemUtil()->getPhpBinary(),
+            'CRON-FILE' => $this->cronFile,
+            'DOCUMENT_ROOT' => $this->getSystemUtil()->getRootDir(),
+            'FULL-CRON-PATH' => Util::concatPath($this->getSystemUtil()->getRootDir(), $this->cronFile),
+        );
 
+        $message = isset($desc[$OS]) ? $desc[$OS] : $desc['default'];
         $command = isset($this->cronSetup[$OS]) ? $this->cronSetup[$OS] : $this->cronSetup['default'];
-        $command = str_replace(array('{PHP-BIN-DIR}', '{CRON-FILE}'), array($phpBin, $cronFile), $command);
+
+        foreach ($data as $name => $value) {
+            $command = str_replace('{'.$name.'}', $value, $command);
+        }
 
         return array(
             'message' => $message,
@@ -176,4 +201,40 @@ class ScheduledJob
         );
     }
 
+    /**
+     * Check if crontab is configured properly
+     *
+     * @return boolean
+     */
+    public function isCronConfigured()
+    {
+        $r1From = new \DateTime('-' . $this->checkingCronPeriod);
+        $r1To = new \DateTime('+' . $this->checkingCronPeriod);
+
+        $r2From = new \DateTime('- 1 hour');
+        $r2To = new \DateTime();
+
+        $format = \Espo\Core\Utils\DateTime::$systemDateTimeFormat;
+
+        $selectParams = [
+            'select' => ['id'],
+            'leftJoins' => ['scheduledJob'],
+            'whereClause' => [
+                'OR' => [
+                    [
+                        ['executedAt>=' => $r2From->format($format)] ,
+                        ['executedAt<=' => $r2To->format($format)],
+                    ],
+                    [
+                        ['executeTime>=' => $r1From->format($format)],
+                        ['executeTime<='=> $r1To->format($format)],
+                        'scheduledJob.job' => 'Dummy'
+                    ]
+                ]
+            ]
+        ];
+
+
+        return !!$this->getEntityManager()->getRepository('Job')->findOne($selectParams);
+    }
 }

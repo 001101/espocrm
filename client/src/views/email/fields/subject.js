@@ -2,8 +2,8 @@
  * This file is part of EspoCRM.
  *
  * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2015 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
- * Website: http://www.espocrm.com
+ * Copyright (C) 2014-2019 Yuri Kuznetsov, Taras Machyshyn, Oleksiy Avramenko
+ * Website: https://www.espocrm.com
  *
  * EspoCRM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,11 +32,29 @@ Espo.define('views/email/fields/subject', 'views/fields/varchar', function (Dep)
         listLinkTemplate: 'email/fields/subject/list-link',
 
         data: function () {
-            return _.extend({
-                'isRead': (this.model.get('sentById') === this.getUser().id) || this.model.get('isRead'),
-                'isImportant': this.model.get('isImportant'),
-                'hasAttachment': this.model.get('hasAttachment')
-            }, Dep.prototype.data.call(this));
+            var data = Dep.prototype.data.call(this);
+
+            data.isRead = (this.model.get('sentById') === this.getUser().id) || this.model.get('isRead');
+            data.isImportant = this.model.has('isImportant') && this.model.get('isImportant');
+            data.hasAttachment = this.model.has('hasAttachment') && this.model.get('hasAttachment');
+            data.isReplied = this.model.has('isReplied') && this.model.get('isReplied');
+
+            if (!data.isRead && !this.model.has('isRead')) {
+                data.isRead = true;
+            }
+
+            if (!data.isNotEmpty) {
+                if (
+                    this.model.get('name') !== null
+                    &&
+                    this.model.get('name') !== ''
+                    &&
+                    this.model.has('name')
+                ) {
+                    data.isNotEmpty = true;
+                }
+            }
+            return data;
         },
 
         getValueForDisplay: function () {
@@ -44,7 +62,7 @@ Espo.define('views/email/fields/subject', 'views/fields/varchar', function (Dep)
         },
 
         getAttributeList: function () {
-            return ['name', 'isRead', 'isImportant'];
+            return ['name', 'isRead', 'isImportant', 'hasAttachment'];
         },
 
         setup: function () {
